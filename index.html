@@ -627,9 +627,9 @@
                     <!-- Railing Category Quick Select (Shown only in RAILING mode) -->
                     <div id="railingCategoryQuickBar" class="hidden flex-wrap items-center gap-1.5 pt-2 border-t border-gray-200/60">
                         <span class="text-[11px] font-bold text-gray-500 mr-1">Chọn nhanh nhóm lan can:</span>
-                        <button type="button" onclick="toggleSelectRailingCategory('CORRIDOR_BAY')" class="px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 text-xs font-semibold">+/- Dọc hành lang chính (Các đoạn nhỏ)</button>
-                        <button type="button" onclick="toggleSelectRailingCategory('ENTRANCE_SIDE')" class="px-2.5 py-1 rounded-lg bg-cyan-50 hover:bg-cyan-100 text-cyan-800 border border-cyan-200 text-xs font-semibold">+/- 2 bên lối vào phòng</button>
-                        <button type="button" onclick="toggleSelectRailingCategory('BALCONY')" class="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-xs font-semibold">+/- Ban công cuối phòng (Nguyên phòng)</button>
+                        <button type="button" onclick="toggleSelectRailingCategory('CORRIDOR_BAY')" class="px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 text-xs font-semibold">+/- Đoạn Giữa (Giữa Phòng-Phòng)</button>
+                        <button type="button" onclick="toggleSelectRailingCategory('ENTRANCE_SIDE')" class="px-2.5 py-1 rounded-lg bg-cyan-50 hover:bg-cyan-100 text-cyan-800 border border-cyan-200 text-xs font-semibold">+/- Đoạn Trước (Trước + Số phòng)</button>
+                        <button type="button" onclick="toggleSelectRailingCategory('BALCONY')" class="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-xs font-semibold">+/- Đoạn Sau (Sau + Số phòng)</button>
                         <button type="button" onclick="toggleSelectRailingCategory('STAIR_ZONE')" class="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-semibold">+/- 3 Cầu thang phụ trợ</button>
                     </div>
 
@@ -950,7 +950,7 @@
 
                     const attachClusterBalconies = (rawClusters, sideKey, sideLabel) => {
                         return rawClusters.map((c, idx) => {
-                            // 1 single rear balcony railing per room (yellow U-bracket behind each room)
+                            // 1 single rear balcony railing per room -> Named: "Sau + số phòng"
                             const balconies = c.rooms.map(roomId => {
                                 const seg = {
                                     id: `LC_${wingCode}_T${floor}_BC_${roomId}`,
@@ -959,28 +959,32 @@
                                     side: sideKey,
                                     category: 'BALCONY',
                                     roomRef: roomId,
-                                    shortCode: `BC P.${roomId}`,
-                                    label: `Lan can ban công sau P.${roomId} (${wing} - T${floor})`
+                                    shortCode: `Sau ${roomId}`,
+                                    label: `Lan can Sau ${roomId} (${wing} - T${floor})`
                                 };
                                 ALL_RAILINGS.push(seg);
                                 RAILING_META_MAP[seg.id] = seg;
                                 return seg;
                             });
 
-                            const roomRangeText = c.rooms.length > 1
-                                ? `${c.rooms[0]}|${c.rooms[c.rooms.length - 1]}`
-                                : `${c.rooms[0]}`;
+                            const topRoom = c.rooms[0];
+                            const botRoom = c.rooms[c.rooms.length - 1];
+                            const isSingleRoom = c.rooms.length === 1;
+                            const roomRangeText = !isSingleRoom ? `${topRoom}|${botRoom}` : `${topRoom}`;
 
-                            // 2 horizontal entrance branch railings turning into the cluster doorway
+                            // 2 horizontal entrance branch railings turning into the cluster doorway -> Named: "Trước + số phòng"
+                            const entTopShort = isSingleRoom ? `Trước ${topRoom} (T)` : `Trước ${topRoom}`;
+                            const entBotShort = isSingleRoom ? `Trước ${botRoom} (D)` : `Trước ${botRoom}`;
+
                             const entTop = {
                                 id: `LC_${wingCode}_T${floor}_${sideKey}_C${idx + 1}_ENT_TOP`,
                                 wing,
                                 floor,
                                 side: sideKey,
                                 category: 'ENTRANCE_SIDE',
-                                roomRef: roomRangeText,
-                                shortCode: `LV Trên (${roomRangeText})`,
-                                label: `Đoạn lan can nhánh lối vào trên cụm P.${roomRangeText} (${sideLabel} • ${wing} - T${floor})`
+                                roomRef: topRoom,
+                                shortCode: entTopShort,
+                                label: `Lan can ${entTopShort} (${sideLabel} • ${wing} - T${floor})`
                             };
                             const entBottom = {
                                 id: `LC_${wingCode}_T${floor}_${sideKey}_C${idx + 1}_ENT_BOT`,
@@ -988,79 +992,68 @@
                                 floor,
                                 side: sideKey,
                                 category: 'ENTRANCE_SIDE',
-                                roomRef: roomRangeText,
-                                shortCode: `LV Dưới (${roomRangeText})`,
-                                label: `Đoạn lan can nhánh lối vào dưới cụm P.${roomRangeText} (${sideLabel} • ${wing} - T${floor})`
+                                roomRef: botRoom,
+                                shortCode: entBotShort,
+                                label: `Lan can ${entBotShort} (${sideLabel} • ${wing} - T${floor})`
                             };
                             ALL_RAILINGS.push(entTop, entBottom);
                             RAILING_META_MAP[entTop.id] = entTop;
                             RAILING_META_MAP[entBottom.id] = entBottom;
 
-                            return { ...c, balconies, entTop, entBottom, roomRangeText };
+                            return { ...c, balconies, entTop, entBottom, topRoom, botRoom, roomRangeText };
                         });
                     };
 
                     const leftClusters = attachClusterBalconies(rawLeftClusters, 'LEFT', 'Dãy Trái');
                     const rightClusters = attachClusterBalconies(rawRightClusters, 'RIGHT', 'Dãy Phải');
 
-                    // Corridor vertical runs between clusters, each split by tick mark into 2 sub-segments (Đ1 & Đ2) as drawn
+                    // Corridor vertical runs between clusters -> Named: "Giữa Phòng + Phòng"
                     const buildCorridorBays = (clusters, sideKey, sideLabel) => {
                         const bays = [];
-                        const createSplitBay = (baseId, shortBase, labelBase, isStairLink = false) => {
-                            const seg1 = {
-                                id: `${baseId}_S1`,
+                        const createSingleBay = (baseId, shortBase, labelBase, isStairLink = false) => {
+                            const seg = {
+                                id: baseId,
                                 wing,
                                 floor,
                                 side: sideKey,
                                 category: 'CORRIDOR_BAY',
                                 isStairLink,
-                                shortCode: `${shortBase} (Đ1)`,
-                                label: `${labelBase} - Đoạn 1 (${sideLabel} • ${wing} - T${floor})`
+                                shortCode: shortBase,
+                                label: `${labelBase} (${sideLabel} • ${wing} - T${floor})`
                             };
-                            const seg2 = {
-                                id: `${baseId}_S2`,
-                                wing,
-                                floor,
-                                side: sideKey,
-                                category: 'CORRIDOR_BAY',
-                                isStairLink,
-                                shortCode: `${shortBase} (Đ2)`,
-                                label: `${labelBase} - Đoạn 2 (${sideLabel} • ${wing} - T${floor})`
-                            };
-                            ALL_RAILINGS.push(seg1, seg2);
-                            RAILING_META_MAP[seg1.id] = seg1;
-                            RAILING_META_MAP[seg2.id] = seg2;
-                            return [seg1, seg2];
+                            ALL_RAILINGS.push(seg);
+                            RAILING_META_MAP[seg.id] = seg;
+                            return seg;
                         };
 
                         if (clusters.length === 0) return bays;
 
-                        // Top run from North Stair / Top Entry to Cluster 1
-                        bays.push(createSplitBay(
+                        // Top run from North Stair / Top Entry to first room
+                        bays.push(createSingleBay(
                             `LC_${wingCode}_T${floor}_${sideKey}_HL_N0`,
-                            `HL Đầu→${clusters[0].roomRangeText}`,
-                            `Lan can dọc hành lang từ Đầu thang → P.${clusters[0].roomRangeText}`,
+                            `Giữa Thang-${clusters[0].topRoom}`,
+                            `Lan can Giữa Thang Bắc và P.${clusters[0].topRoom}`,
                             true
                         ));
 
-                        // Runs between consecutive clusters
+                        // Runs between consecutive clusters: "Giữa Phòng + Phòng"
                         for (let c = 0; c < clusters.length - 1; c++) {
                             const curr = clusters[c];
                             const next = clusters[c + 1];
-                            bays.push(createSplitBay(
+                            bays.push(createSingleBay(
                                 `LC_${wingCode}_T${floor}_${sideKey}_HL_B${c + 1}`,
-                                `HL ${curr.roomRangeText}↔${next.roomRangeText}`,
-                                `Lan can dọc hành lang giữa cụm P.${curr.roomRangeText} và P.${next.roomRangeText}`,
+                                `Giữa ${curr.botRoom}-${next.topRoom}`,
+                                `Lan can Giữa P.${curr.botRoom} và P.${next.topRoom}`,
                                 false
                             ));
                         }
 
-                        // Bottom run from Last Cluster to South Stair / End
+                        // Bottom run from Last Room to South Stair / End
                         const lastCluster = clusters[clusters.length - 1];
-                        bays.push(createSplitBay(
+                        bays.push(createSingleBay(
                             `LC_${wingCode}_T${floor}_${sideKey}_HL_S99`,
-                            `HL ${lastCluster.roomRangeText}→Cuối`,
-                            `Lan can dọc hành lang từ P.${lastCluster.roomRangeText} → Cầu thang cuối`,
+                            `Giữa ${lastCluster.botRoom}-Thang`,
+                            `Lan can Giữa P.${lastCluster.botRoom} và Cầu thang cuối`,
                             true
                         ));
 
@@ -1200,23 +1193,22 @@
 
             // U-shaped Staircase graphic matching sketch
             const renderStairUShape = (label) => `
-                <div class="w-24 h-12 border-2 border-slate-600 bg-slate-100 rounded-sm p-1 flex flex-col justify-between relative shadow-2xs shrink-0" title="${label}">
-                    <div class="h-2.5 w-full border-b border-slate-500 flex divide-x divide-slate-400">
+                <div class="w-24 h-11 border-2 border-slate-600 bg-slate-100 rounded-sm p-1 flex flex-col justify-between relative shadow-2xs shrink-0" title="${label}">
+                    <div class="h-2 w-full border-b border-slate-500 flex divide-x divide-slate-400">
                         <span class="flex-1"></span><span class="flex-1"></span><span class="flex-1"></span><span class="flex-1"></span><span class="flex-1"></span>
                     </div>
                     <div class="text-[8px] font-extrabold text-slate-600 text-center uppercase tracking-tighter">${label}</div>
-                    <div class="h-2.5 w-full border-t border-slate-500 flex divide-x divide-slate-400">
+                    <div class="h-2 w-full border-t border-slate-500 flex divide-x divide-slate-400">
                         <span class="flex-1"></span><span class="flex-1"></span><span class="flex-1"></span><span class="flex-1"></span><span class="flex-1"></span>
                     </div>
                 </div>
             `;
 
-            // Render a cluster of rooms + rear yellow U-balcony + doorway entrance branches (Left or Right of corridor)
-            const renderSketchCluster = (cluster, side) => {
-                if (!cluster) return `<div class="h-full min-h-[76px]"></div>`;
-                const isSingle = cluster.type === 'SINGLE_RECESSED';
+            // Render Room Box + Rear Balcony ("Sau + số phòng") ONLY (while the 3-piece U railings connect between rooms along the corridor)
+            const renderRoomAndRearBalconyBox = (cluster, side) => {
+                if (!cluster) return `<div class="h-[88px]"></div>`;
 
-                // Rear Balcony U-brackets (1 per room)
+                // Rear Balcony U-brackets ("Sau + số phòng")
                 const balconiesHtml = cluster.balconies.map(bSeg => {
                     const st = getRailingSegmentStyle(bSeg);
                     const bracketBorder = side === 'LEFT'
@@ -1224,47 +1216,34 @@
                         : 'border-r-[6px] border-y-[4px] border-l-0 rounded-r-md';
                     return `
                         <button type="button" ${st.click} title="${bSeg.label}"
-                            class="railing-seg-btn w-12 h-11 ${bracketBorder} text-[9px] font-extrabold flex items-center justify-center transition ${st.cls}">
-                            <span>BC ${bSeg.roomRef}</span>
+                            class="railing-seg-btn w-16 h-10 ${bracketBorder} text-[9.5px] font-extrabold flex items-center justify-center transition ${st.cls}">
+                            <span>${bSeg.shortCode}</span>
                         </button>
                     `;
-                }).join('<div class="h-0.5 bg-slate-600 w-10 mx-auto"></div>');
+                }).join('<div class="h-0.5 bg-slate-600 w-12 mx-auto"></div>');
 
-                // Room Box with architectural door arc facing corridor
+                // Room Box with architectural door arc facing the corridor
                 const roomsBoxHtml = cluster.rooms.map((rId, idx) => {
                     const doorArc = side === 'LEFT'
                         ? `<span class="w-2.5 h-3 border-t-2 border-l-2 border-slate-500 rounded-tl-full inline-block shrink-0" title="Cửa phòng ${rId}"></span>`
                         : `<span class="w-2.5 h-3 border-t-2 border-r-2 border-slate-500 rounded-tr-full inline-block shrink-0" title="Cửa phòng ${rId}"></span>`;
                     return `
-                        <div class="h-11 px-2 bg-white border-2 border-slate-700 flex items-center justify-between gap-1 font-extrabold text-xs text-slate-900 shadow-2xs ${idx > 0 ? '-mt-0.5' : ''}">
+                        <div class="h-10 px-2.5 bg-white border-2 border-slate-700 flex items-center justify-between gap-1 font-extrabold text-xs text-slate-900 shadow-2xs ${idx > 0 ? '-mt-0.5' : ''}">
                             ${side === 'LEFT' ? `<span>${rId}</span>${doorArc}` : `${doorArc}<span>${rId}</span>`}
                         </div>
                     `;
                 }).join('');
 
-                // Two yellow horizontal entrance railing legs leading from main corridor into the room doors
-                const entranceBranchesHtml = `
-                    <div class="flex flex-col justify-between h-full py-0.5 w-20 shrink-0">
-                        ${renderYellowBar(cluster.entTop, 'w-full h-5', `LV Trên`)}
-                        <div class="text-[8px] font-bold text-slate-400 text-center leading-none py-0.5">Lối vào</div>
-                        ${renderYellowBar(cluster.entBottom, 'w-full h-5', `LV Dưới`)}
-                    </div>
-                `;
-
-                const singlePadding = isSingle ? 'my-2' : '';
-
                 if (side === 'LEFT') {
                     return `
-                        <div class="flex items-center justify-end gap-1 ${singlePadding}">
+                        <div class="flex items-center justify-end gap-1 h-[88px]">
                             <div class="flex flex-col justify-center">${balconiesHtml}</div>
                             <div class="w-20 flex flex-col justify-center">${roomsBoxHtml}</div>
-                            ${entranceBranchesHtml}
                         </div>
                     `;
                 } else {
                     return `
-                        <div class="flex items-center justify-start gap-1 ${singlePadding}">
-                            ${entranceBranchesHtml}
+                        <div class="flex items-center justify-start gap-1 h-[88px]">
                             <div class="w-20 flex flex-col justify-center">${roomsBoxHtml}</div>
                             <div class="flex flex-col justify-center">${balconiesHtml}</div>
                         </div>
@@ -1272,81 +1251,100 @@
                 }
             };
 
-            // Render a vertical corridor bay split into 2 segments with a black tick line in the middle (matching sketch)
-            const renderVerticalCorridorBay = (pairArr) => {
-                if (!pairArr || pairArr.length < 2) return `<div class="w-14"></div>`;
-                return `
-                    <div class="flex flex-col items-center w-14 my-0.5">
-                        ${renderYellowBar(pairArr[0], 'w-full h-7', 'Đ1')}
-                        <div class="w-5 h-[2px] bg-slate-900 my-0.5" title="Vạch ngắt đoạn lan can"></div>
-                        ${renderYellowBar(pairArr[1], 'w-full h-7', 'Đ2')}
-                    </div>
-                `;
-            };
+            // Render a 3-segment U-shape connector bridging consecutive room clusters:
+            // Top horizontal arm ("Trước + phòng trên") + Middle vertical spine ("Giữa Phòng-Phòng") + Bottom horizontal arm ("Trước + phòng dưới")
+            const renderThreeSegmentUShape = (topArmSeg, midVertSeg, botArmSeg, side) => {
+                if (!topArmSeg && !midVertSeg && !botArmSeg) return `<div class="h-[68px]"></div>`;
 
-            const maxRows = Math.max(bp.leftClusters.length, bp.rightClusters.length);
-            const leftAxisDesc = bp.isOcean ? 'Dãy Trái: Cặp phòng đôi (02|04, 06|08...)' : 'Dãy Trái (Ngoài): 2 đôi 1 đơn (33|35, 37...)';
-            const rightAxisDesc = bp.isOcean ? 'Dãy Phải (Ngoài): 2 đôi 1 đơn (01|03, 05...)' : 'Dãy Phải: Cặp phòng đôi (32|34, 36|38...)';
+                const topHtml = topArmSeg
+                    ? renderYellowBar(topArmSeg, `w-24 h-5 ${side === 'LEFT' ? 'rounded-r-none border-r-0' : 'rounded-l-none border-l-0'}`, topArmSeg.shortCode)
+                    : `<div class="w-24 h-5"></div>`;
 
-            let bodyRowsHtml = '';
+                const botHtml = botArmSeg
+                    ? renderYellowBar(botArmSeg, `w-24 h-5 ${side === 'LEFT' ? 'rounded-r-none border-r-0' : 'rounded-l-none border-l-0'}`, botArmSeg.shortCode)
+                    : `<div class="w-24 h-5"></div>`;
 
-            // Initial top corridor run (from North Stair to Cluster 1)
-            bodyRowsHtml += `
-                <div class="grid grid-cols-12 items-center">
-                    <div class="col-span-5 flex justify-end pr-2">
-                        ${ bp.isOcean ? renderStairUShape('Thang Bắc') : '' }
-                    </div>
-                    <div class="col-span-2 flex justify-between px-1">
-                        ${renderVerticalCorridorBay(bp.leftBays[0])}
-                        ${renderVerticalCorridorBay(bp.rightBays[0])}
-                    </div>
-                    <div class="col-span-5 flex justify-start pl-2">
-                        ${ !bp.isOcean ? renderStairUShape('Thang Bắc') : '' }
-                    </div>
-                </div>
-            `;
+                const midHtml = midVertSeg
+                    ? renderYellowBar(midVertSeg, `w-24 h-[68px] ${side === 'LEFT' ? 'rounded-l-none' : 'rounded-r-none'}`, midVertSeg.shortCode)
+                    : `<div class="w-24 h-[68px]"></div>`;
 
-            for (let i = 0; i < maxRows; i++) {
-                const leftC = bp.leftClusters[i] || null;
-                const rightC = bp.rightClusters[i] || null;
-                const leftNextBay = bp.leftBays[i + 1] || null;
-                const rightNextBay = bp.rightBays[i + 1] || null;
-
-                // Cluster row
-                bodyRowsHtml += `
-                    <div class="grid grid-cols-12 items-center my-0.5">
-                        <div class="col-span-5">${renderSketchCluster(leftC, 'LEFT')}</div>
-                        <div class="col-span-2 flex flex-col items-center justify-center px-1">
-                            <div class="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Trục ${i + 1}</div>
-                        </div>
-                        <div class="col-span-5">${renderSketchCluster(rightC, 'RIGHT')}</div>
-                    </div>
-                `;
-
-                // Mid corridor stair zone after row 2
-                if (i === 2) {
-                    bodyRowsHtml += `
-                        <div class="grid grid-cols-12 items-center my-1">
-                            <div class="col-span-4"></div>
-                            <div class="col-span-4 bg-slate-800/90 rounded-lg p-1.5 flex items-center justify-between gap-2">
-                                <span class="text-[9px] font-bold text-amber-200 pl-1">Sảnh Thang Giữa</span>
-                                ${renderYellowBar(bp.midStair, 'w-28 h-6', 'LC Thang Giữa')}
+                if (side === 'LEFT') {
+                    // Left side of corridor: U opens to the left towards the room doors ( ] shape )
+                    return `
+                        <div class="flex items-stretch justify-end h-[68px]">
+                            <div class="flex flex-col justify-between items-end -mr-0.5 z-10">
+                                ${topHtml}
+                                <span class="text-[8px] font-bold text-slate-400 pr-1">Chữ U 3 đoạn</span>
+                                ${botHtml}
                             </div>
-                            <div class="col-span-4"></div>
+                            <div class="flex items-center">${midHtml}</div>
+                        </div>
+                    `;
+                } else {
+                    // Right side of corridor: U opens to the right towards the room doors ( [ shape )
+                    return `
+                        <div class="flex items-stretch justify-start h-[68px]">
+                            <div class="flex items-center">${midHtml}</div>
+                            <div class="flex flex-col justify-between items-start -ml-0.5 z-10">
+                                ${topHtml}
+                                <span class="text-[8px] font-bold text-slate-400 pl-1">Chữ U 3 đoạn</span>
+                                ${botHtml}
+                            </div>
                         </div>
                     `;
                 }
+            };
 
-                // Vertical corridor run between cluster i and i+1
-                if (leftNextBay || rightNextBay) {
-                    bodyRowsHtml += `
-                        <div class="grid grid-cols-12 items-center">
-                            <div class="col-span-5"></div>
-                            <div class="col-span-2 flex justify-between px-1">
-                                ${renderVerticalCorridorBay(leftNextBay)}
-                                ${renderVerticalCorridorBay(rightNextBay)}
+            const maxClusters = Math.max(bp.leftClusters.length, bp.rightClusters.length);
+            const leftAxisDesc = bp.isOcean ? 'Dãy Trái: Cặp phòng đôi (02|04, 06|08...)' : 'Dãy Trái (Ngoài): 2 đôi 1 đơn (33|35, 37...)';
+            const rightAxisDesc = bp.isOcean ? 'Dãy Phải (Ngoài): 2 đôi 1 đơn (01|03, 05...)' : 'Dãy Phải: Cặp phòng đôi (32|34, 36|38...)';
+
+            // Interleaved layout rows so each 3-segment U-shape physically bridges the bottom door of Cluster i and the top door of Cluster i+1
+            let unifiedPlanHtml = '';
+
+            for (let i = 0; i <= maxClusters; i++) {
+                // 1. U-Connector Row i (Bridges Cluster i-1 bottom and Cluster i top)
+                const leftTopArm = i > 0 && bp.leftClusters[i - 1] ? bp.leftClusters[i - 1].entBottom : null;
+                const leftMidBay = bp.leftBays[i] || null;
+                const leftBotArm = i < bp.leftClusters.length && bp.leftClusters[i] ? bp.leftClusters[i].entTop : null;
+
+                const rightTopArm = i > 0 && bp.rightClusters[i - 1] ? bp.rightClusters[i - 1].entBottom : null;
+                const rightMidBay = bp.rightBays[i] || null;
+                const rightBotArm = i < bp.rightClusters.length && bp.rightClusters[i] ? bp.rightClusters[i].entTop : null;
+
+                unifiedPlanHtml += `
+                    <div class="grid grid-cols-12 items-center">
+                        <div class="col-span-5 flex items-center justify-end gap-2 pr-1">
+                            ${i === 0 && bp.isOcean ? renderStairUShape('Thang Bắc') : ''}
+                            ${renderThreeSegmentUShape(leftTopArm, leftMidBay, leftBotArm, 'LEFT')}
+                        </div>
+                        <div class="col-span-2 flex flex-col items-center justify-center">
+                            ${i === 3
+                                ? `<div class="bg-slate-800/90 rounded-lg px-1.5 py-1 flex flex-col items-center gap-1 shadow-xs">
+                                       <span class="text-[8px] font-bold text-amber-200 uppercase">Thang Giữa</span>
+                                       ${renderYellowBar(bp.midStair, 'w-24 h-5', 'LC Thang Giữa')}
+                                   </div>`
+                                : `<div class="w-1 h-12 border-l-2 border-dashed border-slate-300"></div>`
+                            }
+                        </div>
+                        <div class="col-span-5 flex items-center justify-start gap-2 pl-1">
+                            ${renderThreeSegmentUShape(rightTopArm, rightMidBay, rightBotArm, 'RIGHT')}
+                            ${i === 0 && !bp.isOcean ? renderStairUShape('Thang Bắc') : ''}
+                        </div>
+                    </div>
+                `;
+
+                // 2. Room Cluster Row i
+                if (i < maxClusters) {
+                    const leftC = bp.leftClusters[i] || null;
+                    const rightC = bp.rightClusters[i] || null;
+                    unifiedPlanHtml += `
+                        <div class="grid grid-cols-12 items-center -my-2">
+                            <div class="col-span-5 pr-24">${renderRoomAndRearBalconyBox(leftC, 'LEFT')}</div>
+                            <div class="col-span-2 flex flex-col items-center justify-center">
+                                <span class="px-1.5 py-0.5 rounded bg-slate-200/80 text-[8px] font-extrabold text-slate-600 uppercase">Cụm ${i + 1}</span>
                             </div>
-                            <div class="col-span-5"></div>
+                            <div class="col-span-5 pl-24">${renderRoomAndRearBalconyBox(rightC, 'RIGHT')}</div>
                         </div>
                     `;
                 }
@@ -1354,29 +1352,31 @@
 
             return `
                 <div class="overflow-x-auto pb-1">
-                    <div class="min-w-[660px] bg-[#FAF9F5] rounded-2xl p-3.5 border-2 border-slate-300 space-y-2 shadow-inner">
+                    <div class="min-w-[740px] bg-[#FAF9F5] rounded-2xl p-3.5 border-2 border-slate-300 space-y-2.5 shadow-inner">
                         <!-- Sketch Legend Header -->
                         <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200 text-[10px] text-slate-600">
                             <span class="font-bold text-slate-700">${leftAxisDesc}</span>
-                            <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-bold border border-amber-300">Màu vàng = Đoạn lan can (Bấm để chọn / cập nhật)</span>
+                            <span class="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold border border-amber-300">
+                                Chữ U 3 đoạn: [Trước + P] — [Giữa P-P] — [Trước + P]  •  Ban công: [Sau + P]
+                            </span>
                             <span class="font-bold text-slate-700">${rightAxisDesc}</span>
                         </div>
 
                         <!-- Top Cap Railing & Entry Arrows (North Stair) -->
                         <div class="flex items-center justify-center gap-3 pt-1">
                             <span class="text-[10px] font-bold text-slate-500">↓↓ Lối vào đầu hành lang</span>
-                            ${renderYellowBar(bp.northStair, 'w-44 h-7', bp.northStair.shortCode)}
+                            ${renderYellowBar(bp.northStair, 'w-48 h-7', bp.northStair.shortCode)}
                         </div>
 
-                        <!-- Main Architectural Corridor Body -->
-                        <div class="space-y-0.5">
-                            ${bodyRowsHtml}
+                        <!-- Main Architectural Corridor Body (3-Segment U Connectors + Room Clusters) -->
+                        <div class="space-y-0">
+                            ${unifiedPlanHtml}
                         </div>
 
                         <!-- Bottom Cap Railing & South Stair -->
                         <div class="flex items-center justify-center gap-3 pt-2 border-t border-slate-200">
                             ${renderStairUShape('Thang Nam')}
-                            ${renderYellowBar(bp.southStair, 'w-44 h-7', bp.southStair.shortCode)}
+                            ${renderYellowBar(bp.southStair, 'w-48 h-7', bp.southStair.shortCode)}
                         </div>
                     </div>
                 </div>
@@ -2692,24 +2692,22 @@
                         // Central Corridor Axis Spine
                         drawRoundedRect(ctx, wx + 466, startY, 24, availH, 6, '#E2E8F0', '#CBD5E1', 1);
 
-                        // Draw Left & Right Split Corridor Bays (each bay has S1 & S2 separated by a pillar)
+                        // Draw Left & Right Unified Corridor Bays ("Giữa Phòng-Phòng")
                         const drawCorridorBaysColumn = (bays, bx) => {
                             if (!bays || bays.length === 0) return;
                             const baySlotH = availH / bays.length;
-                            bays.forEach((pair, bIdx) => {
+                            bays.forEach((baySeg, bIdx) => {
+                                if (!baySeg) return;
                                 const by = startY + bIdx * baySlotH;
-                                const subH = (baySlotH - 10) / 2;
                                 drawPillarDot(bx + 47, by + 2);
-                                drawSegPill(pair[0], bx, by + 4, 95, subH, pair[0].shortCode.replace('HL ', ''), 8.5);
-                                drawPillarDot(bx + 47, by + 4 + subH + 1);
-                                drawSegPill(pair[1], bx, by + 6 + subH, 95, subH, pair[1].shortCode.replace('HL ', ''), 8.5);
+                                drawSegPill(baySeg, bx, by + 5, 95, baySlotH - 10, baySeg.shortCode, 8.5);
                             });
                         };
 
                         drawCorridorBaysColumn(bp.leftBays, wx + 365);
                         drawCorridorBaysColumn(bp.rightBays, wx + 496);
 
-                        // Draw Left & Right Room Clusters (Rear Balcony 1 per room + Room Box + Top/Bottom Entrance Railings)
+                        // Draw Left & Right Room Clusters (Rear Balcony "Sau + P" + Room Box + "Trước + P" Arms)
                         for (let i = 0; i < maxClusters; i++) {
                             const cy = startY + i * rowStep + 2;
                             const ch = rowStep - 6;
@@ -2722,7 +2720,7 @@
                                 const cw = 325 - indent;
                                 drawRoundedRect(ctx, cx, cy, cw, ch, 8, '#FFFFFF', '#CBD5E1', 1);
 
-                                // 1 single balcony per room on the far left
+                                // 1 single balcony per room on the far left ("Sau + P")
                                 const balCount = lc.balconies.length;
                                 const balH = (ch - 8) / balCount;
                                 lc.balconies.forEach((bSeg, bIdx) => {
@@ -2742,11 +2740,11 @@
                                     ctx.fillText(`P.${rId}`, cx + 120, cy + 4 + rIdx * rh + (rh - 2) / 2);
                                 });
 
-                                // Entrance Top & Bottom railings on corridor side
+                                // Entrance Top & Bottom railings on corridor side ("Trước + số phòng")
                                 const entW = cw - 162;
                                 const entH = Math.min(20, (ch - 10) / 2);
-                                drawSegPill(lc.entTop, cx + 156, cy + 4, entW, entH, `LV Trên ${lc.roomRangeText}`, 8.5);
-                                drawSegPill(lc.entBottom, cx + 156, cy + ch - entH - 4, entW, entH, `LV Dưới ${lc.roomRangeText}`, 8.5);
+                                drawSegPill(lc.entTop, cx + 156, cy + 4, entW, entH, lc.entTop.shortCode, 8.5);
+                                drawSegPill(lc.entBottom, cx + 156, cy + ch - entH - 4, entW, entH, lc.entBottom.shortCode, 8.5);
                             }
 
                             // Right Cluster
@@ -2757,11 +2755,11 @@
                                 const cw = 325 - indent;
                                 drawRoundedRect(ctx, cx, cy, cw, ch, 8, '#FFFFFF', '#CBD5E1', 1);
 
-                                // Entrance Top & Bottom railings on left (corridor) side
+                                // Entrance Top & Bottom railings on left (corridor) side ("Trước + số phòng")
                                 const entW = cw - 162;
                                 const entH = Math.min(20, (ch - 10) / 2);
-                                drawSegPill(rc.entTop, cx + 6, cy + 4, entW, entH, `LV Trên ${rc.roomRangeText}`, 8.5);
-                                drawSegPill(rc.entBottom, cx + 6, cy + ch - entH - 4, entW, entH, `LV Dưới ${rc.roomRangeText}`, 8.5);
+                                drawSegPill(rc.entTop, cx + 6, cy + 4, entW, entH, rc.entTop.shortCode, 8.5);
+                                drawSegPill(rc.entBottom, cx + 6, cy + ch - entH - 4, entW, entH, rc.entBottom.shortCode, 8.5);
 
                                 // Room labels in middle
                                 rc.rooms.forEach((rId, rIdx) => {
@@ -2773,7 +2771,7 @@
                                     ctx.fillText(`P.${rId}`, cx + cw - 120, cy + 4 + rIdx * rh + (rh - 2) / 2);
                                 });
 
-                                // 1 single balcony per room on the far right
+                                // 1 single balcony per room on the far right ("Sau + P")
                                 const balCount = rc.balconies.length;
                                 const balH = (ch - 8) / balCount;
                                 rc.balconies.forEach((bSeg, bIdx) => {
