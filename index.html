@@ -886,8 +886,8 @@
                         <i data-lucide="folder-plus" class="w-5 h-5"></i>
                     </div>
                     <div>
-                        <h3 class="font-bold text-base text-gray-900">Tạo Dự Án Phát Sinh Mới</h3>
-                        <p class="text-xs text-gray-500">Tự động khởi tạo danh sách phòng cho nhân viên</p>
+                        <h3 id="projectModalTitle" class="font-bold text-base text-gray-900">Tạo Dự Án Phát Sinh Mới</h3>
+                        <p id="projectModalSubtitle" class="text-xs text-gray-500">Tự động khởi tạo danh sách phòng cho nhân viên</p>
                     </div>
                 </div>
                 <button onclick="closeCreateProjectModal()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600">
@@ -896,6 +896,7 @@
             </div>
 
             <form id="createProjectForm" onsubmit="handleCreateProject(event)" class="p-5 sm:p-6 overflow-y-auto space-y-4">
+                <input type="hidden" id="editingProjectId" value="">
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 mb-1">Tên dự án / Hạng mục công việc *</label>
                     <input type="text" id="newProjName" required placeholder="VD: Thay rèm cửa chống nắng, Kiểm tra đầu báo khói..." class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -1312,6 +1313,7 @@
             // Modal temporary state
             editingRoomId: null,
             editingTempStatus: 'Pending',
+            editingProjectId: null,
             deletingProjectId: null,
             pendingRestorePayload: null,
             // Admin Custom Room Picker state
@@ -2480,6 +2482,9 @@
                             <div class="flex items-center gap-2 text-xs text-gray-500 shrink-0">
                                 <span class="inline-flex items-center gap-1"><i data-lucide="calendar" class="w-3.5 h-3.5"></i> Hạn: ${proj.deadline}</span>
                                 <span class="font-bold text-gray-900 bg-gray-100 px-2.5 py-1 rounded-lg">${pStats.done}/${pStats.totalTasks} phòng</span>
+                                <button type="button" onclick="openEditProjectModal(event, '${proj.id}')" title="Chỉnh sửa dự án & danh sách phòng" class="w-7 h-7 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 flex items-center justify-center transition">
+                                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                </button>
                                 <button type="button" onclick="openDeleteProjectModal(event, '${proj.id}')" title="Xóa dự án" class="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 flex items-center justify-center transition">
                                     <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                                 </button>
@@ -2558,68 +2563,23 @@
         }
 
         // ---------------------------------------------------------------------
-        // DELETE PROJECT MODAL (ADMIN - FIRESTORE)
-        // ---------------------------------------------------------------------
-        function openDeleteProjectModal(e, projectId) {
-            e.stopPropagation();
-            const proj = getProjectById(projectId);
-            if (!proj) return;
-            state.deletingProjectId = projectId;
-            document.getElementById('deleteProjectMessage').textContent =
-                `Bạn có chắc chắn muốn xóa dự án "${proj.name}" cùng toàn bộ ${proj.targetRooms.length} phòng thuộc dự án này khỏi Firebase Firestore?`;
-            document.getElementById('deleteProjectBackdrop').classList.add('active');
-            lucide.createIcons();
-        }
-
-        function closeDeleteProjectModal(e) {
-            if (e && e.target !== e.currentTarget) return;
-            state.deletingProjectId = null;
-            document.getElementById('deleteProjectBackdrop').classList.remove('active');
-        }
-
-        async function confirmDeleteProject() {
-            const projectId = state.deletingProjectId;
-            const proj = getProjectById(projectId);
-            if (!proj) return;
-
-            const btn = document.getElementById('btnConfirmDeleteProject');
-            btn.disabled = true;
-            btn.innerHTML = `<span>Đang xóa...</span>`;
-            updateConnectionBanner('syncing', 'Đang xóa dự án trên Firestore...');
-
-            try {
-                const operations = [
-                    { type: 'delete', ref: doc(db, 'projects', projectId) }
-                ];
-                (proj.targetRooms || []).forEach(roomId => {
-                    operations.push({
-                        type: 'delete',
-                        ref: doc(db, 'tasks', `${projectId}_${roomId}`)
-                    });
-                });
-
-                await commitBatchOperations(operations);
-                closeDeleteProjectModal();
-                updateConnectionBanner('connected');
-                showToast(`Đã xóa dự án "${proj.name}" khỏi Firestore!`);
-            } catch (err) {
-                console.error("Delete project error:", err);
-                updateConnectionBanner('error', 'Lỗi xóa dự án trên Firestore');
-                showToast('Không thể xóa dự án! Kiểm tra quyền Firestore.', 'error');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i><span>Xác Nhận Xóa</span>`;
-                lucide.createIcons();
-            }
-        }
-
-        // ---------------------------------------------------------------------
-        // 4. CREATE NEW PROJECT MODAL & INTERACTIVE ROOM PICKER (ADMIN)
+        // 4. CREATE / EDIT PROJECT MODAL & INTERACTIVE ROOM PICKER (ADMIN)
         // ---------------------------------------------------------------------
         function openCreateProjectModal() {
+            state.editingProjectId = null;
+            document.getElementById('editingProjectId').value = '';
+            document.getElementById('projectModalTitle').textContent = 'Tạo Dự Án Phát Sinh Mới';
+            document.getElementById('projectModalSubtitle').textContent = 'Tự động khởi tạo danh sách phòng cho nhân viên';
+            document.getElementById('btnSubmitCreateProject').innerHTML = `<span>Khởi Tạo Dự Án</span>`;
+
+            document.getElementById('createProjectForm').reset();
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 7);
             document.getElementById('newProjDeadline').value = tomorrow.toISOString().split('T')[0];
+
+            const allRadio = document.querySelector('input[name="roomScope"][value="ALL"]');
+            if (allRadio) allRadio.checked = true;
+
             state.customSelectedRooms.clear();
             state.pickerWingFilter = 'ALL';
             const searchInput = document.getElementById('pickerSearchInput');
@@ -2629,8 +2589,39 @@
             lucide.createIcons();
         }
 
+        function openEditProjectModal(e, projectId) {
+            if (e) e.stopPropagation();
+            const proj = getProjectById(projectId);
+            if (!proj) return;
+
+            state.editingProjectId = projectId;
+            document.getElementById('editingProjectId').value = projectId;
+            document.getElementById('projectModalTitle').textContent = 'Chỉnh Sửa Chi Tiết Dự Án';
+            document.getElementById('projectModalSubtitle').textContent = 'Cập nhật thông tin và thêm/bớt danh sách phòng thực hiện';
+            document.getElementById('btnSubmitCreateProject').innerHTML = `<i data-lucide="save" class="w-4 h-4"></i><span>Lưu Thay Đổi Dự Án</span>`;
+
+            document.getElementById('newProjName').value = proj.name || '';
+            document.getElementById('newProjDeadline').value = proj.deadline || '';
+            document.getElementById('newProjPriority').value = proj.priority || 'Bình thường';
+            document.getElementById('newProjDesc').value = proj.description || '';
+
+            // Pre-select CUSTOM scope with current project's rooms so admin can add/remove rooms visually
+            const customRadio = document.querySelector('input[name="roomScope"][value="CUSTOM"]');
+            if (customRadio) customRadio.checked = true;
+
+            state.customSelectedRooms = new Set(proj.targetRooms || []);
+            state.pickerWingFilter = 'ALL';
+            const searchInput = document.getElementById('pickerSearchInput');
+            if (searchInput) searchInput.value = '';
+
+            toggleScopeInputs();
+            document.getElementById('createProjectBackdrop').classList.add('active');
+            lucide.createIcons();
+        }
+
         function closeCreateProjectModal(e) {
             if (e && e.target !== e.currentTarget) return;
+            state.editingProjectId = null;
             document.getElementById('createProjectBackdrop').classList.remove('active');
         }
 
@@ -2694,6 +2685,67 @@
             renderCustomRoomPicker();
         }
 
+        function openDeleteProjectModal(e, projectId) {
+            if (e) e.stopPropagation();
+            const proj = getProjectById(projectId);
+            if (!proj) return;
+            state.deletingProjectId = projectId;
+            const msgEl = document.getElementById('deleteProjectMessage');
+            if (msgEl) {
+                msgEl.textContent = `Bạn có chắc chắn muốn xóa dự án "${proj.name}" (${proj.targetRooms?.length || 0} phòng) và toàn bộ dữ liệu trạng thái phòng liên quan khỏi cơ sở dữ liệu Firestore?`;
+            }
+            document.getElementById('deleteProjectBackdrop')?.classList.add('active');
+            lucide.createIcons();
+        }
+
+        function closeDeleteProjectModal(e) {
+            if (e && e.target !== e.currentTarget) return;
+            state.deletingProjectId = null;
+            document.getElementById('deleteProjectBackdrop')?.classList.remove('active');
+        }
+
+        async function confirmDeleteProject() {
+            const projId = state.deletingProjectId;
+            if (!projId) return;
+            const proj = getProjectById(projId);
+            const btn = document.getElementById('btnConfirmDeleteProject');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `<span>Đang xóa...</span>`;
+            }
+            updateConnectionBanner('syncing', 'Đang xóa dự án khỏi Firestore...');
+
+            try {
+                const operations = [
+                    { type: 'delete', ref: doc(db, 'projects', projId) }
+                ];
+
+                if (proj && Array.isArray(proj.targetRooms)) {
+                    proj.targetRooms.forEach(roomId => {
+                        operations.push({
+                            type: 'delete',
+                            ref: doc(db, 'tasks', `${projId}_${roomId}`)
+                        });
+                    });
+                }
+
+                await commitBatchOperations(operations);
+                closeDeleteProjectModal();
+                updateConnectionBanner('connected');
+                showToast(`Đã xóa dự án "${proj ? proj.name : projId}" khỏi Firestore!`);
+            } catch (err) {
+                console.error("Delete project Firestore error:", err);
+                updateConnectionBanner('error', 'Lỗi xóa dự án trên Firestore');
+                showToast('Không thể xóa dự án trên Firestore! Kiểm tra quyền truy cập.', 'error');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i><span>Xác Nhận Xóa</span>`;
+                    lucide.createIcons();
+                }
+            }
+        }
+
         function updateCustomSelectionCounter() {
             const counterEl = document.getElementById('customRoomSelectedCounter');
             if (!counterEl) return;
@@ -2705,6 +2757,10 @@
 
         async function handleCreateProject(e) {
             e.preventDefault();
+            const editingId = state.editingProjectId || document.getElementById('editingProjectId').value;
+            const isEditing = Boolean(editingId);
+            const existingProj = isEditing ? getProjectById(editingId) : null;
+
             const name = document.getElementById('newProjName').value.trim();
             const deadline = document.getElementById('newProjDeadline').value;
             const priority = document.getElementById('newProjPriority').value;
@@ -2741,66 +2797,110 @@
             const submitBtn = document.getElementById('btnSubmitCreateProject');
             submitBtn.disabled = true;
             submitBtn.innerHTML = `<span>Đang đồng bộ Firestore...</span>`;
-            updateConnectionBanner('syncing', `Đang tạo dự án cho ${targetRooms.length} phòng...`);
+            updateConnectionBanner('syncing', isEditing ? `Đang cập nhật dự án (${targetRooms.length} phòng)...` : `Đang tạo dự án cho ${targetRooms.length} phòng...`);
 
             try {
                 const nowMs = Date.now();
-                const newProjId = 'proj_' + nowMs;
+                const projId = isEditing ? editingId : ('proj_' + nowMs);
                 const todayStr = new Date().toLocaleDateString('vi-VN');
 
-                const newProject = {
-                    id: newProjId,
+                const projectPayload = {
+                    id: projId,
                     name,
                     description,
                     deadline,
                     priority,
                     targetRooms,
-                    createdAt: todayStr,
-                    createdAtMs: nowMs
+                    createdAt: existingProj?.createdAt || todayStr,
+                    createdAtMs: existingProj?.createdAtMs || nowMs
                 };
 
                 const operations = [
                     {
                         type: 'set',
-                        ref: doc(db, 'projects', newProjId),
-                        data: newProject
+                        ref: doc(db, 'projects', projId),
+                        data: projectPayload,
+                        options: { merge: true }
                     }
                 ];
 
-                targetRooms.forEach(roomId => {
-                    operations.push({
-                        type: 'set',
-                        ref: doc(db, 'tasks', `${newProjId}_${roomId}`),
-                        data: {
-                            projectId: newProjId,
-                            roomId: roomId,
-                            status: 'Pending',
-                            note: '',
-                            updatedBy: '',
-                            updatedAt: '',
-                            updatedAtMs: 0
+                if (isEditing && existingProj) {
+                    const oldSet = new Set(existingProj.targetRooms || []);
+                    const newSet = new Set(targetRooms);
+
+                    // Create tasks only for newly added rooms (preserving progress on existing rooms)
+                    targetRooms.forEach(roomId => {
+                        if (!oldSet.has(roomId)) {
+                            operations.push({
+                                type: 'set',
+                                ref: doc(db, 'tasks', `${projId}_${roomId}`),
+                                data: {
+                                    projectId: projId,
+                                    roomId: roomId,
+                                    status: 'Pending',
+                                    note: '',
+                                    updatedBy: '',
+                                    updatedAt: '',
+                                    updatedAtMs: 0
+                                }
+                            });
                         }
                     });
-                });
+
+                    // Remove tasks for rooms that were removed from the project
+                    (existingProj.targetRooms || []).forEach(roomId => {
+                        if (!newSet.has(roomId)) {
+                            operations.push({
+                                type: 'delete',
+                                ref: doc(db, 'tasks', `${projId}_${roomId}`)
+                            });
+                        }
+                    });
+                } else {
+                    targetRooms.forEach(roomId => {
+                        operations.push({
+                            type: 'set',
+                            ref: doc(db, 'tasks', `${projId}_${roomId}`),
+                            data: {
+                                projectId: projId,
+                                roomId: roomId,
+                                status: 'Pending',
+                                note: '',
+                                updatedBy: '',
+                                updatedAt: '',
+                                updatedAtMs: 0
+                            }
+                        });
+                    });
+                }
 
                 await commitBatchOperations(operations);
 
                 // Reset form & close modal
                 document.getElementById('createProjectForm').reset();
                 state.customSelectedRooms.clear();
+                state.editingProjectId = null;
                 toggleScopeInputs();
                 closeCreateProjectModal();
 
-                state.staffSelectedProjectId = newProjId;
+                if (!isEditing) {
+                    state.staffSelectedProjectId = projId;
+                }
                 updateConnectionBanner('connected');
-                showToast(`Đã tạo & đồng bộ dự án "${name}" (${targetRooms.length} phòng)!`);
+                showToast(isEditing
+                    ? `Đã cập nhật dự án "${name}" (${targetRooms.length} phòng)!`
+                    : `Đã tạo & đồng bộ dự án "${name}" (${targetRooms.length} phòng)!`
+                );
             } catch (err) {
-                console.error("Create project Firestore error:", err);
+                console.error("Save project Firestore error:", err);
                 updateConnectionBanner('error', 'Lỗi lưu dự án lên Firestore');
                 showToast('Lỗi ghi Firestore! Kiểm tra quyền truy cập database.', 'error');
             } finally {
                 submitBtn.disabled = false;
-                submitBtn.innerHTML = `<span>Khởi Tạo Dự Án</span>`;
+                submitBtn.innerHTML = isEditing
+                    ? `<i data-lucide="save" class="w-4 h-4"></i><span>Lưu Thay Đổi Dự Án</span>`
+                    : `<span>Khởi Tạo Dự Án</span>`;
+                lucide.createIcons();
             }
         }
 
@@ -3608,6 +3708,7 @@
             jumpToStaffProject,
             updateAdminDashboard,
             openCreateProjectModal,
+            openEditProjectModal,
             closeCreateProjectModal,
             toggleScopeInputs,
             setPickerWingFilter,
