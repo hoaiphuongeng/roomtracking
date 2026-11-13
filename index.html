@@ -509,6 +509,24 @@
                         <span class="w-2 h-2 rounded-full bg-red-500"></span> Sự cố
                     </button>
                 </div>
+
+                <!-- Layout Mode Toggle: Floor Plan (Odd Left / Even Right) vs Compact Grid -->
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-100">
+                    <span class="text-[11px] font-semibold text-gray-500 flex items-center gap-1.5">
+                        <i data-lucide="compass" class="w-3.5 h-3.5 text-blue-600"></i>
+                        <span>Chế độ hiển thị sơ đồ:</span>
+                    </span>
+                    <div class="inline-flex bg-gray-100 p-0.5 rounded-xl">
+                        <button type="button" onclick="setStaffLayoutMode('floorplan')" id="btnLayoutFloorplan" class="px-3 py-1 rounded-lg text-[11px] font-bold bg-white text-gray-900 shadow-2xs transition flex items-center gap-1.5">
+                            <i data-lucide="columns-2" class="w-3.5 h-3.5 text-blue-600"></i>
+                            <span>Mặt bằng hành lang (Lẻ Trái / Chẵn Phải)</span>
+                        </button>
+                        <button type="button" onclick="setStaffLayoutMode('grid')" id="btnLayoutGrid" class="px-3 py-1 rounded-lg text-[11px] font-semibold text-gray-600 hover:text-gray-900 transition flex items-center gap-1.5">
+                            <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>
+                            <span>Dạng lưới gọn</span>
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <!-- Room Matrix Container (Strictly Separated by Wing: Ocean Wing & Garden Wing) -->
@@ -897,9 +915,41 @@
 
             <form id="createProjectForm" onsubmit="handleCreateProject(event)" class="p-5 sm:p-6 overflow-y-auto space-y-4">
                 <input type="hidden" id="editingProjectId" value="">
+                
+                <!-- Project Category Switcher: Room vs Railing -->
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1.5">Loại hạng mục dự án *</label>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="projectType" value="ROOM" checked onchange="onProjectTypeChange()" class="peer sr-only">
+                            <div class="p-3 rounded-2xl border-2 border-gray-200 bg-white flex items-center gap-2.5 peer-checked:border-blue-600 peer-checked:bg-blue-50/70 transition">
+                                <div class="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                                    <i data-lucide="door-open" class="w-4 h-4"></i>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-xs sm:text-sm text-gray-900">Bảo trì Phòng</div>
+                                    <div class="text-[11px] text-gray-500">198 phòng (Tầng 1–4)</div>
+                                </div>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="projectType" value="RAILING" onchange="onProjectTypeChange()" class="peer sr-only">
+                            <div class="p-3 rounded-2xl border-2 border-gray-200 bg-white flex items-center gap-2.5 peer-checked:border-indigo-600 peer-checked:bg-indigo-50/70 transition">
+                                <div class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                                    <i data-lucide="fence" class="w-4 h-4"></i>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-xs sm:text-sm text-gray-900">Bảo trì Lan Can</div>
+                                    <div class="text-[11px] text-gray-500">Hành lang, lối vào & ban công (T2–T4)</div>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 mb-1">Tên dự án / Hạng mục công việc *</label>
-                    <input type="text" id="newProjName" required placeholder="VD: Thay rèm cửa chống nắng, Kiểm tra đầu báo khói..." class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="text" id="newProjName" required placeholder="VD: Sơn chống gỉ lan can hành lang, Thay rèm cửa..." class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -922,8 +972,8 @@
                     <textarea id="newProjDesc" rows="2" placeholder="Ghi chú hướng dẫn cho nhân viên kỹ thuật..." class="w-full rounded-xl border border-gray-200 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
                 </div>
 
-                <!-- Scope Selection -->
-                <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200/70 space-y-3">
+                <!-- Scope Selection (ROOM MODE) -->
+                <div id="roomScopeWrapper" class="bg-gray-50 p-4 rounded-2xl border border-gray-200/70 space-y-3">
                     <label class="block text-xs font-bold uppercase tracking-wider text-gray-600">Phạm vi phòng áp dụng *</label>
                     
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -1036,6 +1086,60 @@
                         <div id="customRoomPickerGrid" class="max-h-[340px] overflow-y-auto pr-1 space-y-3">
                             <!-- Rendered dynamically -->
                         </div>
+                    </div>
+                </div>
+
+                <!-- Scope Selection (RAILING MODE: T2, T3, T4) -->
+                <div id="railingScopeWrapper" class="hidden bg-indigo-50/40 p-4 rounded-2xl border border-indigo-200/70 space-y-3">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-indigo-900">Chọn đoạn lan can trên sơ đồ layout (Tầng 2, 3, 4) *</label>
+                            <p class="text-[11px] text-gray-500 mt-0.5">Tầng 1 không có lan can. Nhấp trực tiếp vào từng thanh lan can trên sơ đồ để chọn.</p>
+                        </div>
+                        <button type="button" onclick="clearCustomSelectedRailings()" class="text-[11px] font-semibold text-red-600 hover:text-red-700 bg-white px-2.5 py-1 rounded-lg border border-red-200/80 transition active:scale-95">
+                            Bỏ chọn tất cả
+                        </button>
+                    </div>
+
+                    <!-- Selected Counter -->
+                    <div class="bg-white border border-indigo-200/80 rounded-xl px-3.5 py-2 flex items-center justify-between text-xs">
+                        <span id="customRailingSelectedCounter" class="font-bold text-indigo-900">Đã chọn: 0 đoạn lan can</span>
+                        <span class="text-[11px] text-gray-500">Ocean: <strong id="cntRailOcean">0</strong> • Garden: <strong id="cntRailGarden">0</strong></span>
+                    </div>
+
+                    <!-- Quick Selection Filters & Presets -->
+                    <div class="space-y-2">
+                        <div class="grid grid-cols-3 gap-1 bg-gray-200/75 p-1 rounded-xl">
+                            <button type="button" onclick="setRailingPickerWingFilter('ALL')" data-rail-wing="ALL" class="rail-picker-wing-pill py-1.5 px-2 rounded-lg text-[11px] font-bold bg-white text-gray-900 shadow-2xs transition">
+                                Tất cả 2 khu
+                            </button>
+                            <button type="button" onclick="setRailingPickerWingFilter('Ocean Wing')" data-rail-wing="Ocean Wing" class="rail-picker-wing-pill py-1.5 px-2 rounded-lg text-[11px] font-semibold text-gray-600 hover:text-gray-900 transition">
+                                Ocean Wing
+                            </button>
+                            <button type="button" onclick="setRailingPickerWingFilter('Garden Wing')" data-rail-wing="Garden Wing" class="rail-picker-wing-pill py-1.5 px-2 rounded-lg text-[11px] font-semibold text-gray-600 hover:text-gray-900 transition">
+                                Garden Wing
+                            </button>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <button type="button" onclick="toggleSelectRailingCategory('CORRIDOR_U')" class="px-2.5 py-1 rounded-lg bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 text-[11px] font-semibold transition">
+                                + Lan can dọc hành lang & hốc cửa theo cột
+                            </button>
+                            <button type="button" onclick="toggleSelectRailingCategory('BALCONY')" class="px-2.5 py-1 rounded-lg bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 text-[11px] font-semibold transition">
+                                + Lan can ban công sau phòng
+                            </button>
+                            <button type="button" onclick="toggleSelectRailingCategory('STAIR_ZONE')" class="px-2.5 py-1 rounded-lg bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 text-[11px] font-semibold transition">
+                                + Lan can 3 khu vực cầu thang (Đầu / Giữa / Cuối)
+                            </button>
+                            <button type="button" onclick="selectAllRailingsInScope()" class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-semibold transition">
+                                Chọn toàn bộ lan can khu đang xem
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Architectural Railing Layout Picker -->
+                    <div id="customRailingPickerLayout" class="max-h-[460px] overflow-y-auto pr-1 space-y-3">
+                        <!-- Rendered dynamically -->
                     </div>
                 </div>
 
@@ -1234,50 +1338,260 @@
             });
         });
 
-        const DEFAULT_STAFF_MEMBERS = [
-            {
-                id: 'staff_1',
-                name: 'Nguyễn Văn Châu',
-                department: 'Kỹ thuật',
-                role: 'staff',
-                wingScope: 'ALL',
-                permissions: { updateRoom: true, reportIssue: true, createProject: false, exportReport: false }
-            },
-            {
-                id: 'staff_2',
-                name: 'Trịnh Văn Hùng',
-                department: 'Kỹ thuật',
-                role: 'staff',
-                wingScope: 'Ocean Wing',
-                permissions: { updateRoom: true, reportIssue: true, createProject: false, exportReport: false }
-            },
-            {
-                id: 'staff_3',
-                name: 'Lê Ngọc Hưng',
-                department: 'Bảo trì',
-                role: 'staff',
-                wingScope: 'Garden Wing',
-                permissions: { updateRoom: true, reportIssue: true, createProject: false, exportReport: false }
-            },
-            {
-                id: 'staff_4',
-                name: 'Võ Đức Khoa',
-                department: 'IT & Mạng',
-                role: 'supervisor',
-                wingScope: 'ALL',
-                permissions: { updateRoom: true, reportIssue: true, createProject: true, exportReport: false }
-            },
-            {
-                id: 'staff_5',
-                name: 'Trần Minh Tuấn',
-                department: 'Giám sát',
-                role: 'sub_admin',
-                wingScope: 'ALL',
-                permissions: { updateRoom: true, reportIssue: true, createProject: true, exportReport: true }
+        // ---------------------------------------------------------------------
+        // 1B. RAILING SEGMENTS DATA (Floors 2, 3, 4 ONLY - Floor 1 has NO railings)
+        // Exact Architectural CAD Layout (DCMS 1F-4F Plans):
+        // - Asymmetric Wing Mirror:
+        //   * Ocean Wing: Left/Top has 16 rooms (paired 2P + recessed 1P pattern), Right/Bottom has 10 rooms (5 pairs of 2P)
+        //   * Garden Wing: Left/Top has 10 rooms (5 pairs of 2P), Right/Bottom has 16 rooms (paired 2P + recessed 1P pattern)
+        // - 3 Auxiliary Staircase Cores: North (Top/Start), Center (Mid-corridor), South (Bottom/End)
+        // - Railing segments split accurately by structural column bays, room entrances, rear balconies, and staircase zones
+        // ---------------------------------------------------------------------
+        const ALL_RAILINGS = [];
+        const RAILING_META_MAP = {};
+        const FLOOR_SCHEMATIC_DATA = {}; // Key: `${wing}_${floor}`
+
+        // Group rooms into exact architectural clusters matching the CAD plan:
+        // - 16-room side (26P floor) or 12-room side (4F): [2, 2, 1(recessed), 2, 1(recessed), 2, 2, 1(recessed), 2, 1(recessed)]
+        // - 10-room side (26P floor) or 8-room side (4F): [2, 2, 2, 2, 2]
+        function groupRoomsByCadClusters(sideRooms, isSixteenSide) {
+            const clusters = [];
+            if (!sideRooms || sideRooms.length === 0) return clusters;
+
+            if (!isSixteenSide) {
+                for (let i = 0; i < sideRooms.length; i += 2) {
+                    clusters.push({
+                        rooms: sideRooms.slice(i, i + 2),
+                        recessed: false
+                    });
+                }
+                return clusters;
             }
+
+            // Pattern for the complex side with recessed single rooms between twin-room blocks:
+            // Top half: [2, 1(recessed), 2, 1(recessed), 2] = 8 rooms
+            // Bottom half: [2, 1(recessed), 2, 1(recessed), 2] = 8 rooms (Total 16 rooms)
+            const pattern = [2, 1, 2, 1, 2, 2, 1, 2, 1, 2];
+            let cursor = 0;
+            let patIdx = 0;
+            while (cursor < sideRooms.length) {
+                const take = pattern[patIdx % pattern.length] || 2;
+                const slice = sideRooms.slice(cursor, cursor + take);
+                if (slice.length > 0) {
+                    clusters.push({
+                        rooms: slice,
+                        recessed: slice.length === 1 && take === 1
+                    });
+                }
+                cursor += slice.length;
+                patIdx++;
+            }
+            return clusters;
+        }
+
+        function buildHotelRailingArchitecture() {
+            ['Ocean Wing', 'Garden Wing'].forEach(wing => {
+                const wingCode = wing === 'Ocean Wing' ? 'OW' : 'GW';
+                const isOcean = wing === 'Ocean Wing';
+
+                [2, 3, 4].forEach(floor => {
+                    const floorRooms = REAL_HOTEL_DATA[wing][floor] || [];
+                    const oddRooms = floorRooms.filter(id => parseInt(id, 10) % 2 !== 0);
+                    const evenRooms = floorRooms.filter(id => parseInt(id, 10) % 2 === 0);
+
+                    const rawLeftClusters = groupRoomsByCadClusters(oddRooms, isOcean);
+                    const rawRightClusters = groupRoomsByCadClusters(evenRooms, !isOcean);
+
+                    const attachClusterBalconies = (rawClusters, sideKey, sideLabel) => {
+                        return rawClusters.map((c, idx) => {
+                            const balconies = c.rooms.map(roomId => {
+                                const bal = {
+                                    id: `LC_${wingCode}_T${floor}_BC_${roomId}`,
+                                    wing,
+                                    floor,
+                                    side: sideKey,
+                                    category: 'BALCONY',
+                                    roomRef: roomId,
+                                    shortCode: `BC ${roomId}`,
+                                    label: `Lan can ban công sau P.${roomId} (${wing} - T${floor})`
+                                };
+                                ALL_RAILINGS.push(bal);
+                                RAILING_META_MAP[bal.id] = bal;
+                                return bal;
+                            });
+
+                            const roomRangeText = c.rooms.length > 1
+                                ? `P.${c.rooms[0]}–${c.rooms[c.rooms.length - 1]}`
+                                : `P.${c.rooms[0]}`;
+
+                            // 2 parallel railing segments flanking the entrance walkway into this room cluster
+                            const entTop = {
+                                id: `LC_${wingCode}_T${floor}_LV_${sideKey}_${idx + 1}_A`,
+                                wing,
+                                floor,
+                                side: sideKey,
+                                category: 'ENTRANCE_SIDE',
+                                shortCode: `LV ${roomRangeText} (Trên)`,
+                                label: `Lan can lối vào bên trên cụm ${roomRangeText} (${sideLabel} • ${wing} - T${floor})`
+                            };
+                            const entBottom = {
+                                id: `LC_${wingCode}_T${floor}_LV_${sideKey}_${idx + 1}_B`,
+                                wing,
+                                floor,
+                                side: sideKey,
+                                category: 'ENTRANCE_SIDE',
+                                shortCode: `LV ${roomRangeText} (Dưới)`,
+                                label: `Lan can lối vào bên dưới cụm ${roomRangeText} (${sideLabel} • ${wing} - T${floor})`
+                            };
+
+                            [entTop, entBottom].forEach(ent => {
+                                ALL_RAILINGS.push(ent);
+                                RAILING_META_MAP[ent.id] = ent;
+                            });
+
+                            return {
+                                index: idx + 1,
+                                rooms: c.rooms,
+                                recessed: c.recessed,
+                                balconies,
+                                entranceTop: entTop,
+                                entranceBottom: entBottom
+                            };
+                        });
+                    };
+
+                    const leftClusters = attachClusterBalconies(rawLeftClusters, 'LEFT', 'Dãy Trái');
+                    const rightClusters = attachClusterBalconies(rawRightClusters, 'RIGHT', 'Dãy Phải');
+
+                    // Build main corridor railing segments split by structural pillars between room cluster entrances
+                    const buildSideCorridorBays = (clusters, sideKey, sideLabel) => {
+                        const bays = [];
+                        if (clusters.length === 0) return bays;
+
+                        // Bay 0: North Staircase pillar to 1st cluster entrance pillar
+                        const firstR = clusters[0].rooms[0];
+                        const bayStart = {
+                            id: `LC_${wingCode}_T${floor}_HL_${sideKey}_0`,
+                            wing,
+                            floor,
+                            side: sideKey,
+                            category: 'CORRIDOR_MAIN',
+                            shortCode: `HL Thang Bắc → ${firstR}`,
+                            label: `Lan can dọc hành lang chính ${sideLabel} (Cột Thang Bắc → Cột vào P.${firstR})`
+                        };
+                        bays.push(bayStart);
+                        ALL_RAILINGS.push(bayStart);
+                        RAILING_META_MAP[bayStart.id] = bayStart;
+
+                        // Inter-cluster main corridor bays separated by structural pillars
+                        for (let i = 1; i < clusters.length; i++) {
+                            const prevCluster = clusters[i - 1];
+                            const currCluster = clusters[i];
+                            const fromR = prevCluster.rooms[prevCluster.rooms.length - 1];
+                            const toR = currCluster.rooms[0];
+                            const isMidZone = i === Math.floor(clusters.length / 2);
+
+                            const bayMid = {
+                                id: `LC_${wingCode}_T${floor}_HL_${sideKey}_${i}`,
+                                wing,
+                                floor,
+                                side: sideKey,
+                                category: 'CORRIDOR_MAIN',
+                                isMidZone,
+                                shortCode: isMidZone ? `HL ${fromR} ↔ Thang Giữa ↔ ${toR}` : `HL Cột ${fromR} ↔ ${toR}`,
+                                label: isMidZone
+                                    ? `Lan can dọc hành lang chính ${sideLabel} qua Thang Giữa (Cột P.${fromR} – P.${toR})`
+                                    : `Lan can dọc hành lang chính ${sideLabel} giữa 2 cột lối vào (P.${fromR} – P.${toR})`
+                            };
+                            bays.push(bayMid);
+                            ALL_RAILINGS.push(bayMid);
+                            RAILING_META_MAP[bayMid.id] = bayMid;
+                        }
+
+                        // Final bay: Last cluster entrance pillar to South Staircase pillar
+                        const lastCluster = clusters[clusters.length - 1];
+                        const lastR = lastCluster.rooms[lastCluster.rooms.length - 1];
+                        const bayEnd = {
+                            id: `LC_${wingCode}_T${floor}_HL_${sideKey}_${clusters.length}`,
+                            wing,
+                            floor,
+                            side: sideKey,
+                            category: 'CORRIDOR_MAIN',
+                            shortCode: `HL ${lastR} → Thang Nam`,
+                            label: `Lan can dọc hành lang chính ${sideLabel} (Cột P.${lastR} → Cột Thang Nam)`
+                        };
+                        bays.push(bayEnd);
+                        ALL_RAILINGS.push(bayEnd);
+                        RAILING_META_MAP[bayEnd.id] = bayEnd;
+
+                        return bays;
+                    };
+
+                    const leftCorridorBays = buildSideCorridorBays(leftClusters, 'LEFT', 'dãy Trái (Lẻ)');
+                    const rightCorridorBays = buildSideCorridorBays(rightClusters, 'RIGHT', 'dãy Phải (Chẵn)');
+
+                    // 3 Auxiliary Staircase Railings (North Top, Center Mid, South Bottom) per CAD plan
+                    const stairNorth = {
+                        id: `LC_${wingCode}_T${floor}_THANG_BAC`,
+                        wing,
+                        floor,
+                        side: 'CENTER',
+                        category: 'STAIR_ZONE',
+                        shortCode: `Lan can Thang Bắc (Đầu)`,
+                        label: `Lan can sảnh cầu thang phụ trợ Bắc (Đầu hành lang ${wing} - T${floor})`
+                    };
+                    const stairCenter = {
+                        id: `LC_${wingCode}_T${floor}_THANG_GIUA`,
+                        wing,
+                        floor,
+                        side: 'CENTER',
+                        category: 'STAIR_ZONE',
+                        shortCode: `Lan can Thang Giữa`,
+                        label: `Lan can sảnh cầu thang phụ trợ Giữa hành lang (${wing} - T${floor})`
+                    };
+                    const stairSouth = {
+                        id: `LC_${wingCode}_T${floor}_THANG_NAM`,
+                        wing,
+                        floor,
+                        side: 'CENTER',
+                        category: 'STAIR_ZONE',
+                        shortCode: `Lan can Thang Nam (Cuối)`,
+                        label: `Lan can sảnh cầu thang phụ trợ Nam (Cuối hành lang ${wing} - T${floor})`
+                    };
+
+                    [stairNorth, stairCenter, stairSouth].forEach(st => {
+                        ALL_RAILINGS.push(st);
+                        RAILING_META_MAP[st.id] = st;
+                    });
+
+                    FLOOR_SCHEMATIC_DATA[`${wing}_${floor}`] = {
+                        wing,
+                        floor,
+                        leftClusters,
+                        rightClusters,
+                        leftCorridorBays,
+                        rightCorridorBays,
+                        stairNorth,
+                        stairCenter,
+                        stairSouth
+                    };
+                });
+            });
+        }
+        buildHotelRailingArchitecture();
+
+        function getUnitMeta(unitId) {
+            return ROOM_META_MAP[unitId] || RAILING_META_MAP[unitId] || null;
+        }
+
+        const DEFAULT_STAFF_MEMBERS = [
+            { id: 'staff_1', name: 'Nguyễn Văn Châu', department: 'Kỹ thuật', role: 'supervisor', wingScope: 'ALL', permissions: { updateRoom: true, reportIssue: true, createProject: true, exportReport: false } },
+            { id: 'staff_2', name: 'Trịnh Văn Hùng', department: 'Kỹ thuật', role: 'staff', wingScope: 'ALL', permissions: { updateRoom: true, reportIssue: true, createProject: false, exportReport: false } },
+            { id: 'staff_3', name: 'Lê Ngọc Hưng', department: 'Bảo trì', role: 'staff', wingScope: 'Ocean Wing', permissions: { updateRoom: true, reportIssue: true, createProject: false, exportReport: false } },
+            { id: 'staff_4', name: 'Võ Đức Khoa', department: 'IT & Mạng', role: 'staff', wingScope: 'Garden Wing', permissions: { updateRoom: true, reportIssue: true, createProject: false, exportReport: false } },
+            { id: 'staff_5', name: 'Trần Minh Tuấn', department: 'Giám sát', role: 'sub_admin', wingScope: 'ALL', permissions: { updateRoom: true, reportIssue: true, createProject: true, exportReport: true } }
         ];
 
-        const STAFF_LIST = DEFAULT_STAFF_MEMBERS.map(s => s.name);
         const SAMPLE_NOTES_ISSUE = [
             "Khách đang lưu trú, treo biển DND",
             "Thiếu vật tư đầu nối, đã báo kho",
@@ -1292,77 +1606,63 @@
 
         // State Store
         let state = {
-            currentRole: 'admin', // 'admin' | 'staff'
-            isAdminAuthenticated: true, // Default unlocked on initial preview, lockable via settings
-            pendingAdminAction: null,
-            adminAuth: {
-                username: 'shp',
-                password: '150620'
-            },
+            currentRole: 'admin',
+            isAdminAuthenticated: true,
+            adminAuth: { username: 'shp', password: '150620' },
+            projects: [],
+            tasks: {},
             staffMembers: [...DEFAULT_STAFF_MEMBERS],
             selectedStaffId: 'staff_1',
-            projects: [],
-            tasks: {}, // Key: `${projectId}_${roomId}`
             activityLogs: [],
             completedTodayCount: 0,
-            // Staff view filters
-            staffSelectedProjectId: '',
+            staffSelectedProjectId: 'proj_1',
             staffWingFilter: 'ALL',
             staffFloorFilter: 'ALL',
             staffStatusFilter: 'ALL',
-            // Modal temporary state
+            staffLayoutMode: 'floorplan',
             editingRoomId: null,
             editingTempStatus: 'Pending',
             editingProjectId: null,
             deletingProjectId: null,
-            pendingRestorePayload: null,
-            // Admin Custom Room Picker state
-            customSelectedRooms: new Set(),
             pickerWingFilter: 'ALL',
-            // Firebase sync state
-            isSeeding: false,
-            hasCheckedInitialSeed: false
+            customSelectedRooms: new Set(),
+            railingPickerWingFilter: 'ALL',
+            customSelectedRailings: new Set(),
+            pendingRestorePayload: null,
+            isSeeding: false
         };
 
-        // Chart instances
         let floorBarChartInstance = null;
         let statusDoughnutChartInstance = null;
 
-        // ---------------------------------------------------------------------
-        // CONNECTION STATUS INDICATOR
-        // ---------------------------------------------------------------------
-        function updateConnectionBanner(status, customMessage = '') {
+        function updateConnectionBanner(status, customText) {
             const mobileEl = document.getElementById('syncStatusMobile');
             const desktopEl = document.getElementById('syncStatusDesktop');
             if (!mobileEl || !desktopEl) return;
 
             if (status === 'connected') {
                 mobileEl.className = 'flex md:hidden items-center gap-1.5 bg-emerald-500/10 text-emerald-700 px-2.5 py-1 rounded-full text-[11px] font-medium shrink-0';
-                mobileEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>Live Firestore</span>`;
-
-                desktopEl.className = 'hidden md:flex items-center gap-2 bg-white/90 border border-emerald-200/80 px-3 py-1.5 rounded-full text-xs font-medium text-emerald-700 shadow-xs shrink-0';
-                desktopEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>Đã đồng bộ Firestore • roomtracking-9c5ab</span>`;
+                mobileEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>Live</span>`;
+                desktopEl.className = 'hidden md:flex items-center gap-2 bg-white/80 border border-emerald-200/80 px-3 py-1.5 rounded-full text-xs font-medium text-emerald-700 shadow-xs shrink-0';
+                desktopEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>${customText || 'Đã đồng bộ Firestore • roomtracking-9c5ab'}</span>`;
             } else if (status === 'syncing') {
                 mobileEl.className = 'flex md:hidden items-center gap-1.5 bg-blue-500/10 text-blue-700 px-2.5 py-1 rounded-full text-[11px] font-medium shrink-0';
-                mobileEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-blue-500 animate-ping"></span><span>Đang đồng bộ...</span>`;
-
-                desktopEl.className = 'hidden md:flex items-center gap-2 bg-blue-50/90 border border-blue-200/80 px-3 py-1.5 rounded-full text-xs font-medium text-blue-700 shadow-xs shrink-0';
-                desktopEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-blue-500 animate-ping"></span><span>${customMessage || 'Đang ghi dữ liệu lên Firestore...'}</span>`;
+                mobileEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-blue-500 animate-ping"></span><span>Đang lưu...</span>`;
+                desktopEl.className = 'hidden md:flex items-center gap-2 bg-white/80 border border-blue-200/80 px-3 py-1.5 rounded-full text-xs font-medium text-blue-700 shadow-xs shrink-0';
+                desktopEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-blue-500 animate-ping"></span><span>${customText || 'Đang đồng bộ Firestore...'}</span>`;
             } else if (status === 'error') {
                 mobileEl.className = 'flex md:hidden items-center gap-1.5 bg-red-500/10 text-red-700 px-2.5 py-1 rounded-full text-[11px] font-medium shrink-0';
-                mobileEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span><span>Lỗi Firestore</span>`;
-
-                desktopEl.className = 'hidden md:flex items-center gap-2 bg-red-50 border border-red-200 px-3 py-1.5 rounded-full text-xs font-semibold text-red-700 shadow-xs shrink-0';
-                desktopEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span><span>${customMessage || 'Lỗi quyền truy cập Firestore Rules'}</span>`;
+                mobileEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span><span>Lỗi DB</span>`;
+                desktopEl.className = 'hidden md:flex items-center gap-2 bg-red-50 border border-red-200 px-3 py-1.5 rounded-full text-xs font-medium text-red-700 shadow-xs shrink-0';
+                desktopEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span><span>${customText || 'Lỗi kết nối Firestore (Kiểm tra Rules)'}</span>`;
             }
         }
 
-        // Helper: Commit operations in chunks of 450 (Firestore limit is 500 per batch)
         async function commitBatchOperations(operations) {
             const CHUNK_SIZE = 450;
             for (let i = 0; i < operations.length; i += CHUNK_SIZE) {
-                const chunk = operations.slice(i, i + CHUNK_SIZE);
                 const batch = writeBatch(db);
+                const chunk = operations.slice(i, i + CHUNK_SIZE);
                 chunk.forEach(op => {
                     if (op.type === 'set') {
                         batch.set(op.ref, op.data, op.options || {});
@@ -1374,13 +1674,10 @@
             }
         }
 
-        // ---------------------------------------------------------------------
-        // SEED INITIAL DATA TO FIRESTORE (If empty on first run)
-        // ---------------------------------------------------------------------
-        async function seedInitialFirestoreData(isManual = false) {
+        async function seedInitialFirestoreData(forceReset = false) {
             if (state.isSeeding) return;
             state.isSeeding = true;
-            updateConnectionBanner('syncing', 'Đang khởi tạo dữ liệu mẫu 198 phòng...');
+            updateConnectionBanner('syncing', 'Đang nạp dữ liệu mẫu lên Firestore...');
 
             try {
                 const today = new Date();
@@ -1390,37 +1687,39 @@
                     return d.toISOString().split('T')[0];
                 };
 
-                const nowMs = Date.now();
                 const sampleProjects = [
                     {
                         id: 'proj_1',
+                        projectType: 'ROOM',
                         name: 'Thay thế khóa từ thông minh',
                         description: 'Nâng cấp toàn bộ khóa thẻ từ sang khóa Bluetooth/App thế hệ mới.',
                         deadline: formatFutureDate(7),
                         priority: 'Cao',
                         targetRooms: ALL_ROOMS.map(r => r.id),
                         createdAt: '05/11/2026',
-                        createdAtMs: nowMs - 3000
+                        createdAtMs: Date.now() - 300000
                     },
                     {
                         id: 'proj_2',
+                        projectType: 'ROOM',
                         name: 'Bảo trì & vệ sinh FCU điều hòa Q4',
                         description: 'Vệ sinh lưới lọc, thông đường ống thoát nước ngưng và kiểm tra gas.',
                         deadline: formatFutureDate(14),
                         priority: 'Định kỳ',
                         targetRooms: ALL_ROOMS.map(r => r.id),
                         createdAt: '08/11/2026',
-                        createdAtMs: nowMs - 2000
+                        createdAtMs: Date.now() - 200000
                     },
                     {
                         id: 'proj_3',
-                        name: 'Nâng cấp Smart TV 55 inch - Khu Ocean Wing',
-                        description: 'Thay thế TV cũ bằng Smart TV 4K tích hợp IPTV cho toàn bộ 98 phòng Ocean Wing.',
-                        deadline: formatFutureDate(5),
-                        priority: 'Bình thường',
-                        targetRooms: ALL_ROOMS.filter(r => r.wing === 'Ocean Wing').map(r => r.id),
+                        projectType: 'RAILING',
+                        name: 'Sơn chống gỉ & gia cố lan can hành lang (T2–T4)',
+                        description: 'Kiểm tra mối hàn, đánh gỉ và sơn phủ bảo vệ hệ thống lan can chữ U dọc hành lang & ban công.',
+                        deadline: formatFutureDate(10),
+                        priority: 'Cao',
+                        targetRooms: ALL_RAILINGS.filter(r => r.category === 'CORRIDOR_U' || r.category === 'END_CAP').map(r => r.id),
                         createdAt: '10/11/2026',
-                        createdAtMs: nowMs - 1000
+                        createdAtMs: Date.now() - 100000
                     }
                 ];
 
@@ -1433,163 +1732,78 @@
                         data: proj
                     });
 
-                    proj.targetRooms.forEach((roomId, rIdx) => {
-                        const taskId = `${proj.id}_${roomId}`;
+                    proj.targetRooms.forEach((unitId, rIdx) => {
                         let status = 'Pending';
                         let note = '';
                         let updatedBy = '';
                         let updatedAt = '';
-                        let updatedAtMs = 0;
 
                         const rand = (rIdx * 17 + pIdx * 31) % 100;
-
-                        if (proj.id === 'proj_1') {
-                            if (rand < 65) {
-                                status = 'Done';
-                                updatedBy = STAFF_LIST[rIdx % STAFF_LIST.length];
-                                updatedAt = 'Hôm nay, ' + `${8 + (rIdx % 9)}:${(rIdx % 50 + 10)}`.padStart(5, '0');
-                                updatedAtMs = nowMs - (rIdx * 60000);
-                            } else if (rand < 73) {
-                                status = 'In_Progress';
-                                updatedBy = STAFF_LIST[(rIdx + 1) % STAFF_LIST.length];
-                                updatedAt = 'Hôm nay, 10:15';
-                                updatedAtMs = nowMs - 3600000;
-                                note = SAMPLE_NOTES_INPROGRESS[rIdx % SAMPLE_NOTES_INPROGRESS.length];
-                            } else if (rand < 77) {
-                                status = 'Issue';
-                                updatedBy = STAFF_LIST[(rIdx + 2) % STAFF_LIST.length];
-                                updatedAt = 'Hôm nay, 09:40';
-                                updatedAtMs = nowMs - 5400000;
-                                note = SAMPLE_NOTES_ISSUE[rIdx % SAMPLE_NOTES_ISSUE.length];
-                            }
-                        } else if (proj.id === 'proj_2') {
-                            if (rand < 25) {
-                                status = 'Done';
-                                updatedBy = STAFF_LIST[rIdx % STAFF_LIST.length];
-                                updatedAt = 'Hôm qua, 16:20';
-                                updatedAtMs = nowMs - 86400000;
-                            } else if (rand < 31) {
-                                status = 'In_Progress';
-                                updatedBy = STAFF_LIST[rIdx % STAFF_LIST.length];
-                                updatedAt = 'Hôm nay, 11:05';
-                                updatedAtMs = nowMs - 2400000;
-                                note = 'Đang chờ khô dàn lạnh';
-                            } else if (rand < 33) {
-                                status = 'Issue';
-                                updatedBy = 'Trịnh Văn Hùng';
-                                updatedAt = 'Hôm nay, 08:50';
-                                updatedAtMs = nowMs - 7200000;
-                                note = 'Nghẹt ống thoát nước ngưng cần xử lý kỹ';
-                            }
-                        } else if (proj.id === 'proj_3') {
-                            if (rand < 40) {
-                                status = 'Done';
-                                updatedBy = 'Võ Đức Khoa';
-                                updatedAt = 'Hôm nay, 14:10';
-                                updatedAtMs = nowMs - 1800000;
-                            } else if (rand < 50) {
-                                status = 'In_Progress';
-                                updatedBy = 'Võ Đức Khoa';
-                                updatedAt = 'Hôm nay, 15:00';
-                                updatedAtMs = nowMs - 1200000;
-                                note = 'Đã treo giá đỡ, chờ cấu hình kênh IPTV';
-                            } else if (rand < 53) {
-                                status = 'Issue';
-                                updatedBy = 'Nguyễn Văn Châu';
-                                updatedAt = 'Hôm nay, 13:25';
-                                updatedAtMs = nowMs - 2900000;
-                                note = 'Cổng mạng LAN âm tường không có tín hiệu';
-                            }
+                        if (rand < 45) {
+                            status = 'Done';
+                            updatedBy = DEFAULT_STAFF_MEMBERS[rIdx % DEFAULT_STAFF_MEMBERS.length].name;
+                            updatedAt = 'Hôm nay, 09:30';
+                        } else if (rand < 53) {
+                            status = 'In_Progress';
+                            updatedBy = DEFAULT_STAFF_MEMBERS[(rIdx + 1) % DEFAULT_STAFF_MEMBERS.length].name;
+                            updatedAt = 'Hôm nay, 10:15';
+                            note = SAMPLE_NOTES_INPROGRESS[rIdx % SAMPLE_NOTES_INPROGRESS.length];
+                        } else if (rand < 56) {
+                            status = 'Issue';
+                            updatedBy = DEFAULT_STAFF_MEMBERS[(rIdx + 2) % DEFAULT_STAFF_MEMBERS.length].name;
+                            updatedAt = 'Hôm nay, 08:45';
+                            note = SAMPLE_NOTES_ISSUE[rIdx % SAMPLE_NOTES_ISSUE.length];
                         }
 
                         operations.push({
                             type: 'set',
-                            ref: doc(db, 'tasks', taskId),
+                            ref: doc(db, 'tasks', `${proj.id}_${unitId}`),
                             data: {
                                 projectId: proj.id,
-                                roomId: roomId,
-                                status: status,
-                                note: note,
-                                updatedBy: updatedBy,
-                                updatedAt: updatedAt,
-                                updatedAtMs: updatedAtMs
+                                roomId: unitId,
+                                status,
+                                note,
+                                updatedBy,
+                                updatedAt,
+                                updatedAtMs: status !== 'Pending' ? Date.now() - (rIdx * 1000) : 0
                             }
                         });
                     });
                 });
 
-                const seedLogs = [
-                    { roomId: '412', wing: 'Ocean Wing', projectName: 'Nâng cấp Smart TV 55 inch - Khu Ocean Wing', status: 'Issue', staff: 'Nguyễn Văn Châu', note: 'Cổng mạng LAN âm tường không có tín hiệu', time: '5 phút trước', timestamp: nowMs - 300000 },
-                    { roomId: '245', wing: 'Garden Wing', projectName: 'Thay thế khóa từ thông minh', status: 'Done', staff: 'Trịnh Văn Hùng', note: 'Hoạt động tốt', time: '12 phút trước', timestamp: nowMs - 720000 },
-                    { roomId: '109', wing: 'Ocean Wing', projectName: 'Bảo trì & vệ sinh FCU điều hòa Q4', status: 'Done', staff: 'Lê Ngọc Hưng', note: '', time: '24 phút trước', timestamp: nowMs - 1440000 },
-                    { roomId: '429', wing: 'Ocean Wing', projectName: 'Nâng cấp Smart TV 55 inch - Khu Ocean Wing', status: 'In_Progress', staff: 'Võ Đức Khoa', note: 'Chờ cấu hình kênh IPTV', time: '38 phút trước', timestamp: nowMs - 2280000 },
-                    { roomId: '355', wing: 'Garden Wing', projectName: 'Thay thế khóa từ thông minh', status: 'Issue', staff: 'Nguyễn Văn Châu', note: 'Khách đang lưu trú, treo biển DND', time: '1 giờ trước', timestamp: nowMs - 3600000 },
-                ];
-
-                seedLogs.forEach((logItem, idx) => {
-                    operations.push({
-                        type: 'set',
-                        ref: doc(db, 'activity_logs', `seed_log_${idx + 1}`),
-                        data: logItem
-                    });
-                });
-
-                // Seed default staff members & admin auth settings
-                DEFAULT_STAFF_MEMBERS.forEach(member => {
-                    operations.push({
-                        type: 'set',
-                        ref: doc(db, 'staff_members', member.id),
-                        data: member
-                    });
-                });
-
-                operations.push({
-                    type: 'set',
-                    ref: adminSettingsDocRef,
-                    data: { username: 'shp', password: '150620', updatedAt: new Date().toLocaleDateString('vi-VN') },
-                    options: { merge: true }
-                });
-
                 await commitBatchOperations(operations);
                 updateConnectionBanner('connected');
-                if (isManual) {
-                    showToast('Đã nạp dữ liệu mẫu lên Firestore thành công!');
+                if (forceReset) {
+                    showToast('Đã nạp dữ liệu mẫu lên Firebase Firestore!');
                 }
             } catch (err) {
                 console.error("Firestore seed error:", err);
-                updateConnectionBanner('error', 'Lỗi ghi Firestore: Kiểm tra Security Rules');
-                showToast('Không thể ghi dữ liệu mẫu lên Firestore. Hãy kiểm tra Firestore Rules!', 'error');
+                updateConnectionBanner('error', 'Không thể ghi dữ liệu mẫu (Kiểm tra Firestore Rules)');
+                showToast('Lỗi kết nối Firestore! Vui lòng kiểm tra Security Rules.', 'error');
             } finally {
                 state.isSeeding = false;
             }
         }
 
-        // ---------------------------------------------------------------------
-        // REAL-TIME FIRESTORE LISTENERS (onSnapshot)
-        // ---------------------------------------------------------------------
         function initFirestoreRealtimeSync() {
-            // 0. Listen to `system_settings/admin_auth`
+            updateConnectionBanner('syncing', 'Đang kết nối Firestore...');
+
             onSnapshot(adminSettingsDocRef, async (docSnap) => {
                 if (docSnap.exists()) {
                     const data = docSnap.data();
-                    // Upgrade legacy default credentials ('admin'/'123456') to new default ('shp'/'150620')
                     if (data.username === 'admin' && data.password === '123456') {
                         state.adminAuth = { username: 'shp', password: '150620' };
                         await setDoc(adminSettingsDocRef, { username: 'shp', password: '150620' }, { merge: true });
-                    } else {
-                        state.adminAuth = {
-                            username: data.username || 'shp',
-                            password: data.password || '150620'
-                        };
+                    } else if (data.username && data.password) {
+                        state.adminAuth = { username: data.username, password: data.password };
                     }
                 } else {
-                    await setDoc(adminSettingsDocRef, { username: 'shp', password: '150620' }, { merge: true });
+                    await setDoc(adminSettingsDocRef, state.adminAuth, { merge: true });
                 }
-            }, (error) => {
-                console.error("Admin auth snapshot error:", error);
+            }, (err) => {
+                console.error("Admin settings listener error:", err);
             });
 
-            // 0b. Listen to `staff_members` collection
             onSnapshot(staffCol, async (snapshot) => {
                 if (snapshot.empty) {
                     const ops = DEFAULT_STAFF_MEMBERS.map(m => ({
@@ -1601,83 +1815,79 @@
                     return;
                 }
 
-                state.staffMembers = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                if (!state.staffMembers.some(s => s.id === state.selectedStaffId) && state.staffMembers.length > 0) {
-                    state.selectedStaffId = state.staffMembers[0].id;
+                const loadedStaff = [];
+                snapshot.forEach(d => loadedStaff.push({ id: d.id, ...d.data() }));
+                loadedStaff.sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+                state.staffMembers = loadedStaff;
+
+                if (!state.staffMembers.some(s => s.id === state.selectedStaffId)) {
+                    state.selectedStaffId = state.staffMembers[0]?.id || 'staff_1';
                 }
+
                 populateStaffMemberDropdown();
                 renderSettingsStaffList();
-            }, (error) => {
-                console.error("Staff snapshot error:", error);
+            }, (err) => {
+                console.error("Staff listener error:", err);
             });
 
-            // 1. Listen to `projects` collection
-            const qProjects = query(projectsCol, orderBy("createdAtMs", "desc"));
-            onSnapshot(qProjects, (snapshot) => {
-                updateConnectionBanner('connected');
+            onSnapshot(projectsCol, (snapshot) => {
+                const loadedProjects = [];
+                snapshot.forEach(docSnap => {
+                    loadedProjects.push({ id: docSnap.id, ...docSnap.data() });
+                });
 
-                // Do NOT auto-seed demo projects when empty so deleted projects stay deleted permanently.
-                // Admin can still manually click "Nạp Dữ Liệu Mẫu" if needed.
-                state.hasCheckedInitialSeed = true;
-                document.getElementById('btnSeedDemo')?.classList.toggle('hidden', !snapshot.empty);
+                loadedProjects.sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0));
+                state.projects = loadedProjects;
 
-                state.projects = snapshot.docs.map(docSnap => ({
-                    id: docSnap.id,
-                    ...docSnap.data()
-                }));
-
-                // Ensure staffSelectedProjectId points to a valid project
-                if (state.projects.length > 0 && !state.projects.some(p => p.id === state.staffSelectedProjectId)) {
-                    state.staffSelectedProjectId = state.projects[0].id;
-                } else if (state.projects.length === 0) {
-                    state.staffSelectedProjectId = '';
+                const seedBtn = document.getElementById('btnSeedDemo');
+                if (seedBtn) {
+                    seedBtn.classList.toggle('hidden', state.projects.length > 0);
                 }
 
-                refreshActiveView();
+                if (state.projects.length > 0 && !state.projects.some(p => p.id === state.staffSelectedProjectId)) {
+                    state.staffSelectedProjectId = state.projects[0].id;
+                }
+
+                updateConnectionBanner('connected');
+                refreshCurrentView();
             }, (error) => {
-                console.error("Projects snapshot error:", error);
-                updateConnectionBanner('error', 'Lỗi quyền đọc Firestore (projects)');
-                showToast('Lỗi kết nối Firestore! Vui lòng kiểm tra Firestore Rules.', 'error');
+                console.error("Projects listener error:", error);
+                updateConnectionBanner('error', 'Lỗi đọc dữ liệu Firestore');
             });
 
-            // 2. Listen to `tasks` collection
             onSnapshot(tasksCol, (snapshot) => {
-                const updatedTasks = {};
-                let doneToday = 0;
+                const nextTasks = {};
+                let doneCount = 0;
 
-                snapshot.docs.forEach(docSnap => {
+                snapshot.forEach(docSnap => {
                     const data = docSnap.data();
-                    updatedTasks[docSnap.id] = data;
-                    if (data.status === 'Done' && typeof data.updatedAt === 'string' && data.updatedAt.startsWith('Hôm nay')) {
-                        doneToday++;
+                    nextTasks[docSnap.id] = data;
+                    if (data.status === 'Done') {
+                        doneCount++;
                     }
                 });
 
-                state.tasks = updatedTasks;
-                state.completedTodayCount = doneToday;
-                refreshActiveView();
+                state.tasks = nextTasks;
+                state.completedTodayCount = doneCount;
+                refreshCurrentView();
             }, (error) => {
-                console.error("Tasks snapshot error:", error);
-                updateConnectionBanner('error', 'Lỗi quyền đọc Firestore (tasks)');
+                console.error("Tasks listener error:", error);
             });
 
-            // 3. Listen to `activity_logs` collection
-            const qLogs = query(logsCol, orderBy("timestamp", "desc"), limit(20));
-            onSnapshot(qLogs, (snapshot) => {
-                state.activityLogs = snapshot.docs.map(docSnap => ({
-                    id: docSnap.id,
-                    ...docSnap.data()
-                }));
+            const logsQuery = query(logsCol, orderBy('timestamp', 'desc'), limit(20));
+            onSnapshot(logsQuery, (snapshot) => {
+                const logs = [];
+                snapshot.forEach(docSnap => logs.push({ id: docSnap.id, ...docSnap.data() }));
+                state.activityLogs = logs;
                 if (state.currentRole === 'admin') {
                     renderAdminActivityFeed();
                 }
             }, (error) => {
-                console.error("Logs snapshot error:", error);
+                console.error("Logs listener error:", error);
             });
         }
 
-        function refreshActiveView() {
-            populateStaffMemberDropdown();
+        function refreshCurrentView() {
             populateStaffProjectDropdown();
             if (state.currentRole === 'admin') {
                 updateAdminDashboard();
@@ -1689,9 +1899,96 @@
         // ---------------------------------------------------------------------
         // 2. ROLE SWITCHER, ADMIN AUTH & SETTINGS MANAGEMENT
         // ---------------------------------------------------------------------
+        function openAdminLoginModal() {
+            document.getElementById('adminLoginError')?.classList.add('hidden');
+            document.getElementById('adminLoginUsername').value = '';
+            document.getElementById('adminLoginPassword').value = '';
+            document.getElementById('adminLoginBackdrop')?.classList.add('active');
+            lucide.createIcons();
+        }
+
+        function closeAdminLoginModal(e) {
+            if (e && e.target !== e.currentTarget) return;
+            document.getElementById('adminLoginBackdrop')?.classList.remove('active');
+        }
+
+        function handleAdminLogin(e) {
+            e.preventDefault();
+            const username = document.getElementById('adminLoginUsername').value.trim();
+            const password = document.getElementById('adminLoginPassword').value;
+            const errEl = document.getElementById('adminLoginError');
+
+            if (username === state.adminAuth.username && password === state.adminAuth.password) {
+                state.isAdminAuthenticated = true;
+                errEl?.classList.add('hidden');
+                closeAdminLoginModal();
+                switchRole('admin');
+                showToast('Đăng nhập Quản trị viên thành công!');
+            } else if (errEl) {
+                errEl.textContent = 'Tên đăng nhập hoặc mật khẩu không chính xác!';
+                errEl.classList.remove('hidden');
+            }
+        }
+
+        function logoutAdminSession() {
+            state.isAdminAuthenticated = false;
+            closeAdminSettingsModal();
+            switchRole('staff');
+            showToast('Đã khóa phiên Quản trị viên!');
+        }
+
+        function openAdminSettingsModal() {
+            if (!state.isAdminAuthenticated) {
+                openAdminLoginModal();
+                return;
+            }
+            document.getElementById('settingsAdminUsername').value = state.adminAuth.username;
+            resetStaffForm();
+            renderSettingsStaffList();
+            switchAdminSettingsTab('staff');
+            document.getElementById('adminSettingsBackdrop')?.classList.add('active');
+            lucide.createIcons();
+        }
+
+        function closeAdminSettingsModal(e) {
+            if (e && e.target !== e.currentTarget) return;
+            document.getElementById('adminSettingsBackdrop')?.classList.remove('active');
+        }
+
+        function switchAdminSettingsTab(tab) {
+            const tabs = {
+                staff: { btn: 'tabBtnStaff', panel: 'settingsTabStaff' },
+                backup: { btn: 'tabBtnBackup', panel: 'settingsTabBackup' },
+                security: { btn: 'tabBtnSecurity', panel: 'settingsTabSecurity' }
+            };
+
+            Object.entries(tabs).forEach(([key, cfg]) => {
+                const isActive = key === tab;
+                const btnEl = document.getElementById(cfg.btn);
+                const panelEl = document.getElementById(cfg.panel);
+                if (panelEl) panelEl.classList.toggle('hidden', !isActive);
+                if (btnEl) {
+                    btnEl.className = isActive
+                        ? 'px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 border-blue-600 text-blue-600 transition flex items-center gap-2 whitespace-nowrap'
+                        : 'px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-800 transition flex items-center gap-2 whitespace-nowrap';
+                }
+            });
+
+            if (tab === 'backup') {
+                const summaryEl = document.getElementById('backupSummaryStats');
+                if (summaryEl) {
+                    summaryEl.innerHTML = `
+                        <div>• Dự án hiện tại: <strong>${state.projects.length}</strong></div>
+                        <div>• Bản ghi trạng thái: <strong>${Object.keys(state.tasks).length}</strong></div>
+                        <div>• Nhân sự & phân quyền: <strong>${state.staffMembers.length}</strong></div>
+                    `;
+                }
+            }
+            lucide.createIcons();
+        }
+
         function switchRole(role) {
             if (role === 'admin' && !state.isAdminAuthenticated) {
-                state.pendingAdminAction = () => switchRole('admin');
                 openAdminLoginModal();
                 return;
             }
@@ -1722,238 +2019,86 @@
             lucide.createIcons();
         }
 
-        function openAdminLoginModal() {
-            document.getElementById('adminLoginUsername').value = '';
-            document.getElementById('adminLoginPassword').value = '';
-            document.getElementById('adminLoginError').classList.add('hidden');
-            document.getElementById('adminLoginBackdrop').classList.add('active');
-            lucide.createIcons();
-        }
-
-        function closeAdminLoginModal(e) {
-            if (e && e.target !== e.currentTarget) return;
-            state.pendingAdminAction = null;
-            document.getElementById('adminLoginBackdrop').classList.remove('active');
-        }
-
-        function handleAdminLogin(e) {
+        async function handleUpdateAdminCredentials(e) {
             e.preventDefault();
-            const inputUser = document.getElementById('adminLoginUsername').value.trim();
-            const inputPass = document.getElementById('adminLoginPassword').value;
-            const errEl = document.getElementById('adminLoginError');
+            const newUsername = document.getElementById('settingsAdminUsername').value.trim();
+            const currentPass = document.getElementById('settingsCurrentPassword').value;
+            const newPass = document.getElementById('settingsNewPassword').value;
+            const confirmPass = document.getElementById('settingsConfirmPassword').value;
 
-            if (inputUser === state.adminAuth.username && inputPass === state.adminAuth.password) {
-                state.isAdminAuthenticated = true;
-                errEl.classList.add('hidden');
-                const nextAction = state.pendingAdminAction;
-                closeAdminLoginModal();
-                showToast(`Đăng nhập Quản trị viên (${inputUser}) thành công!`);
-                if (typeof nextAction === 'function') {
-                    nextAction();
-                }
-            } else {
-                errEl.textContent = 'Sai tên đăng nhập hoặc mật khẩu Quản trị viên!';
-                errEl.classList.remove('hidden');
-            }
-        }
-
-        function logoutAdminSession() {
-            state.isAdminAuthenticated = false;
-            closeAdminSettingsModal();
-            switchRole('staff');
-            showToast('Đã khóa phiên Quản trị viên. Cần đăng nhập lại để vào trang Quản trị.');
-        }
-
-        function openAdminSettingsModal() {
-            if (!state.isAdminAuthenticated) {
-                state.pendingAdminAction = () => openAdminSettingsModal();
-                openAdminLoginModal();
+            if (currentPass !== state.adminAuth.password) {
+                showToast('Mật khẩu hiện tại không chính xác!', 'error');
                 return;
             }
-            document.getElementById('settingsAdminUsername').value = state.adminAuth.username;
-            document.getElementById('settingsCurrentPassword').value = '';
-            document.getElementById('settingsNewPassword').value = '';
-            document.getElementById('settingsConfirmPassword').value = '';
-            resetStaffForm();
-            renderSettingsStaffList();
-            switchAdminSettingsTab('staff');
-            document.getElementById('adminSettingsBackdrop').classList.add('active');
-            lucide.createIcons();
-        }
-
-        function closeAdminSettingsModal(e) {
-            if (e && e.target !== e.currentTarget) return;
-            document.getElementById('adminSettingsBackdrop').classList.remove('active');
-        }
-
-        function switchAdminSettingsTab(tab) {
-            const isStaff = tab === 'staff';
-            const isBackup = tab === 'backup';
-            const isSecurity = tab === 'security';
-
-            document.getElementById('settingsTabStaff').classList.toggle('hidden', !isStaff);
-            document.getElementById('settingsTabBackup').classList.toggle('hidden', !isBackup);
-            document.getElementById('settingsTabSecurity').classList.toggle('hidden', !isSecurity);
-
-            const activeCls = 'px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 border-blue-600 text-blue-600 transition flex items-center gap-2 whitespace-nowrap';
-            const inactiveCls = 'px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-800 transition flex items-center gap-2 whitespace-nowrap';
-
-            document.getElementById('tabBtnStaff').className = isStaff ? activeCls : inactiveCls;
-            document.getElementById('tabBtnBackup').className = isBackup ? activeCls : inactiveCls;
-            document.getElementById('tabBtnSecurity').className = isSecurity ? activeCls : inactiveCls;
-
-            if (isBackup) {
-                updateBackupSummaryUI();
+            if (!newUsername) {
+                showToast('Tên đăng nhập không được để trống!', 'error');
+                return;
             }
-            lucide.createIcons();
+            if (newPass.length < 4) {
+                showToast('Mật khẩu mới phải có ít nhất 4 ký tự!', 'error');
+                return;
+            }
+            if (newPass !== confirmPass) {
+                showToast('Mật khẩu xác nhận không khớp!', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('btnSaveCredentials');
+            btn.disabled = true;
+            btn.innerHTML = `<span>Đang lưu...</span>`;
+
+            try {
+                await setDoc(adminSettingsDocRef, {
+                    username: newUsername,
+                    password: newPass,
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+
+                state.adminAuth = { username: newUsername, password: newPass };
+                document.getElementById('settingsCurrentPassword').value = '';
+                document.getElementById('settingsNewPassword').value = '';
+                document.getElementById('settingsConfirmPassword').value = '';
+                showToast('Đã cập nhật thông tin đăng nhập Quản trị viên!');
+            } catch (err) {
+                console.error('Update admin credentials error:', err);
+                showToast('Lỗi lưu thông tin đăng nhập lên Firestore!', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i data-lucide="save" class="w-4 h-4"></i><span>Cập Nhật Tài Khoản Quản Trị</span>`;
+                lucide.createIcons();
+            }
         }
 
-        function updateBackupSummaryUI() {
-            const box = document.getElementById('backupSummaryStats');
-            if (!box) return;
-            const totalTasksCount = Object.keys(state.tasks).length;
+        function getCurrentStaffMember() {
+            return state.staffMembers.find(s => s.id === state.selectedStaffId) || state.staffMembers[0] || null;
+        }
+
+        function populateStaffMemberDropdown() {
+            const select = document.getElementById('staffNameSelect');
+            if (!select) return;
+            select.innerHTML = state.staffMembers.map(m =>
+                `<option value="${m.id}">${m.name} (${m.department})</option>`
+            ).join('');
+            select.value = state.selectedStaffId;
+            renderStaffRoleBadgeBox();
+        }
+
+        function renderStaffRoleBadgeBox() {
+            const box = document.getElementById('staffRoleBadgeBox');
+            const m = getCurrentStaffMember();
+            if (!box || !m) return;
+
+            const wingLabel = m.wingScope === 'ALL' ? 'Toàn bộ 2 khu' : m.wingScope;
+            const roleMap = { staff: 'Nhân viên', supervisor: 'Giám sát', sub_admin: 'Phó quản lý' };
             box.innerHTML = `
-                <div class="flex justify-between"><span>Số dự án hiện có:</span> <strong>${state.projects.length} dự án</strong></div>
-                <div class="flex justify-between"><span>Dữ liệu trạng thái phòng:</span> <strong>${totalTasksCount} bản ghi</strong></div>
-                <div class="flex justify-between"><span>Danh sách nhân sự:</span> <strong>${state.staffMembers.length} nhân viên</strong></div>
-                <div class="flex justify-between"><span>Nhật ký hoạt động:</span> <strong>${state.activityLogs.length} dòng gần nhất</strong></div>
+                <span class="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-semibold">${roleMap[m.role] || 'Nhân viên'}</span>
+                <span class="px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 font-medium">${wingLabel}</span>
             `;
         }
 
-        function exportProjectBackupJSON() {
-            const backupPayload = {
-                app: 'RoomOps Pro',
-                version: '1.0',
-                exportedAt: new Date().toISOString(),
-                exportedAtLocal: new Date().toLocaleString('vi-VN'),
-                data: {
-                    projects: state.projects,
-                    tasks: state.tasks,
-                    staffMembers: state.staffMembers,
-                    activityLogs: state.activityLogs
-                }
-            };
-
-            const jsonStr = JSON.stringify(backupPayload, null, 2);
-            const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-            link.setAttribute('href', url);
-            link.setAttribute('download', `RoomOps_Backup_${timestamp}.json`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-
-            showToast(`Đã tải xuống tệp sao lưu (${state.projects.length} dự án)!`);
-        }
-
-        function handlePreviewBackupFile(e) {
-            const file = e.target.files?.[0];
-            const previewBox = document.getElementById('restorePreviewBox');
-            const submitBtn = document.getElementById('btnRestoreBackupSubmit');
-            state.pendingRestorePayload = null;
-
-            if (!file) {
-                previewBox.classList.add('hidden');
-                submitBtn.disabled = true;
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                try {
-                    const parsed = JSON.parse(event.target.result);
-                    if (!parsed || parsed.app !== 'RoomOps Pro' || !parsed.data || !Array.isArray(parsed.data.projects)) {
-                        throw new Error('Định dạng tệp sao lưu không hợp lệ');
-                    }
-
-                    state.pendingRestorePayload = parsed.data;
-                    const projCount = parsed.data.projects.length;
-                    const taskCount = Object.keys(parsed.data.tasks || {}).length;
-                    const staffCount = (parsed.data.staffMembers || []).length;
-
-                    previewBox.innerHTML = `
-                        <div class="font-bold text-blue-800">✓ Tệp sao lưu hợp lệ</div>
-                        <div>• Thời điểm tạo: <strong>${parsed.exportedAtLocal || parsed.exportedAt || '-'}</strong></div>
-                        <div>• Nội dung: <strong>${projCount} dự án</strong>, <strong>${taskCount} trạng thái phòng</strong>, <strong>${staffCount} nhân sự</strong></div>
-                    `;
-                    previewBox.classList.remove('hidden');
-                    submitBtn.disabled = false;
-                } catch (err) {
-                    previewBox.innerHTML = `<span class="text-red-600 font-semibold">⚠ Tệp không đúng định dạng sao lưu của RoomOps Pro!</span>`;
-                    previewBox.classList.remove('hidden');
-                    submitBtn.disabled = true;
-                    showToast('Tệp sao lưu không hợp lệ!', 'error');
-                }
-            };
-            reader.readAsText(file);
-        }
-
-        async function executeRestoreBackup() {
-            const payload = state.pendingRestorePayload;
-            if (!payload) return;
-
-            const submitBtn = document.getElementById('btnRestoreBackupSubmit');
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = `<span>Đang khôi phục lên Firestore...</span>`;
-            updateConnectionBanner('syncing', 'Đang phục hồi dữ liệu sao lưu...');
-
-            try {
-                const operations = [];
-
-                // 1. Restore projects
-                (payload.projects || []).forEach(proj => {
-                    if (proj && proj.id) {
-                        operations.push({
-                            type: 'set',
-                            ref: doc(db, 'projects', proj.id),
-                            data: proj,
-                            options: { merge: true }
-                        });
-                    }
-                });
-
-                // 2. Restore room tasks
-                Object.entries(payload.tasks || {}).forEach(([taskId, taskData]) => {
-                    if (taskId && taskData) {
-                        operations.push({
-                            type: 'set',
-                            ref: doc(db, 'tasks', taskId),
-                            data: taskData,
-                            options: { merge: true }
-                        });
-                    }
-                });
-
-                // 3. Restore staff members
-                (payload.staffMembers || []).forEach(member => {
-                    if (member && member.id) {
-                        operations.push({
-                            type: 'set',
-                            ref: doc(db, 'staff_members', member.id),
-                            data: member,
-                            options: { merge: true }
-                        });
-                    }
-                });
-
-                await commitBatchOperations(operations);
-
-                state.pendingRestorePayload = null;
-                document.getElementById('restoreBackupFileInput').value = '';
-                document.getElementById('restorePreviewBox').classList.add('hidden');
-                updateConnectionBanner('connected');
-                showToast(`Đã phục hồi thành công ${payload.projects.length} dự án lên Firestore!`);
-            } catch (err) {
-                console.error("Restore backup error:", err);
-                updateConnectionBanner('error', 'Lỗi phục hồi dữ liệu lên Firestore');
-                showToast('Không thể phục hồi dữ liệu! Kiểm tra kết nối Firestore.', 'error');
-            } finally {
-                submitBtn.innerHTML = `<i data-lucide="rotate-ccw" class="w-4 h-4"></i><span>Khôi Phục Lên Firestore</span>`;
-                lucide.createIcons();
-            }
+        function onStaffMemberChange() {
+            state.selectedStaffId = document.getElementById('staffNameSelect').value;
+            renderStaffRoleBadgeBox();
         }
 
         function applyRolePermissionPreset() {
@@ -1973,30 +2118,23 @@
             document.getElementById('staffRoleInput').value = 'staff';
             document.getElementById('staffWingScopeInput').value = 'ALL';
             applyRolePermissionPreset();
-            document.getElementById('btnSaveStaffSubmit').innerHTML = `<i data-lucide="user-plus" class="w-4 h-4"></i><span>Lưu Nhân Viên</span>`;
-            lucide.createIcons();
         }
 
         function editStaffMember(staffId) {
-            const member = state.staffMembers.find(s => s.id === staffId);
-            if (!member) return;
+            const m = state.staffMembers.find(s => s.id === staffId);
+            if (!m) return;
 
-            document.getElementById('editStaffId').value = member.id;
-            document.getElementById('staffFormTitle').textContent = `Chỉnh Sửa: ${member.name}`;
+            document.getElementById('editStaffId').value = m.id;
+            document.getElementById('staffFormTitle').textContent = 'Chỉnh Sửa Nhân Viên';
             document.getElementById('btnCancelEditStaff').classList.remove('hidden');
-            document.getElementById('staffFullNameInput').value = member.name;
-            document.getElementById('staffDepartmentInput').value = member.department || 'Kỹ thuật';
-            document.getElementById('staffRoleInput').value = member.role || 'staff';
-            document.getElementById('staffWingScopeInput').value = member.wingScope || 'ALL';
-
-            const perms = member.permissions || {};
-            document.getElementById('permUpdateRoom').checked = perms.updateRoom !== false;
-            document.getElementById('permReportIssue').checked = perms.reportIssue !== false;
-            document.getElementById('permCreateProject').checked = !!perms.createProject;
-            document.getElementById('permExportReport').checked = !!perms.exportReport;
-
-            document.getElementById('btnSaveStaffSubmit').innerHTML = `<i data-lucide="check" class="w-4 h-4"></i><span>Cập Nhật Nhân Viên</span>`;
-            lucide.createIcons();
+            document.getElementById('staffFullNameInput').value = m.name;
+            document.getElementById('staffDepartmentInput').value = m.department || '';
+            document.getElementById('staffRoleInput').value = m.role || 'staff';
+            document.getElementById('staffWingScopeInput').value = m.wingScope || 'ALL';
+            document.getElementById('permUpdateRoom').checked = m.permissions?.updateRoom !== false;
+            document.getElementById('permReportIssue').checked = m.permissions?.reportIssue !== false;
+            document.getElementById('permCreateProject').checked = Boolean(m.permissions?.createProject);
+            document.getElementById('permExportReport').checked = Boolean(m.permissions?.exportReport);
         }
 
         async function handleSaveStaff(e) {
@@ -2007,103 +2145,44 @@
             const role = document.getElementById('staffRoleInput').value;
             const wingScope = document.getElementById('staffWingScopeInput').value;
 
-            const permissions = {
-                updateRoom: document.getElementById('permUpdateRoom').checked,
-                reportIssue: document.getElementById('permReportIssue').checked,
-                createProject: document.getElementById('permCreateProject').checked,
-                exportReport: document.getElementById('permExportReport').checked
-            };
-
             if (!name) return;
 
             const staffId = existingId || ('staff_' + Date.now());
-            const btn = document.getElementById('btnSaveStaffSubmit');
-            btn.disabled = true;
+            const payload = {
+                id: staffId,
+                name,
+                department,
+                role,
+                wingScope,
+                permissions: {
+                    updateRoom: document.getElementById('permUpdateRoom').checked,
+                    reportIssue: document.getElementById('permReportIssue').checked,
+                    createProject: document.getElementById('permCreateProject').checked,
+                    exportReport: document.getElementById('permExportReport').checked
+                }
+            };
 
             try {
-                await setDoc(doc(db, 'staff_members', staffId), {
-                    id: staffId,
-                    name,
-                    department,
-                    role,
-                    wingScope,
-                    permissions
-                }, { merge: true });
-
+                await setDoc(doc(db, 'staff_members', staffId), payload, { merge: true });
                 resetStaffForm();
-                showToast(existingId ? `Đã cập nhật thông tin "${name}"!` : `Đã thêm nhân viên "${name}"!`);
+                showToast(existingId ? `Đã cập nhật nhân viên "${name}"!` : `Đã thêm nhân viên "${name}"!`);
             } catch (err) {
-                console.error("Save staff error:", err);
+                console.error('Save staff error:', err);
                 showToast('Lỗi lưu thông tin nhân viên lên Firestore!', 'error');
-            } finally {
-                btn.disabled = false;
             }
         }
 
         async function deleteStaffMember(staffId) {
             if (state.staffMembers.length <= 1) {
-                showToast('Hệ thống cần giữ lại ít nhất 1 nhân viên!', 'error');
+                showToast('Cần giữ lại ít nhất 1 nhân viên trong hệ thống!', 'error');
                 return;
             }
-            const member = state.staffMembers.find(s => s.id === staffId);
-            if (!member) return;
-
             try {
                 await deleteDoc(doc(db, 'staff_members', staffId));
-                if (document.getElementById('editStaffId').value === staffId) {
-                    resetStaffForm();
-                }
-                showToast(`Đã xóa nhân viên "${member.name}"!`);
+                showToast('Đã xóa nhân viên khỏi danh sách!');
             } catch (err) {
-                console.error("Delete staff error:", err);
+                console.error('Delete staff error:', err);
                 showToast('Lỗi xóa nhân viên trên Firestore!', 'error');
-            }
-        }
-
-        async function handleUpdateAdminCredentials(e) {
-            e.preventDefault();
-            const newUsername = document.getElementById('settingsAdminUsername').value.trim();
-            const currentPass = document.getElementById('settingsCurrentPassword').value;
-            const newPass = document.getElementById('settingsNewPassword').value;
-            const confirmPass = document.getElementById('settingsConfirmPassword').value;
-
-            if (!newUsername) {
-                showToast('Vui lòng nhập tên đăng nhập mới!', 'error');
-                return;
-            }
-            if (currentPass !== state.adminAuth.password) {
-                showToast('Mật khẩu hiện tại không chính xác!', 'error');
-                return;
-            }
-            if (newPass.length < 4) {
-                showToast('Mật khẩu mới phải có ít nhất 4 ký tự!', 'error');
-                return;
-            }
-            if (newPass !== confirmPass) {
-                showToast('Xác nhận mật khẩu mới không khớp!', 'error');
-                return;
-            }
-
-            const btn = document.getElementById('btnSaveCredentials');
-            btn.disabled = true;
-
-            try {
-                await setDoc(adminSettingsDocRef, {
-                    username: newUsername,
-                    password: newPass,
-                    updatedAt: new Date().toLocaleString('vi-VN')
-                }, { merge: true });
-
-                state.adminAuth = { username: newUsername, password: newPass };
-                document.getElementById('settingsCurrentPassword').value = '';
-                document.getElementById('settingsNewPassword').value = '';
-                document.getElementById('settingsConfirmPassword').value = '';
-                showToast('Đã cập nhật thông tin đăng nhập Quản trị viên!');
-            } catch (err) {
-                console.error("Update admin credentials error:", err);
-                showToast('Lỗi lưu thông tin đăng nhập lên Firestore!', 'error');
-            } finally {
-                btn.disabled = false;
             }
         }
 
@@ -2111,124 +2190,158 @@
             const listEl = document.getElementById('settingsStaffList');
             const countEl = document.getElementById('settingsStaffCount');
             if (!listEl) return;
-
             if (countEl) countEl.textContent = state.staffMembers.length;
 
-            const roleLabels = {
-                'staff': { text: 'Nhân viên', cls: 'bg-gray-100 text-gray-700' },
-                'supervisor': { text: 'Giám sát', cls: 'bg-indigo-50 text-indigo-700' },
-                'sub_admin': { text: 'Phó quản lý', cls: 'bg-purple-50 text-purple-700' }
-            };
+            const roleLabels = { staff: 'Nhân viên', supervisor: 'Giám sát', sub_admin: 'Phó quản lý' };
 
-            listEl.innerHTML = state.staffMembers.map(member => {
-                const rInfo = roleLabels[member.role] || roleLabels.staff;
-                const p = member.permissions || {};
-                const wingBadge = member.wingScope === 'Ocean Wing'
-                    ? '<span class="px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 font-semibold">Chỉ Ocean Wing</span>'
-                    : member.wingScope === 'Garden Wing'
-                        ? '<span class="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-semibold">Chỉ Garden Wing</span>'
-                        : '<span class="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-semibold">Toàn bộ 2 khu</span>';
+            listEl.innerHTML = state.staffMembers.map(m => {
+                const perms = m.permissions || {};
+                const badges = [];
+                if (perms.updateRoom !== false) badges.push('Cập nhật tiến độ');
+                if (perms.reportIssue !== false) badges.push('Báo sự cố');
+                if (perms.createProject) badges.push('Tạo dự án');
+                if (perms.exportReport) badges.push('Xuất báo cáo');
 
                 return `
-                    <div class="bg-white border border-gray-200/80 rounded-2xl p-3.5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div class="space-y-1.5">
+                    <div class="bg-white border border-gray-200/80 rounded-2xl p-3.5 flex items-start justify-between gap-3">
+                        <div class="space-y-1 min-w-0">
                             <div class="flex items-center gap-2 flex-wrap">
-                                <span class="font-bold text-sm text-gray-900">${member.name}</span>
-                                <span class="text-xs text-gray-500">(${member.department || 'Kỹ thuật'})</span>
-                                <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold ${rInfo.cls}">${rInfo.text}</span>
+                                <span class="font-bold text-sm text-gray-900">${m.name}</span>
+                                <span class="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[10px] font-bold">${roleLabels[m.role] || 'Nhân viên'}</span>
+                                <span class="px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 text-[10px] font-medium">${m.department || 'Kỹ thuật'}</span>
                             </div>
-                            <div class="flex flex-wrap items-center gap-1.5 text-[11px]">
-                                ${wingBadge}
-                                ${p.updateRoom !== false ? '<span class="px-2 py-0.5 rounded-md bg-emerald-50/70 text-emerald-700">✓ Cập nhật phòng</span>' : '<span class="px-2 py-0.5 rounded-md bg-gray-100 text-gray-400 line-through">Cập nhật phòng</span>'}
-                                ${p.reportIssue !== false ? '<span class="px-2 py-0.5 rounded-md bg-amber-50/70 text-amber-700">✓ Báo sự cố</span>' : ''}
-                                ${p.createProject ? '<span class="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700">✓ Tạo dự án</span>' : ''}
-                                ${p.exportReport ? '<span class="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700">✓ Xuất CSV</span>' : ''}
+                            <div class="text-[11px] text-gray-500">
+                                Phân khu: <strong class="text-gray-700">${m.wingScope === 'ALL' ? 'Tất cả 2 khu' : m.wingScope}</strong>
+                            </div>
+                            <div class="flex flex-wrap gap-1 pt-0.5">
+                                ${badges.map(b => `<span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-medium">${b}</span>`).join('')}
                             </div>
                         </div>
-                        <div class="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
-                            <button type="button" onclick="editStaffMember('${member.id}')" class="px-2.5 py-1.5 rounded-xl bg-gray-100 hover:bg-blue-50 text-gray-700 hover:text-blue-600 text-xs font-semibold transition inline-flex items-center gap-1">
+                        <div class="flex items-center gap-1 shrink-0">
+                            <button type="button" onclick="editStaffMember('${m.id}')" class="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 transition" title="Sửa">
                                 <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
-                                <span>Sửa</span>
                             </button>
-                            <button type="button" onclick="deleteStaffMember('${member.id}')" class="px-2.5 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold transition inline-flex items-center gap-1">
+                            <button type="button" onclick="deleteStaffMember('${m.id}')" class="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 transition" title="Xóa">
                                 <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                                <span>Xóa</span>
                             </button>
                         </div>
                     </div>
                 `;
             }).join('');
-
             lucide.createIcons();
         }
 
-        function getCurrentStaffMember() {
-            return state.staffMembers.find(s => s.id === state.selectedStaffId) || state.staffMembers[0] || DEFAULT_STAFF_MEMBERS[0];
+        function exportProjectBackupJSON() {
+            const payload = {
+                app: 'RoomOps Pro',
+                version: '2.0',
+                exportedAt: new Date().toISOString(),
+                projects: state.projects,
+                tasks: state.tasks,
+                staffMembers: state.staffMembers,
+                activityLogs: state.activityLogs
+            };
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `RoomOps_Backup_${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('Đã tải xuống tệp sao lưu JSON thành công!');
         }
 
-        function populateStaffMemberDropdown() {
-            const select = document.getElementById('staffNameSelect');
-            if (!select) return;
-            select.innerHTML = state.staffMembers.map(s =>
-                `<option value="${s.id}">${s.name} (${s.department || 'Kỹ thuật'})</option>`
-            ).join('');
-            if (state.staffMembers.some(s => s.id === state.selectedStaffId)) {
-                select.value = state.selectedStaffId;
+        function handlePreviewBackupFile(e) {
+            const file = e.target.files?.[0];
+            const previewBox = document.getElementById('restorePreviewBox');
+            const submitBtn = document.getElementById('btnRestoreBackupSubmit');
+            if (!file) {
+                state.pendingRestorePayload = null;
+                previewBox?.classList.add('hidden');
+                if (submitBtn) submitBtn.disabled = true;
+                return;
             }
-            updateStaffPermissionBadgeUI();
+
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    const data = JSON.parse(ev.target.result);
+                    if (!Array.isArray(data.projects) || typeof data.tasks !== 'object') {
+                        throw new Error('Cấu trúc tệp sao lưu không hợp lệ');
+                    }
+                    state.pendingRestorePayload = data;
+                    previewBox.innerHTML = `
+                        <div class="font-bold text-blue-800">Tệp hợp lệ: ${file.name}</div>
+                        <div>• Số dự án: <strong>${data.projects.length}</strong></div>
+                        <div>• Số bản ghi trạng thái: <strong>${Object.keys(data.tasks).length}</strong></div>
+                        <div>• Nhân sự: <strong>${(data.staffMembers || []).length}</strong></div>
+                    `;
+                    previewBox.classList.remove('hidden');
+                    submitBtn.disabled = false;
+                } catch (err) {
+                    state.pendingRestorePayload = null;
+                    previewBox.innerHTML = `<span class="text-red-600 font-semibold">Lỗi: Tệp JSON không đúng định dạng sao lưu RoomOps Pro!</span>`;
+                    previewBox.classList.remove('hidden');
+                    submitBtn.disabled = true;
+                }
+            };
+            reader.readAsText(file);
         }
 
-        function onStaffMemberChange() {
-            state.selectedStaffId = document.getElementById('staffNameSelect').value;
-            updateStaffPermissionBadgeUI();
-            renderStaffView();
+        async function executeRestoreBackup() {
+            const data = state.pendingRestorePayload;
+            if (!data) return;
+
+            const btn = document.getElementById('btnRestoreBackupSubmit');
+            btn.disabled = true;
+            btn.innerHTML = `<span>Đang khôi phục...</span>`;
+            updateConnectionBanner('syncing', 'Đang khôi phục dữ liệu lên Firestore...');
+
+            try {
+                const ops = [];
+                (data.projects || []).forEach(p => {
+                    ops.push({ type: 'set', ref: doc(db, 'projects', p.id), data: p, options: { merge: true } });
+                });
+                Object.entries(data.tasks || {}).forEach(([taskId, taskData]) => {
+                    ops.push({ type: 'set', ref: doc(db, 'tasks', taskId), data: taskData, options: { merge: true } });
+                });
+                (data.staffMembers || []).forEach(s => {
+                    ops.push({ type: 'set', ref: doc(db, 'staff_members', s.id), data: s, options: { merge: true } });
+                });
+
+                await commitBatchOperations(ops);
+                state.pendingRestorePayload = null;
+                document.getElementById('restoreBackupFileInput').value = '';
+                document.getElementById('restorePreviewBox').classList.add('hidden');
+                updateConnectionBanner('connected');
+                showToast('Đã khôi phục toàn bộ dữ liệu lên Firestore thành công!');
+            } catch (err) {
+                console.error('Restore backup error:', err);
+                updateConnectionBanner('error', 'Lỗi khôi phục dữ liệu');
+                showToast('Lỗi khi ghi dữ liệu khôi phục lên Firestore!', 'error');
+            } finally {
+                btn.innerHTML = `<i data-lucide="rotate-ccw" class="w-4 h-4"></i><span>Khôi Phục Lên Firestore</span>`;
+                lucide.createIcons();
+            }
         }
 
-        function updateStaffPermissionBadgeUI() {
-            const box = document.getElementById('staffRoleBadgeBox');
-            if (!box) return;
-            const member = getCurrentStaffMember();
-            if (!member) return;
-
-            const scopeText = member.wingScope === 'Ocean Wing'
-                ? 'Phạm vi: Chỉ Ocean Wing'
-                : member.wingScope === 'Garden Wing'
-                    ? 'Phạm vi: Chỉ Garden Wing'
-                    : 'Phạm vi: Toàn bộ 2 khu';
-
-            const perms = member.permissions || {};
-            const canUpdate = perms.updateRoom !== false;
-
-            box.innerHTML = `
-                <span class="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-semibold">${scopeText}</span>
-                <span class="px-2 py-0.5 rounded-md ${canUpdate ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'} font-semibold">
-                    ${canUpdate ? 'Quyền: Cập nhật tiến độ' : 'Chỉ xem (Không có quyền sửa)'}
-                </span>
-            `;
-        }
-
-        function jumpToStaffProject(projectId) {
-            state.staffSelectedProjectId = projectId;
-            const selectEl = document.getElementById('staffProjectSelect');
-            if (selectEl) selectEl.value = projectId;
-            switchRole('staff');
-            const proj = getProjectById(projectId);
-            if (proj) showToast(`Đã mở bảng phòng dự án: ${proj.name}`);
-        }
-
-        // ---------------------------------------------------------------------
-        // 3. ADMIN DASHBOARD LOGIC & CHARTS
-        // ---------------------------------------------------------------------
         function getProjectById(id) {
             return state.projects.find(p => p.id === id);
         }
 
-        function calculateStats(filterProjectId = 'ALL') {
-            let totalTasks = 0;
-            let done = 0;
-            let inProgress = 0;
-            let issue = 0;
-            let pending = 0;
+        function jumpToStaffProject(projectId) {
+            state.staffSelectedProjectId = projectId;
+            switchRole('staff');
+        }
+
+        function calculateStats(projectId = 'ALL') {
+            const targetProjects = projectId === 'ALL'
+                ? state.projects
+                : state.projects.filter(p => p.id === projectId);
+
+            let totalTasks = 0, done = 0, inProgress = 0, issue = 0, pending = 0;
 
             const floorWingStats = {
                 1: { 'Ocean Wing': { total: 0, done: 0 }, 'Garden Wing': { total: 0, done: 0 } },
@@ -2238,35 +2351,38 @@
             };
 
             const wingStats = {
-                'Ocean Wing': { total: 0, done: 0, issue: 0 },
-                'Garden Wing': { total: 0, done: 0, issue: 0 }
+                'Ocean Wing': { total: 0, done: 0, inProgress: 0, issue: 0, pending: 0 },
+                'Garden Wing': { total: 0, done: 0, inProgress: 0, issue: 0, pending: 0 }
             };
 
-            const targetProjects = filterProjectId === 'ALL' 
-                ? state.projects 
-                : state.projects.filter(p => p.id === filterProjectId);
-
             targetProjects.forEach(proj => {
-                (proj.targetRooms || []).forEach(roomId => {
-                    const task = state.tasks[`${proj.id}_${roomId}`] || { status: 'Pending' };
-                    const meta = ROOM_META_MAP[roomId];
+                (proj.targetRooms || []).forEach(unitId => {
+                    const meta = getUnitMeta(unitId);
                     if (!meta) return;
 
+                    const task = state.tasks[`${proj.id}_${unitId}`] || { status: 'Pending' };
                     totalTasks++;
-                    floorWingStats[meta.floor][meta.wing].total++;
-                    wingStats[meta.wing].total++;
+
+                    if (floorWingStats[meta.floor] && floorWingStats[meta.floor][meta.wing]) {
+                        floorWingStats[meta.floor][meta.wing].total++;
+                    }
+                    if (wingStats[meta.wing]) {
+                        wingStats[meta.wing].total++;
+                    }
 
                     if (task.status === 'Done') {
                         done++;
-                        floorWingStats[meta.floor][meta.wing].done++;
-                        wingStats[meta.wing].done++;
+                        if (floorWingStats[meta.floor]?.[meta.wing]) floorWingStats[meta.floor][meta.wing].done++;
+                        if (wingStats[meta.wing]) wingStats[meta.wing].done++;
                     } else if (task.status === 'In_Progress') {
                         inProgress++;
+                        if (wingStats[meta.wing]) wingStats[meta.wing].inProgress++;
                     } else if (task.status === 'Issue') {
                         issue++;
-                        wingStats[meta.wing].issue++;
+                        if (wingStats[meta.wing]) wingStats[meta.wing].issue++;
                     } else {
                         pending++;
+                        if (wingStats[meta.wing]) wingStats[meta.wing].pending++;
                     }
                 });
             });
@@ -2276,17 +2392,20 @@
 
         function updateAdminDashboard() {
             const filterSelect = document.getElementById('adminChartProjectFilter');
-            const currentFilterVal = filterSelect.value;
-            filterSelect.innerHTML = `<option value="ALL">Tất cả dự án (${state.projects.length})</option>` + 
+            if (!filterSelect) return;
+
+            const prevVal = filterSelect.value || 'ALL';
+            filterSelect.innerHTML = `<option value="ALL">Tất cả dự án (${state.projects.length})</option>` +
                 state.projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-            if (state.projects.some(p => p.id === currentFilterVal) || currentFilterVal === 'ALL') {
-                filterSelect.value = currentFilterVal;
+            if (prevVal === 'ALL' || state.projects.some(p => p.id === prevVal)) {
+                filterSelect.value = prevVal;
             }
 
-            // Global KPIs
+            const selectedProjFilter = filterSelect.value;
             const globalStats = calculateStats('ALL');
-            const overallPct = globalStats.totalTasks > 0 ? Math.round((globalStats.done / globalStats.totalTasks) * 100) : 0;
+            const filteredStats = calculateStats(selectedProjFilter);
 
+            const overallPct = globalStats.totalTasks > 0 ? Math.round((globalStats.done / globalStats.totalTasks) * 100) : 0;
             document.getElementById('kpiActiveProjects').textContent = state.projects.length;
             document.getElementById('kpiOverallProgress').textContent = `${overallPct}%`;
             document.getElementById('kpiProgressRatio').textContent = `${globalStats.done}/${globalStats.totalTasks} hạng mục`;
@@ -2294,223 +2413,132 @@
             document.getElementById('kpiIssuesCount').textContent = globalStats.issue;
             document.getElementById('kpiInProgressCount').textContent = `${globalStats.inProgress} đang làm`;
 
-            // Filtered stats for charts & Wing summary cards
-            const chartStats = calculateStats(filterSelect.value);
-
-            // Update Ocean Wing Card
-            const ow = chartStats.wingStats['Ocean Wing'];
+            const ow = filteredStats.wingStats['Ocean Wing'];
+            const gw = filteredStats.wingStats['Garden Wing'];
             const owPct = ow.total > 0 ? Math.round((ow.done / ow.total) * 100) : 0;
+            const gwPct = gw.total > 0 ? Math.round((gw.done / gw.total) * 100) : 0;
+
             document.getElementById('oceanWingPct').textContent = `${owPct}%`;
             document.getElementById('oceanWingBar').style.width = `${owPct}%`;
             document.getElementById('oceanWingRatio').textContent = `${ow.done}/${ow.total}`;
             document.getElementById('oceanWingIssueText').textContent = `${ow.issue} sự cố`;
 
-            // Update Garden Wing Card
-            const gw = chartStats.wingStats['Garden Wing'];
-            const gwPct = gw.total > 0 ? Math.round((gw.done / gw.total) * 100) : 0;
             document.getElementById('gardenWingPct').textContent = `${gwPct}%`;
             document.getElementById('gardenWingBar').style.width = `${gwPct}%`;
             document.getElementById('gardenWingRatio').textContent = `${gw.done}/${gw.total}`;
             document.getElementById('gardenWingIssueText').textContent = `${gw.issue} sự cố`;
 
-            // Update Doughnut Legend
-            document.getElementById('legendDone').textContent = chartStats.done;
-            document.getElementById('legendInProgress').textContent = chartStats.inProgress;
-            document.getElementById('legendIssue').textContent = chartStats.issue;
-            document.getElementById('legendPending').textContent = chartStats.pending;
+            document.getElementById('legendDone').textContent = filteredStats.done;
+            document.getElementById('legendInProgress').textContent = filteredStats.inProgress;
+            document.getElementById('legendIssue').textContent = filteredStats.issue;
+            document.getElementById('legendPending').textContent = filteredStats.pending;
 
-            renderCharts(chartStats);
+            renderAdminCharts(filteredStats);
             renderAdminProjectsList();
             renderAdminActivityFeed();
             lucide.createIcons();
         }
 
-        function renderCharts(stats) {
-            // 1. Grouped Floor Bar Chart (4 Floors: Ocean Wing vs Garden Wing)
-            const barCtx = document.getElementById('floorBarChart').getContext('2d');
-            const floorLabels = ['Tầng 1', 'Tầng 2', 'Tầng 3', 'Tầng 4'];
-            
-            const oceanPercentages = [1, 2, 3, 4].map(f => {
-                const { total, done } = stats.floorWingStats[f]['Ocean Wing'];
-                return total > 0 ? Math.round((done / total) * 100) : 0;
+        function renderAdminCharts(stats) {
+            const barCanvas = document.getElementById('floorBarChart');
+            const doughnutCanvas = document.getElementById('statusDoughnutChart');
+            if (!barCanvas || !doughnutCanvas || typeof Chart === 'undefined') return;
+
+            const floors = [1, 2, 3, 4];
+            const oceanData = floors.map(f => {
+                const s = stats.floorWingStats[f]['Ocean Wing'];
+                return s.total > 0 ? Math.round((s.done / s.total) * 100) : 0;
+            });
+            const gardenData = floors.map(f => {
+                const s = stats.floorWingStats[f]['Garden Wing'];
+                return s.total > 0 ? Math.round((s.done / s.total) * 100) : 0;
             });
 
-            const gardenPercentages = [1, 2, 3, 4].map(f => {
-                const { total, done } = stats.floorWingStats[f]['Garden Wing'];
-                return total > 0 ? Math.round((done / total) * 100) : 0;
+            if (floorBarChartInstance) floorBarChartInstance.destroy();
+            floorBarChartInstance = new Chart(barCanvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: ['Tầng 1', 'Tầng 2', 'Tầng 3', 'Tầng 4'],
+                    datasets: [
+                        { label: 'Ocean Wing (%)', data: oceanData, backgroundColor: '#0EA5E9', borderRadius: 6 },
+                        { label: 'Garden Wing (%)', data: gardenData, backgroundColor: '#10B981', borderRadius: 6 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } } },
+                    plugins: { legend: { position: 'bottom' } }
+                }
             });
 
-            if (floorBarChartInstance) {
-                floorBarChartInstance.data.datasets[0].data = oceanPercentages;
-                floorBarChartInstance.data.datasets[1].data = gardenPercentages;
-                floorBarChartInstance.update();
-            } else {
-                floorBarChartInstance = new Chart(barCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: floorLabels,
-                        datasets: [
-                            {
-                                label: 'Ocean Wing',
-                                data: oceanPercentages,
-                                backgroundColor: 'rgba(14, 165, 233, 0.85)',
-                                hoverBackgroundColor: '#0284C7',
-                                borderRadius: 6,
-                                barPercentage: 0.75,
-                                categoryPercentage: 0.65
-                            },
-                            {
-                                label: 'Garden Wing',
-                                data: gardenPercentages,
-                                backgroundColor: 'rgba(16, 185, 129, 0.85)',
-                                hoverBackgroundColor: '#059669',
-                                borderRadius: 6,
-                                barPercentage: 0.75,
-                                categoryPercentage: 0.65
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                display: true,
-                                position: 'top',
-                                align: 'end',
-                                labels: {
-                                    usePointStyle: true,
-                                    boxWidth: 8,
-                                    font: { family: 'Inter', size: 11, weight: '600' }
-                                }
-                            },
-                            tooltip: {
-                                backgroundColor: '#1C1C1E',
-                                padding: 10,
-                                cornerRadius: 10,
-                                callbacks: {
-                                    label: (ctx) => ` ${ctx.dataset.label}: ${ctx.parsed.y}%`
-                                }
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                max: 100,
-                                grid: { color: 'rgba(0,0,0,0.04)' },
-                                ticks: {
-                                    font: { family: 'Inter', size: 11 },
-                                    callback: (val) => val + '%'
-                                }
-                            },
-                            x: {
-                                grid: { display: false },
-                                ticks: { font: { family: 'Inter', size: 12, weight: '600' } }
-                            }
-                        }
-                    }
-                });
-            }
-
-            // 2. Status Doughnut Chart
-            const doughnutCtx = document.getElementById('statusDoughnutChart').getContext('2d');
-            const doughnutData = [stats.done, stats.inProgress, stats.issue, stats.pending];
-
-            if (statusDoughnutChartInstance) {
-                statusDoughnutChartInstance.data.datasets[0].data = doughnutData;
-                statusDoughnutChartInstance.update();
-            } else {
-                statusDoughnutChartInstance = new Chart(doughnutCtx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Hoàn thành', 'Đang làm', 'Sự cố', 'Chưa làm'],
-                        datasets: [{
-                            data: doughnutData,
-                            backgroundColor: ['#34C759', '#FF9500', '#FF3B30', '#E5E5EA'],
-                            borderWidth: 0,
-                            hoverOffset: 4
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        cutout: '72%',
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                                backgroundColor: '#1C1C1E',
-                                padding: 10,
-                                cornerRadius: 10
-                            }
-                        }
-                    }
-                });
-            }
+            if (statusDoughnutChartInstance) statusDoughnutChartInstance.destroy();
+            statusDoughnutChartInstance = new Chart(doughnutCanvas.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Hoàn thành', 'Đang làm', 'Sự cố', 'Chưa làm'],
+                    datasets: [{
+                        data: [stats.done, stats.inProgress, stats.issue, stats.pending],
+                        backgroundColor: ['#34C759', '#FF9500', '#FF3B30', '#E5E5EA'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '72%',
+                    plugins: { legend: { display: false } }
+                }
+            });
         }
 
         function renderAdminProjectsList() {
             const container = document.getElementById('adminProjectsList');
+            if (!container) return;
+
             if (state.projects.length === 0) {
-                container.innerHTML = `
-                    <div class="bg-white/70 border border-dashed border-gray-300 rounded-2xl p-8 text-center space-y-2">
-                        <p class="text-sm font-semibold text-gray-700">Chưa có dự án nào trên Firestore</p>
-                        <p class="text-xs text-gray-500">Bấm "Tạo Dự Án Mới" hoặc "Nạp Dữ Liệu Mẫu" để bắt đầu đồng bộ thời gian thực.</p>
-                    </div>
-                `;
+                container.innerHTML = `<div class="text-center py-8 text-xs text-gray-500 bg-gray-50/70 rounded-2xl border border-dashed border-gray-200">Chưa có dự án nào. Bấm <strong>"Tạo Dự Án Mới"</strong> để bắt đầu.</div>`;
                 return;
             }
 
             container.innerHTML = state.projects.map(proj => {
                 const pStats = calculateStats(proj.id);
                 const pct = pStats.totalTasks > 0 ? Math.round((pStats.done / pStats.totalTasks) * 100) : 0;
-                const safeTotal = pStats.totalTasks || 1;
-                
-                let priorityBadge = 'bg-gray-100 text-gray-700';
-                if (proj.priority === 'Cao') priorityBadge = 'bg-red-50 text-red-600';
-                if (proj.priority === 'Định kỳ') priorityBadge = 'bg-blue-50 text-blue-600';
+                const isRailing = proj.projectType === 'RAILING';
+                const unitText = isRailing ? 'đoạn lan can' : 'phòng';
+                const typeBadge = isRailing
+                    ? `<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700">Lan can (T2–T4)</span>`
+                    : `<span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-sky-50 text-sky-700">Phòng</span>`;
 
                 return `
-                    <div onclick="jumpToStaffProject('${proj.id}')" class="group bg-white/90 hover:bg-white border border-gray-200/70 rounded-2xl p-4 transition cursor-pointer shadow-2xs hover:shadow-md">
-                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2.5">
-                            <div>
+                    <div onclick="jumpToStaffProject('${proj.id}')" class="bg-white/90 hover:bg-white rounded-2xl p-4 border border-gray-200/80 shadow-2xs transition cursor-pointer space-y-2.5 group">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="space-y-1 min-w-0">
                                 <div class="flex items-center gap-2 flex-wrap">
-                                    <h4 class="font-bold text-sm sm:text-base text-gray-900 group-hover:text-blue-600 transition">${proj.name}</h4>
-                                    <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold ${priorityBadge}">${proj.priority}</span>
+                                    <h4 class="font-bold text-sm text-gray-900 group-hover:text-blue-600 transition">${proj.name}</h4>
+                                    ${typeBadge}
+                                    <span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-gray-100 text-gray-600">${proj.priority || 'Bình thường'}</span>
                                 </div>
-                                <p class="text-xs text-gray-500 mt-0.5 line-clamp-1">${proj.description}</p>
+                                <p class="text-xs text-gray-500 line-clamp-1">${proj.description || ''}</p>
                             </div>
-                            <div class="flex items-center gap-2 text-xs text-gray-500 shrink-0">
-                                <span class="inline-flex items-center gap-1"><i data-lucide="calendar" class="w-3.5 h-3.5"></i> Hạn: ${proj.deadline}</span>
-                                <span class="font-bold text-gray-900 bg-gray-100 px-2.5 py-1 rounded-lg">${pStats.done}/${pStats.totalTasks} phòng</span>
-                                <button type="button" onclick="openEditProjectModal(event, '${proj.id}')" title="Chỉnh sửa dự án & danh sách phòng" class="w-7 h-7 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 flex items-center justify-center transition">
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                <button type="button" onclick="openEditProjectModal(event, '${proj.id}')" class="p-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 transition" title="Chỉnh sửa dự án">
                                     <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
                                 </button>
-                                <button type="button" onclick="openDeleteProjectModal(event, '${proj.id}')" title="Xóa dự án" class="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 flex items-center justify-center transition">
+                                <button type="button" onclick="openDeleteProjectModal(event, '${proj.id}')" class="p-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 transition" title="Xóa dự án">
                                     <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                                 </button>
                             </div>
                         </div>
 
-                        <!-- Progress Bar -->
-                        <div class="flex items-center gap-3">
-                            <div class="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden flex">
-                                <div class="bg-[#34C759] h-full transition-all duration-500" style="width: ${(pStats.done / safeTotal) * 100}%"></div>
-                                <div class="bg-[#FF9500] h-full transition-all duration-500" style="width: ${(pStats.inProgress / safeTotal) * 100}%"></div>
-                                <div class="bg-[#FF3B30] h-full transition-all duration-500" style="width: ${(pStats.issue / safeTotal) * 100}%"></div>
+                        <div class="space-y-1">
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="text-gray-500">Hạn: <strong class="text-gray-700">${proj.deadline}</strong> • Phạm vi: <strong class="text-gray-700">${pStats.totalTasks} ${unitText}</strong></span>
+                                <span class="font-bold text-blue-600">${pStats.done}/${pStats.totalTasks} (${pct}%)</span>
                             </div>
-                            <span class="text-xs font-extrabold text-gray-900 w-10 text-right">${pct}%</span>
-                        </div>
-
-                        <!-- Mini Status Breakdown -->
-                        <div class="flex items-center justify-between mt-2.5 pt-2 border-t border-gray-100 text-[11px] text-gray-500">
-                            <div class="flex items-center gap-3">
-                                <span class="text-emerald-600 font-medium">✓ ${pStats.done} xong</span>
-                                <span class="text-amber-600 font-medium">⏳ ${pStats.inProgress} đang làm</span>
-                                ${pStats.issue > 0 ? `<span class="text-red-600 font-semibold">⚠ ${pStats.issue} sự cố</span>` : ''}
+                            <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                                <div class="h-full bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
                             </div>
-                            <span class="text-blue-600 font-semibold inline-flex items-center gap-0.5 group-hover:translate-x-0.5 transition">
-                                Xem sơ đồ phòng <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
-                            </span>
                         </div>
                     </div>
                 `;
@@ -2518,43 +2546,35 @@
         }
 
         function renderAdminActivityFeed() {
-            const feed = document.getElementById('adminActivityFeed');
+            const feedEl = document.getElementById('adminActivityFeed');
+            if (!feedEl) return;
+
             if (state.activityLogs.length === 0) {
-                feed.innerHTML = `<div class="text-center py-8 text-xs text-gray-400">Chưa có nhật ký cập nhật nào.</div>`;
+                feedEl.innerHTML = `<div class="text-center py-8 text-xs text-gray-400">Chưa có cập nhật mới từ hiện trường</div>`;
                 return;
             }
-            feed.innerHTML = state.activityLogs.map(log => {
-                let badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
-                let statusText = 'Hoàn thành';
-                if (log.status === 'Issue') {
-                    badgeClass = 'bg-red-50 text-red-700 border-red-200';
-                    statusText = 'Báo sự cố';
-                } else if (log.status === 'In_Progress') {
-                    badgeClass = 'bg-amber-50 text-amber-700 border-amber-200';
-                    statusText = 'Đang làm';
-                } else if (log.status === 'Pending') {
-                    badgeClass = 'bg-gray-100 text-gray-700 border-gray-200';
-                    statusText = 'Chưa làm';
-                }
 
-                const wingName = log.wing || (ROOM_META_MAP[log.roomId]?.wing || '');
-                const wingBadge = wingName === 'Ocean Wing'
-                    ? 'bg-sky-50 text-sky-700'
-                    : 'bg-emerald-50 text-emerald-700';
+            const statusBadge = {
+                Done: { label: 'Hoàn thành', cls: 'bg-emerald-50 text-emerald-700' },
+                In_Progress: { label: 'Đang làm', cls: 'bg-amber-50 text-amber-700' },
+                Issue: { label: 'Sự cố', cls: 'bg-red-50 text-red-700' },
+                Pending: { label: 'Chưa làm', cls: 'bg-gray-100 text-gray-600' }
+            };
 
+            feedEl.innerHTML = state.activityLogs.map(log => {
+                const badge = statusBadge[log.status] || statusBadge.Pending;
+                const railMeta = RAILING_META_MAP[log.roomId];
+                const title = railMeta ? railMeta.shortCode : `Phòng ${log.roomId}`;
                 return `
-                    <div class="bg-white/80 rounded-xl p-3 border border-gray-100 text-xs space-y-1">
-                        <div class="flex items-center justify-between gap-1">
-                            <div class="flex items-center gap-1.5">
-                                <span class="font-bold text-gray-900">P.${log.roomId}</span>
-                                <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold ${wingBadge}">${wingName}</span>
-                            </div>
-                            <span class="px-2 py-0.5 rounded-md border text-[10px] font-semibold ${badgeClass}">${statusText}</span>
+                    <div class="bg-white/90 rounded-xl p-3 border border-gray-200/70 space-y-1 text-xs">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="font-bold text-gray-900">${title} <span class="font-normal text-gray-400">• ${log.wing}</span></span>
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold ${badge.cls}">${badge.label}</span>
                         </div>
-                        <p class="text-gray-600 font-medium line-clamp-1">${log.projectName}</p>
-                        ${log.note ? `<p class="text-gray-500 italic bg-gray-50 px-2 py-1 rounded-md">"${log.note}"</p>` : ''}
-                        <div class="flex items-center justify-between text-[11px] text-gray-400 pt-0.5">
-                            <span>Bởi: <strong class="text-gray-600">${log.staff}</strong></span>
+                        <div class="text-[11px] text-gray-600 truncate">${log.projectName}</div>
+                        ${log.note ? `<div class="text-[11px] text-gray-500 italic bg-gray-50 px-2 py-1 rounded">"${log.note}"</div>` : ''}
+                        <div class="text-[10px] text-gray-400 flex justify-between pt-0.5">
+                            <span>${log.staff}</span>
                             <span>${log.time}</span>
                         </div>
                     </div>
@@ -2562,14 +2582,375 @@
             }).join('');
         }
 
-        // ---------------------------------------------------------------------
-        // 4. CREATE / EDIT PROJECT MODAL & INTERACTIVE ROOM PICKER (ADMIN)
-        // ---------------------------------------------------------------------
+        function onProjectTypeChange() {
+            const type = document.querySelector('input[name="projectType"]:checked')?.value || 'ROOM';
+            const roomWrapper = document.getElementById('roomScopeWrapper');
+            const railingWrapper = document.getElementById('railingScopeWrapper');
+            if (roomWrapper) roomWrapper.classList.toggle('hidden', type !== 'ROOM');
+            if (railingWrapper) railingWrapper.classList.toggle('hidden', type !== 'RAILING');
+
+            if (type === 'RAILING') {
+                setRailingPickerWingFilter(state.railingPickerWingFilter);
+                renderCustomRailingPicker();
+            } else {
+                toggleScopeInputs();
+            }
+        }
+
+        function buildArchitecturalRailingFloorHTML({ schematic, mode, selectedSet, projectId = null, statusFilter = 'ALL' }) {
+            if (!schematic) return '';
+            const {
+                leftClusters,
+                rightClusters,
+                leftCorridorBays,
+                rightCorridorBays,
+                stairNorth,
+                stairCenter,
+                stairSouth
+            } = schematic;
+
+            const getRailVisual = (rail) => {
+                if (!rail) return { cls: 'opacity-20 pointer-events-none bg-gray-100 border-gray-200 text-gray-400', badge: '' };
+                if (mode === 'picker') {
+                    const isSel = selectedSet.has(rail.id);
+                    return {
+                        cls: isSel
+                            ? 'bg-indigo-600 border-indigo-800 text-white shadow-xs ring-2 ring-indigo-300'
+                            : 'bg-teal-50/90 border-teal-500 text-teal-900 hover:bg-teal-100 hover:border-teal-600',
+                        badge: isSel ? '✓' : ''
+                    };
+                } else {
+                    const inProject = selectedSet.has(rail.id);
+                    if (!inProject) {
+                        return { cls: 'bg-gray-100/70 border-dashed border-gray-300 text-gray-400 opacity-50 cursor-default', badge: '' };
+                    }
+                    const status = state.tasks[`${projectId}_${rail.id}`]?.status || 'Pending';
+                    if (statusFilter !== 'ALL' && status !== statusFilter) {
+                        return { cls: 'bg-gray-100 border-gray-200 text-gray-400 opacity-30', badge: '' };
+                    }
+                    if (status === 'Done') return { cls: 'bg-[#34C759] border-[#28a745] text-white shadow-xs', badge: '✓' };
+                    if (status === 'In_Progress') return { cls: 'bg-[#FF9500] border-[#e08600] text-white shadow-xs', badge: '⏳' };
+                    if (status === 'Issue') return { cls: 'bg-[#FF3B30] border-[#d63026] text-white shadow-xs animate-pulse', badge: '!' };
+                    return { cls: 'bg-teal-50 border-teal-500 text-teal-950 hover:bg-teal-100', badge: '' };
+                }
+            };
+
+            const onClickAttr = (rail) => {
+                if (!rail) return '';
+                if (mode === 'picker') return `onclick="toggleCustomRailingSelection('${rail.id}')"`;
+                if (selectedSet.has(rail.id)) return `onclick="openRoomModal('${rail.id}')"`;
+                return '';
+            };
+
+            // Small structural pillar marker separating railing segments (matching CAD plan columns)
+            const renderPillarDot = () => `<span class="w-2 h-2 rounded-[2px] bg-slate-700 border border-white shadow-2xs shrink-0" title="Cột trụ chia đoạn lan can"></span>`;
+
+            // Render a wing column of: [Rear Balconies with corner pillars] + [Room Box] + [2 Entrance Walkway Railings]
+            const renderWingColumnClusters = (clusters, isLeftSide) => {
+                return clusters.map(c => {
+                    const offsetCls = c.recessed
+                        ? (isLeftSide ? 'pl-5' : 'pr-5')
+                        : '';
+
+                    // Rear balcony railings separated by small corner pillars between rooms
+                    const balconiesHtml = `
+                        <div class="flex flex-col items-center w-14 shrink-0">
+                            ${renderPillarDot()}
+                            ${c.balconies.map((bal, bIdx) => {
+                                const v = getRailVisual(bal);
+                                const shapeCls = isLeftSide
+                                    ? 'rounded-l-md border-l-[3px] border-y-[2px] border-r-0'
+                                    : 'rounded-r-md border-r-[3px] border-y-[2px] border-l-0';
+                                return `
+                                    <button type="button" ${onClickAttr(bal)} title="${bal.label}"
+                                        class="w-full h-7 px-1 text-[9px] font-bold ${shapeCls} transition active:scale-95 flex items-center justify-center truncate ${v.cls}">
+                                        ${v.badge ? v.badge + ' ' : ''}${bal.roomRef}
+                                    </button>
+                                    ${bIdx < c.balconies.length - 1 ? renderPillarDot() : ''}
+                                `;
+                            }).join('')}
+                            ${renderPillarDot()}
+                        </div>
+                    `;
+
+                    // Room block
+                    const roomsBoxHtml = `
+                        <div class="flex-1 border-2 border-slate-700 rounded-md bg-white text-gray-900 font-extrabold text-[11px] shadow-2xs flex flex-col divide-y divide-gray-300 overflow-hidden">
+                            ${c.rooms.map(rId => `
+                                <div class="h-7 flex items-center justify-center px-1.5 bg-slate-50/80">
+                                    <span>P.${rId}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+
+                    // 2 Entrance Side Railings flanking the walkway from main corridor into this room cluster
+                    const vTop = getRailVisual(c.entranceTop);
+                    const vBot = getRailVisual(c.entranceBottom);
+                    const entranceAlcoveHtml = `
+                        <div class="w-24 shrink-0 flex flex-col justify-between py-0.5">
+                            <div class="flex items-center gap-0.5">
+                                ${renderPillarDot()}
+                                <button type="button" ${onClickAttr(c.entranceTop)} title="${c.entranceTop.label}"
+                                    class="flex-1 h-4 px-1 rounded-sm border-y-2 border-x text-[8px] font-extrabold leading-none truncate transition active:scale-95 ${vTop.cls}">
+                                    ${vTop.badge ? vTop.badge + ' ' : ''}LV Trên
+                                </button>
+                                ${renderPillarDot()}
+                            </div>
+                            <div class="text-[7.5px] font-bold text-slate-400 text-center tracking-wider uppercase select-none py-0.5">
+                                ◄ Lối Vào ►
+                            </div>
+                            <div class="flex items-center gap-0.5">
+                                ${renderPillarDot()}
+                                <button type="button" ${onClickAttr(c.entranceBottom)} title="${c.entranceBottom.label}"
+                                    class="flex-1 h-4 px-1 rounded-sm border-y-2 border-x text-[8px] font-extrabold leading-none truncate transition active:scale-95 ${vBot.cls}">
+                                    ${vBot.badge ? vBot.badge + ' ' : ''}LV Dưới
+                                </button>
+                                ${renderPillarDot()}
+                            </div>
+                        </div>
+                    `;
+
+                    return `
+                        <div class="flex items-center gap-1 ${offsetCls}">
+                            ${isLeftSide
+                                ? balconiesHtml + roomsBoxHtml + entranceAlcoveHtml
+                                : entranceAlcoveHtml + roomsBoxHtml + balconiesHtml}
+                        </div>
+                    `;
+                }).join('');
+            };
+
+            // Render vertical main corridor railings separated by structural pillars at each bay end
+            const renderCorridorBayColumn = (bays, isLeftSide) => {
+                const borderSide = isLeftSide ? 'border-l-[3.5px] border-r border-y' : 'border-r-[3.5px] border-l border-y';
+                return `
+                    <div class="flex flex-col items-center justify-between h-full py-2">
+                        ${renderPillarDot()}
+                        ${bays.map(bay => {
+                            const v = getRailVisual(bay);
+                            return `
+                                <button type="button" ${onClickAttr(bay)} title="${bay.label}"
+                                    class="w-full flex-1 min-h-[30px] my-0.5 px-1 py-0.5 rounded-sm ${borderSide} text-[8.5px] leading-tight font-bold transition active:scale-95 flex items-center justify-center text-center ${v.cls}">
+                                    <span>${v.badge ? v.badge + ' ' : ''}${bay.shortCode}</span>
+                                </button>
+                                ${renderPillarDot()}
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            };
+
+            const renderStairNode = (stairRail, badgeTitle) => {
+                const v = getRailVisual(stairRail);
+                return `
+                    <div class="flex items-center justify-center gap-2 py-1">
+                        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-200/90 border border-slate-300 text-[9px] font-extrabold text-slate-700 select-none">
+                            <i data-lucide="stairs" class="w-3 h-3 text-slate-600"></i>
+                            <span>${badgeTitle}</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            ${renderPillarDot()}
+                            <button type="button" ${onClickAttr(stairRail)} title="${stairRail.label}"
+                                class="px-2.5 py-1 rounded-md border-2 text-[9px] font-bold transition active:scale-95 ${v.cls}">
+                                ${v.badge ? v.badge + ' ' : ''}${stairRail.shortCode}
+                            </button>
+                            ${renderPillarDot()}
+                        </div>
+                    </div>
+                `;
+            };
+
+            return `
+                <div class="overflow-x-auto pb-1">
+                    <div class="min-w-[820px] bg-slate-50/90 rounded-2xl p-3 border border-gray-200/80 space-y-2">
+                        <!-- Legend bar explaining CAD elements -->
+                        <div class="flex flex-wrap items-center justify-between gap-2 px-2.5 py-1.5 bg-white rounded-xl border border-gray-200/70 text-[10px] text-gray-600">
+                            <div class="flex items-center gap-3 flex-wrap">
+                                <span class="inline-flex items-center gap-1"><span class="w-3 h-2 rounded-xs bg-teal-100 border border-teal-500"></span> Đoạn lan can (Xanh ngọc)</span>
+                                <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-[2px] bg-slate-700"></span> Cột trụ chia đoạn</span>
+                                <span class="inline-flex items-center gap-1 font-semibold text-teal-800">3 vị trí: Dọc hành lang chính • 2 bên lối vào phòng • Ban công sau phòng</span>
+                            </div>
+                        </div>
+
+                        <!-- Top Auxiliary Staircase (North Core per CAD Plan) -->
+                        ${renderStairNode(stairNorth, 'CẦU THANG BẮC (ĐẦU)')}
+
+                        <!-- Main Vertical Wing Plan (Mirrors CAD Orientation) -->
+                        <div class="grid grid-cols-[1fr_76px_52px_76px_1fr] gap-1 items-stretch">
+                            <!-- 1. Left Rooms + Rear Balconies + 2-Sided Entrance Railings (Odd: 01, 03, 05...) -->
+                            <div class="flex flex-col justify-between gap-2 py-1">
+                                <div class="text-[9px] font-bold uppercase tracking-wider text-gray-500 text-center">Dãy Trái (Lẻ): Ban Công • Phòng • 2 Bên Lối Vào</div>
+                                ${renderWingColumnClusters(leftClusters, true)}
+                            </div>
+
+                            <!-- 2. Left Main Corridor Railings Split by Pillars -->
+                            ${renderCorridorBayColumn(leftCorridorBays, true)}
+
+                            <!-- 3. Central Main Corridor Spine + Mid Auxiliary Staircase -->
+                            <div class="flex flex-col items-center justify-between py-3 bg-gradient-to-b from-slate-200/75 via-slate-100 to-slate-200/75 rounded-xl border border-dashed border-slate-300 px-1">
+                                <span class="text-[8px] font-bold text-slate-400">▲</span>
+                                <span class="[writing-mode:vertical-rl] rotate-180 text-[8.5px] font-extrabold tracking-widest text-slate-400 uppercase select-none">Hành Lang</span>
+
+                                <!-- Mid-Corridor Auxiliary Staircase Node -->
+                                <button type="button" ${onClickAttr(stairCenter)} title="${stairCenter.label}"
+                                    class="w-full py-2 px-0.5 rounded-lg border-2 text-[8px] leading-tight font-extrabold text-center transition active:scale-95 ${getRailVisual(stairCenter).cls}">
+                                    <div>THANG</div>
+                                    <div>GIỮA</div>
+                                    ${getRailVisual(stairCenter).badge ? `<div>${getRailVisual(stairCenter).badge}</div>` : ''}
+                                </button>
+
+                                <span class="[writing-mode:vertical-rl] rotate-180 text-[8.5px] font-extrabold tracking-widest text-slate-400 uppercase select-none">Chính</span>
+                                <span class="text-[8px] font-bold text-slate-400">▼</span>
+                            </div>
+
+                            <!-- 4. Right Main Corridor Railings Split by Pillars -->
+                            ${renderCorridorBayColumn(rightCorridorBays, false)}
+
+                            <!-- 5. Right Rooms + Rear Balconies + 2-Sided Entrance Railings (Even: 02, 04, 06...) -->
+                            <div class="flex flex-col justify-between gap-2 py-1">
+                                <div class="text-[9px] font-bold uppercase tracking-wider text-gray-500 text-center">Dãy Phải (Chẵn): 2 Bên Lối Vào • Phòng • Ban Công</div>
+                                ${renderWingColumnClusters(rightClusters, false)}
+                            </div>
+                        </div>
+
+                        <!-- Bottom Auxiliary Staircase (South Core per CAD Plan) -->
+                        ${renderStairNode(stairSouth, 'CẦU THANG NAM (CUỐI)')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function setRailingPickerWingFilter(wing) {
+            state.railingPickerWingFilter = wing;
+            document.querySelectorAll('.rail-picker-wing-pill').forEach(btn => {
+                const isSelected = btn.dataset.railWing === wing;
+                btn.className = isSelected
+                    ? 'rail-picker-wing-pill py-1.5 px-2 rounded-lg text-[11px] font-bold bg-white text-gray-900 shadow-2xs transition'
+                    : 'rail-picker-wing-pill py-1.5 px-2 rounded-lg text-[11px] font-semibold text-gray-600 hover:text-gray-900 transition';
+            });
+            renderCustomRailingPicker();
+        }
+
+        function toggleCustomRailingSelection(railId) {
+            if (state.customSelectedRailings.has(railId)) {
+                state.customSelectedRailings.delete(railId);
+            } else {
+                state.customSelectedRailings.add(railId);
+            }
+            renderCustomRailingPicker();
+        }
+
+        function toggleSelectRailingCategory(category) {
+            const wings = state.railingPickerWingFilter === 'ALL' ? ['Ocean Wing', 'Garden Wing'] : [state.railingPickerWingFilter];
+            const matching = ALL_RAILINGS.filter(r => wings.includes(r.wing) && r.category === category).map(r => r.id);
+            const allSelected = matching.every(id => state.customSelectedRailings.has(id));
+            if (allSelected) {
+                matching.forEach(id => state.customSelectedRailings.delete(id));
+            } else {
+                matching.forEach(id => state.customSelectedRailings.add(id));
+            }
+            renderCustomRailingPicker();
+        }
+
+        function toggleSelectRailingWingFloor(wing, floor) {
+            const matching = ALL_RAILINGS.filter(r => r.wing === wing && r.floor === floor).map(r => r.id);
+            const allSelected = matching.every(id => state.customSelectedRailings.has(id));
+            if (allSelected) {
+                matching.forEach(id => state.customSelectedRailings.delete(id));
+            } else {
+                matching.forEach(id => state.customSelectedRailings.add(id));
+            }
+            renderCustomRailingPicker();
+        }
+
+        function selectAllRailingsInScope() {
+            const wings = state.railingPickerWingFilter === 'ALL' ? ['Ocean Wing', 'Garden Wing'] : [state.railingPickerWingFilter];
+            const matching = ALL_RAILINGS.filter(r => wings.includes(r.wing)).map(r => r.id);
+            matching.forEach(id => state.customSelectedRailings.add(id));
+            renderCustomRailingPicker();
+        }
+
+        function clearCustomSelectedRailings() {
+            state.customSelectedRailings.clear();
+            renderCustomRailingPicker();
+        }
+
+        function updateCustomRailingCounter() {
+            const totalEl = document.getElementById('customRailingSelectedCounter');
+            const owEl = document.getElementById('cntRailOcean');
+            const gwEl = document.getElementById('cntRailGarden');
+            if (!totalEl) return;
+
+            const owCount = ALL_RAILINGS.filter(r => r.wing === 'Ocean Wing' && state.customSelectedRailings.has(r.id)).length;
+            const gwCount = ALL_RAILINGS.filter(r => r.wing === 'Garden Wing' && state.customSelectedRailings.has(r.id)).length;
+            totalEl.textContent = `Đã chọn: ${state.customSelectedRailings.size} đoạn lan can`;
+            if (owEl) owEl.textContent = owCount;
+            if (gwEl) gwEl.textContent = gwCount;
+        }
+
+        function renderCustomRailingPicker() {
+            updateCustomRailingCounter();
+            const container = document.getElementById('customRailingPickerLayout');
+            if (!container) return;
+
+            const wingsToRender = state.railingPickerWingFilter === 'ALL' ? ['Ocean Wing', 'Garden Wing'] : [state.railingPickerWingFilter];
+            container.className = 'max-h-[460px] overflow-y-auto pr-1 space-y-3';
+
+            let html = '';
+            wingsToRender.forEach(wing => {
+                const isOcean = wing === 'Ocean Wing';
+                const borderAccent = isOcean ? 'border-t-4 border-t-sky-500' : 'border-t-4 border-t-emerald-500';
+                const wingTotal = ALL_RAILINGS.filter(r => r.wing === wing).length;
+                const wingSelected = ALL_RAILINGS.filter(r => r.wing === wing && state.customSelectedRailings.has(r.id)).length;
+
+                let floorsHtml = '';
+                [2, 3, 4].forEach(floor => {
+                    const schematic = FLOOR_SCHEMATIC_DATA[`${wing}_${floor}`];
+                    const floorRailIds = ALL_RAILINGS.filter(r => r.wing === wing && r.floor === floor).map(r => r.id);
+                    const allFloorSelected = floorRailIds.every(id => state.customSelectedRailings.has(id));
+
+                    floorsHtml += `
+                        <div class="bg-white rounded-xl p-2.5 border border-gray-200/80 space-y-2">
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-bold text-[11px]">Tầng ${floor}</span>
+                                    <span class="text-[11px] text-gray-500">${floorRailIds.length} đoạn lan can (Vuốt ngang để xem hết hành lang →)</span>
+                                </div>
+                                <button type="button" onclick="toggleSelectRailingWingFloor('${wing}', ${floor})"
+                                    class="px-2.5 py-1 rounded-md text-[10px] font-semibold transition shrink-0 ${allFloorSelected ? 'bg-indigo-600 text-white' : 'bg-gray-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-50'}">
+                                    ${allFloorSelected ? 'Bỏ chọn T' + floor : 'Chọn cả T' + floor}
+                                </button>
+                            </div>
+                            ${buildArchitecturalRailingFloorHTML({
+                                schematic,
+                                mode: 'picker',
+                                selectedSet: state.customSelectedRailings
+                            })}
+                        </div>
+                    `;
+                });
+
+                html += `
+                    <div class="bg-gray-50/80 rounded-2xl p-3 border border-gray-200/80 shadow-2xs ${borderAccent} space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <h4 class="font-bold text-xs sm:text-sm text-gray-900">${wing} • Sơ Đồ Lan Can (T2–T4)</h4>
+                            <span class="text-[11px] font-bold text-indigo-600 bg-white px-2.5 py-0.5 rounded-full border border-indigo-100">Đã chọn: ${wingSelected}/${wingTotal}</span>
+                        </div>
+                        <div class="space-y-3">${floorsHtml}</div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+            lucide.createIcons();
+        }
+
         function openCreateProjectModal() {
             state.editingProjectId = null;
             document.getElementById('editingProjectId').value = '';
             document.getElementById('projectModalTitle').textContent = 'Tạo Dự Án Phát Sinh Mới';
-            document.getElementById('projectModalSubtitle').textContent = 'Tự động khởi tạo danh sách phòng cho nhân viên';
+            document.getElementById('projectModalSubtitle').textContent = 'Tự động khởi tạo danh sách phòng hoặc đoạn lan can cho nhân viên';
             document.getElementById('btnSubmitCreateProject').innerHTML = `<span>Khởi Tạo Dự Án</span>`;
 
             document.getElementById('createProjectForm').reset();
@@ -2577,14 +2958,19 @@
             tomorrow.setDate(tomorrow.getDate() + 7);
             document.getElementById('newProjDeadline').value = tomorrow.toISOString().split('T')[0];
 
+            const roomTypeRadio = document.querySelector('input[name="projectType"][value="ROOM"]');
+            if (roomTypeRadio) roomTypeRadio.checked = true;
+
             const allRadio = document.querySelector('input[name="roomScope"][value="ALL"]');
             if (allRadio) allRadio.checked = true;
 
             state.customSelectedRooms.clear();
+            state.customSelectedRailings.clear();
             state.pickerWingFilter = 'ALL';
+            state.railingPickerWingFilter = 'ALL';
             const searchInput = document.getElementById('pickerSearchInput');
             if (searchInput) searchInput.value = '';
-            toggleScopeInputs();
+            onProjectTypeChange();
             document.getElementById('createProjectBackdrop').classList.add('active');
             lucide.createIcons();
         }
@@ -2597,7 +2983,7 @@
             state.editingProjectId = projectId;
             document.getElementById('editingProjectId').value = projectId;
             document.getElementById('projectModalTitle').textContent = 'Chỉnh Sửa Chi Tiết Dự Án';
-            document.getElementById('projectModalSubtitle').textContent = 'Cập nhật thông tin và thêm/bớt danh sách phòng thực hiện';
+            document.getElementById('projectModalSubtitle').textContent = 'Cập nhật thông tin và thêm/bớt phạm vi thực hiện';
             document.getElementById('btnSubmitCreateProject').innerHTML = `<i data-lucide="save" class="w-4 h-4"></i><span>Lưu Thay Đổi Dự Án</span>`;
 
             document.getElementById('newProjName').value = proj.name || '';
@@ -2605,16 +2991,23 @@
             document.getElementById('newProjPriority').value = proj.priority || 'Bình thường';
             document.getElementById('newProjDesc').value = proj.description || '';
 
-            // Pre-select CUSTOM scope with current project's rooms so admin can add/remove rooms visually
-            const customRadio = document.querySelector('input[name="roomScope"][value="CUSTOM"]');
-            if (customRadio) customRadio.checked = true;
+            const isRailing = proj.projectType === 'RAILING';
+            const typeRadio = document.querySelector(`input[name="projectType"][value="${isRailing ? 'RAILING' : 'ROOM'}"]`);
+            if (typeRadio) typeRadio.checked = true;
 
-            state.customSelectedRooms = new Set(proj.targetRooms || []);
-            state.pickerWingFilter = 'ALL';
-            const searchInput = document.getElementById('pickerSearchInput');
-            if (searchInput) searchInput.value = '';
+            if (isRailing) {
+                state.customSelectedRailings = new Set(proj.targetRooms || []);
+                state.railingPickerWingFilter = 'ALL';
+            } else {
+                const customRadio = document.querySelector('input[name="roomScope"][value="CUSTOM"]');
+                if (customRadio) customRadio.checked = true;
+                state.customSelectedRooms = new Set(proj.targetRooms || []);
+                state.pickerWingFilter = 'ALL';
+                const searchInput = document.getElementById('pickerSearchInput');
+                if (searchInput) searchInput.value = '';
+            }
 
-            toggleScopeInputs();
+            onProjectTypeChange();
             document.getElementById('createProjectBackdrop').classList.add('active');
             lucide.createIcons();
         }
@@ -2765,11 +3158,18 @@
             const deadline = document.getElementById('newProjDeadline').value;
             const priority = document.getElementById('newProjPriority').value;
             const description = document.getElementById('newProjDesc').value.trim() || 'Triển khai theo yêu cầu thực tế tại khách sạn.';
-            const scope = document.querySelector('input[name="roomScope"]:checked').value;
+            const projectType = document.querySelector('input[name="projectType"]:checked')?.value || 'ROOM';
+            const scope = document.querySelector('input[name="roomScope"]:checked')?.value || 'ALL';
 
             let targetRooms = [];
 
-            if (scope === 'ALL') {
+            if (projectType === 'RAILING') {
+                targetRooms = ALL_RAILINGS.filter(r => state.customSelectedRailings.has(r.id)).map(r => r.id);
+                if (targetRooms.length === 0) {
+                    showToast('Vui lòng chọn ít nhất 1 đoạn lan can trên sơ đồ layout!', 'error');
+                    return;
+                }
+            } else if (scope === 'ALL') {
                 targetRooms = ALL_ROOMS.map(r => r.id);
             } else if (scope === 'WINGS') {
                 const checkedWings = Array.from(document.querySelectorAll('input[name="selectedWings"]:checked')).map(cb => cb.value);
@@ -2806,6 +3206,7 @@
 
                 const projectPayload = {
                     id: projId,
+                    projectType,
                     name,
                     description,
                     deadline,
@@ -2879,8 +3280,9 @@
                 // Reset form & close modal
                 document.getElementById('createProjectForm').reset();
                 state.customSelectedRooms.clear();
+                state.customSelectedRailings.clear();
                 state.editingProjectId = null;
-                toggleScopeInputs();
+                onProjectTypeChange();
                 closeCreateProjectModal();
 
                 if (!isEditing) {
@@ -2936,9 +3338,18 @@
                     if (filteredRooms.length === 0) return;
 
                     const allFloorSelected = roomsInFloor.every(id => state.customSelectedRooms.has(id));
-                    const gridCols = wingsToRender.length > 1
-                        ? 'grid-cols-4 sm:grid-cols-6'
-                        : 'grid-cols-4 sm:grid-cols-7 md:grid-cols-9';
+                    const oddRooms = filteredRooms.filter(id => parseInt(id, 10) % 2 !== 0);
+                    const evenRooms = filteredRooms.filter(id => parseInt(id, 10) % 2 === 0);
+
+                    const renderPickerBtn = (roomId) => {
+                        const isSelected = state.customSelectedRooms.has(roomId);
+                        return `
+                            <button type="button" onclick="toggleCustomRoomSelection('${roomId}')" class="h-9 rounded-lg text-xs sm:text-[11px] font-bold border transition active:scale-90 flex items-center justify-center gap-0.5 ${isSelected ? 'bg-blue-600 border-blue-700 text-white shadow-2xs' : 'bg-white border-gray-200 text-gray-700 hover:border-blue-400'}">
+                                <span>${roomId}</span>
+                                ${isSelected ? '<i data-lucide="check" class="w-3 h-3 stroke-[3]"></i>' : ''}
+                            </button>
+                        `;
+                    };
 
                     floorsHtml += `
                         <div class="bg-gray-50/90 rounded-xl p-2.5 border border-gray-200/60 space-y-2">
@@ -2948,16 +3359,27 @@
                                     ${allFloorSelected ? 'Bỏ chọn Tầng ' + floor : 'Chọn Tầng ' + floor}
                                 </button>
                             </div>
-                            <div class="grid ${gridCols} gap-1.5">
-                                ${filteredRooms.map(roomId => {
-                                    const isSelected = state.customSelectedRooms.has(roomId);
-                                    return `
-                                        <button type="button" onclick="toggleCustomRoomSelection('${roomId}')" class="h-10 sm:h-9 rounded-lg text-xs sm:text-[11px] font-bold border transition active:scale-90 flex items-center justify-center gap-0.5 ${isSelected ? 'bg-blue-600 border-blue-700 text-white shadow-2xs' : 'bg-white border-gray-200 text-gray-700 hover:border-blue-400'}">
-                                            <span>${roomId}</span>
-                                            ${isSelected ? '<i data-lucide="check" class="w-3 h-3 stroke-[3]"></i>' : ''}
-                                        </button>
-                                    `;
-                                }).join('')}
+                            <div class="grid grid-cols-[1fr_20px_1fr] gap-1.5 items-stretch">
+                                <!-- Left Corridor Side: Odd Rooms (101, 103...) -->
+                                <div class="space-y-1">
+                                    <div class="text-[9px] font-bold uppercase tracking-wider text-gray-400 text-center">Dãy Trái (Lẻ)</div>
+                                    <div class="grid grid-cols-2 gap-1">
+                                        ${oddRooms.map(renderPickerBtn).join('')}
+                                    </div>
+                                </div>
+                                <!-- Center Corridor Axis -->
+                                <div class="flex flex-col items-center justify-between py-3 bg-gray-200/70 rounded-lg border border-dashed border-gray-300 text-[8px] font-bold text-gray-400 select-none">
+                                    <span>▲</span>
+                                    <span class="[writing-mode:vertical-rl] rotate-180 tracking-widest">HÀNH LANG</span>
+                                    <span>▼</span>
+                                </div>
+                                <!-- Right Corridor Side: Even Rooms (102, 104...) -->
+                                <div class="space-y-1">
+                                    <div class="text-[9px] font-bold uppercase tracking-wider text-gray-400 text-center">Dãy Phải (Chẵn)</div>
+                                    <div class="grid grid-cols-2 gap-1">
+                                        ${evenRooms.map(renderPickerBtn).join('')}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     `;
@@ -3323,6 +3745,22 @@
             renderStaffView();
         }
 
+        function setStaffLayoutMode(mode) {
+            state.staffLayoutMode = mode;
+            const btnFloorplan = document.getElementById('btnLayoutFloorplan');
+            const btnGrid = document.getElementById('btnLayoutGrid');
+            if (btnFloorplan && btnGrid) {
+                if (mode === 'floorplan') {
+                    btnFloorplan.className = 'px-3 py-1 rounded-lg text-[11px] font-bold bg-white text-gray-900 shadow-2xs transition flex items-center gap-1.5';
+                    btnGrid.className = 'px-3 py-1 rounded-lg text-[11px] font-semibold text-gray-600 hover:text-gray-900 transition flex items-center gap-1.5';
+                } else {
+                    btnGrid.className = 'px-3 py-1 rounded-lg text-[11px] font-bold bg-white text-gray-900 shadow-2xs transition flex items-center gap-1.5';
+                    btnFloorplan.className = 'px-3 py-1 rounded-lg text-[11px] font-semibold text-gray-600 hover:text-gray-900 transition flex items-center gap-1.5';
+                }
+            }
+            renderStaffView();
+        }
+
         function renderStaffView() {
             populateStaffProjectDropdown();
             const proj = getProjectById(state.staffSelectedProjectId);
@@ -3333,22 +3771,131 @@
                 return;
             }
 
+            const isRailingProject = proj.projectType === 'RAILING';
+            const unitLabel = isRailingProject ? 'đoạn lan can' : 'phòng';
+
             // Update Project Summary Bar
             const pStats = calculateStats(proj.id);
             const pct = pStats.totalTasks > 0 ? Math.round((pStats.done / pStats.totalTasks) * 100) : 0;
-            document.getElementById('staffProjectMeta').textContent = `Phạm vi: ${proj.targetRooms.length} phòng • Hạn: ${proj.deadline}`;
+            document.getElementById('staffProjectMeta').textContent = `Phạm vi: ${proj.targetRooms.length} ${unitLabel} • Hạn: ${proj.deadline}`;
             document.getElementById('staffProjectProgressText').textContent = `${pStats.done}/${pStats.totalTasks} (${pct}%)`;
             document.getElementById('staffProjectProgressBar').style.width = `${pct}%`;
 
             // Configure layout: 2-column side-by-side on desktop when viewing ALL wings, full width when filtering 1 wing
             const targetSet = new Set(proj.targetRooms);
-            const floorsToRender = state.staffFloorFilter === 'ALL' ? [1, 2, 3, 4] : [parseInt(state.staffFloorFilter)];
+            const floorsToRender = isRailingProject
+                ? (state.staffFloorFilter === 'ALL' ? [2, 3, 4] : [parseInt(state.staffFloorFilter)].filter(f => f >= 2))
+                : (state.staffFloorFilter === 'ALL' ? [1, 2, 3, 4] : [parseInt(state.staffFloorFilter)]);
             const wingsToRender = state.staffWingFilter === 'ALL' ? ['Ocean Wing', 'Garden Wing'] : [state.staffWingFilter];
 
             container.className = wingsToRender.length > 1
                 ? 'grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 items-start'
                 : 'max-w-4xl mx-auto space-y-4';
 
+            // -----------------------------------------------------------------
+            // BRANCH A: ARCHITECTURAL RAILING LAYOUT (T2, T3, T4)
+            // -----------------------------------------------------------------
+            if (isRailingProject) {
+                container.className = 'max-w-7xl mx-auto space-y-5';
+
+                let railHtml = '';
+                wingsToRender.forEach(wing => {
+                    const wingRailsInProject = ALL_RAILINGS.filter(r => r.wing === wing && targetSet.has(r.id));
+                    if (wingRailsInProject.length === 0) return;
+
+                    const wingDoneTotal = wingRailsInProject.filter(r => (state.tasks[`${proj.id}_${r.id}`]?.status || 'Pending') === 'Done').length;
+                    const wingIssueTotal = wingRailsInProject.filter(r => (state.tasks[`${proj.id}_${r.id}`]?.status || 'Pending') === 'Issue').length;
+                    const wingPct = Math.round((wingDoneTotal / wingRailsInProject.length) * 100);
+
+                    const isOcean = wing === 'Ocean Wing';
+                    const cardTopBorder = isOcean ? 'border-t-4 border-t-sky-500' : 'border-t-4 border-t-emerald-500';
+                    const iconBoxClass = isOcean ? 'bg-sky-500/10 text-sky-600' : 'bg-emerald-500/10 text-emerald-600';
+                    const pctTextColor = isOcean ? 'text-sky-600' : 'text-emerald-600';
+                    const barBgColor = isOcean ? 'bg-sky-500' : 'bg-emerald-500';
+
+                    railHtml += `
+                        <div class="glass rounded-3xl p-4 sm:p-5 shadow-ios ${cardTopBorder} space-y-4">
+                            <div class="pb-3.5 border-b border-gray-200/70 space-y-2.5">
+                                <div class="flex items-center justify-between gap-2">
+                                    <div class="flex items-center gap-2.5">
+                                        <div class="w-10 h-10 rounded-2xl ${iconBoxClass} flex items-center justify-center shrink-0">
+                                            <i data-lucide="fence" class="w-5 h-5"></i>
+                                        </div>
+                                        <div>
+                                            <div class="flex items-center gap-2 flex-wrap">
+                                                <h3 class="font-extrabold text-base sm:text-lg text-gray-900 tracking-tight">${wing}</h3>
+                                                <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700">${wingRailsInProject.length} đoạn lan can</span>
+                                            </div>
+                                            <p class="text-[11px] text-gray-500">Chạm trực tiếp vào từng đoạn lan can chữ U dọc hành lang, ban công sau phòng hoặc đoạn chắn cuối để đổi màu trạng thái</p>
+                                        </div>
+                                    </div>
+                                    <div class="text-right shrink-0">
+                                        <span class="text-lg sm:text-xl font-extrabold ${pctTextColor}">${wingPct}%</span>
+                                        <div class="text-[11px] font-semibold text-gray-500">${wingDoneTotal}/${wingRailsInProject.length} xong</div>
+                                    </div>
+                                </div>
+                                <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                                    <div class="h-full ${barBgColor} rounded-full transition-all duration-500" style="width: ${wingPct}%"></div>
+                                </div>
+                                ${wingIssueTotal > 0 ? `
+                                    <div class="flex items-center justify-end">
+                                        <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-md">
+                                            <i data-lucide="alert-triangle" class="w-3 h-3"></i> ${wingIssueTotal} đoạn lan can báo sự cố
+                                        </span>
+                                    </div>
+                                ` : ''}
+                            </div>
+
+                            <div class="space-y-4">
+                    `;
+
+                    floorsToRender.forEach(floor => {
+                        const floorRails = wingRailsInProject.filter(r => r.floor === floor);
+                        if (floorRails.length === 0) return;
+
+                        const floorDone = floorRails.filter(r => (state.tasks[`${proj.id}_${r.id}`]?.status || 'Pending') === 'Done').length;
+                        const schematic = FLOOR_SCHEMATIC_DATA[`${wing}_${floor}`];
+
+                        railHtml += `
+                            <div class="bg-white/90 rounded-2xl p-3 border border-gray-200/80 space-y-2.5">
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-6 h-6 rounded-lg bg-indigo-600 text-white font-bold text-[11px] flex items-center justify-center">T${floor}</span>
+                                        <h4 class="font-bold text-xs sm:text-sm text-gray-800">Tầng ${floor} • Sơ Đồ Chi Tiết Lan Can</h4>
+                                        <span class="text-[11px] text-gray-400 hidden sm:inline">(Kéo ngang để xem từ đầu thang bộ đến cuối hành lang →)</span>
+                                    </div>
+                                    <span class="text-[11px] font-semibold text-gray-500 bg-gray-100 px-2.5 py-0.5 rounded-md">
+                                        Xong: <strong class="text-emerald-600">${floorDone}</strong>/${floorRails.length} đoạn
+                                    </span>
+                                </div>
+
+                                ${buildArchitecturalRailingFloorHTML({
+                                    schematic,
+                                    mode: 'staff',
+                                    selectedSet: targetSet,
+                                    projectId: proj.id,
+                                    statusFilter: state.staffStatusFilter
+                                })}
+                            </div>
+                        `;
+                    });
+
+                    railHtml += `</div></div>`;
+                });
+
+                if (railHtml === '') {
+                    container.className = 'max-w-3xl mx-auto';
+                    railHtml = `<div class="glass rounded-2xl p-8 text-center text-sm text-gray-500">Lưu ý: Tầng 1 không có hệ thống lan can. Vui lòng chọn Tầng 2, Tầng 3 hoặc Tầng 4.</div>`;
+                }
+
+                container.innerHTML = railHtml;
+                lucide.createIcons();
+                return;
+            }
+
+            // -----------------------------------------------------------------
+            // BRANCH B: STANDARD ROOM MATRIX (T1 - T4)
+            // -----------------------------------------------------------------
             let html = '';
 
             const renderRoomButton = (room) => {
@@ -3456,6 +4003,48 @@
                         ? 'grid-cols-4 xs:grid-cols-5 sm:grid-cols-6 md:grid-cols-7 lg:grid-cols-6 xl:grid-cols-7'
                         : 'grid-cols-4 sm:grid-cols-7 md:grid-cols-9 lg:grid-cols-10';
 
+                    const oddRooms = filteredRooms.filter(r => parseInt(r.id, 10) % 2 !== 0);
+                    const evenRooms = filteredRooms.filter(r => parseInt(r.id, 10) % 2 === 0);
+
+                    const floorBodyHtml = state.staffLayoutMode === 'floorplan'
+                        ? `
+                            <div class="grid grid-cols-[1fr_28px_1fr] sm:grid-cols-[1fr_34px_1fr] gap-2 items-stretch">
+                                <!-- Left Corridor Side: Odd Room Numbers (101, 103, 105...) -->
+                                <div class="space-y-1.5">
+                                    <div class="flex items-center justify-between px-1.5 py-0.5 rounded bg-gray-100/90 text-[10px] font-bold text-gray-600">
+                                        <span>Dãy Trái (Lẻ)</span>
+                                        <span class="text-gray-400">${oddRooms.length}P</span>
+                                    </div>
+                                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                                        ${oddRooms.map(renderRoomButton).join('')}
+                                    </div>
+                                </div>
+
+                                <!-- Center Corridor & Elevator Spine -->
+                                <div class="flex flex-col items-center justify-between py-2.5 bg-gradient-to-b from-gray-100 via-gray-200/80 to-gray-100 rounded-xl border border-dashed border-gray-300 text-[9px] font-bold text-gray-400 select-none">
+                                    <span class="px-1 py-0.5 rounded bg-white/80 text-gray-500 text-[8px]">THANG</span>
+                                    <span class="[writing-mode:vertical-rl] rotate-180 tracking-widest uppercase">Hành Lang</span>
+                                    <span class="px-1 py-0.5 rounded bg-white/80 text-gray-500 text-[8px]">SẢNH</span>
+                                </div>
+
+                                <!-- Right Corridor Side: Even Room Numbers (102, 104, 106...) -->
+                                <div class="space-y-1.5">
+                                    <div class="flex items-center justify-between px-1.5 py-0.5 rounded bg-gray-100/90 text-[10px] font-bold text-gray-600">
+                                        <span>Dãy Phải (Chẵn)</span>
+                                        <span class="text-gray-400">${evenRooms.length}P</span>
+                                    </div>
+                                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                                        ${evenRooms.map(renderRoomButton).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                        `
+                        : `
+                            <div class="grid ${gridColsClass} gap-1.5 sm:gap-2">
+                                ${filteredRooms.map(renderRoomButton).join('')}
+                            </div>
+                        `;
+
                     html += `
                         <div class="bg-white/75 rounded-2xl p-2.5 sm:p-3 border border-gray-200/60 space-y-2.5">
                             <div class="flex items-center justify-between">
@@ -3467,9 +4056,7 @@
                                     Xong: <strong class="text-emerald-600">${floorDone}</strong>/${floorWingRoomsAll.length}
                                 </span>
                             </div>
-                            <div class="grid ${gridColsClass} gap-1.5 sm:gap-2">
-                                ${filteredRooms.map(renderRoomButton).join('')}
-                            </div>
+                            ${floorBodyHtml}
                         </div>
                     `;
                 });
@@ -3498,12 +4085,20 @@
         // ---------------------------------------------------------------------
         function openRoomModal(roomId) {
             const member = getCurrentStaffMember();
-            const meta = ROOM_META_MAP[roomId];
+            const meta = getUnitMeta(roomId);
+            if (!meta) return;
+            const isRailing = Boolean(RAILING_META_MAP[roomId]);
             const perms = member?.permissions || {};
 
             // Enforce Wing Scope permission
             if (member && member.wingScope !== 'ALL' && member.wingScope !== meta.wing) {
                 showToast(`Nhân viên "${member.name}" chỉ được phân quyền thao tác tại khu ${member.wingScope}!`, 'error');
+                return;
+            }
+
+            // Enforce Update Room permission
+            if (perms.updateRoom === false && perms.reportIssue === false) {
+                showToast(`Nhân viên "${member.name}" chỉ có quyền xem, không có quyền cập nhật!`, 'error');
                 return;
             }
 
@@ -3541,7 +4136,7 @@
                 btnIssue.classList.toggle('cursor-not-allowed', !allowIssue);
             }
 
-            document.getElementById('modalRoomTitle').textContent = `Phòng ${roomId}`;
+            document.getElementById('modalRoomTitle').textContent = isRailing ? meta.label : `Phòng ${roomId}`;
             
             const wingBadge = document.getElementById('modalRoomWingBadge');
             wingBadge.textContent = meta.wing;
@@ -3619,10 +4214,11 @@
             const now = new Date();
             const nowMs = now.getTime();
             const timeStr = `Hôm nay, ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-            const meta = ROOM_META_MAP[roomId];
+            const meta = getUnitMeta(roomId);
+            const displayUnit = RAILING_META_MAP[roomId] ? RAILING_META_MAP[roomId].label : `Phòng ${roomId}`;
 
             closeRoomModal();
-            updateConnectionBanner('syncing', `Đang lưu Phòng ${roomId}...`);
+            updateConnectionBanner('syncing', `Đang lưu ${displayUnit}...`);
 
             try {
                 // 1. Update task document in Firestore
@@ -3649,7 +4245,7 @@
                 });
 
                 updateConnectionBanner('connected');
-                showToast(`Đã đồng bộ Phòng ${roomId} lên Firestore!`);
+                showToast(`Đã đồng bộ ${displayUnit} lên Firestore!`);
             } catch (err) {
                 console.error("Save room update error:", err);
                 updateConnectionBanner('error', 'Lỗi cập nhật phòng lên Firestore');
@@ -3710,6 +4306,13 @@
             openCreateProjectModal,
             openEditProjectModal,
             closeCreateProjectModal,
+            onProjectTypeChange,
+            setRailingPickerWingFilter,
+            toggleCustomRailingSelection,
+            toggleSelectRailingCategory,
+            toggleSelectRailingWingFloor,
+            selectAllRailingsInScope,
+            clearCustomSelectedRailings,
             toggleScopeInputs,
             setPickerWingFilter,
             toggleCustomRoomSelection,
@@ -3733,6 +4336,7 @@
             setStaffWingFilter,
             setStaffFloorFilter,
             setStaffStatusFilter,
+            setStaffLayoutMode,
             openRoomModal,
             closeRoomModal,
             selectModalStatus,
