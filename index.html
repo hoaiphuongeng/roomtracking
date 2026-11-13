@@ -1527,16 +1527,11 @@
 
             // 1. Listen to `projects` collection
             const qProjects = query(projectsCol, orderBy("createdAtMs", "desc"));
-            onSnapshot(qProjects, async (snapshot) => {
+            onSnapshot(qProjects, (snapshot) => {
                 updateConnectionBanner('connected');
 
-                if (snapshot.empty && !state.hasCheckedInitialSeed) {
-                    state.hasCheckedInitialSeed = true;
-                    document.getElementById('btnSeedDemo')?.classList.remove('hidden');
-                    await seedInitialFirestoreData(false);
-                    return;
-                }
-
+                // Do NOT auto-seed demo projects when empty so deleted projects stay deleted permanently.
+                // Admin can still manually click "Nạp Dữ Liệu Mẫu" if needed.
                 state.hasCheckedInitialSeed = true;
                 document.getElementById('btnSeedDemo')?.classList.toggle('hidden', !snapshot.empty);
 
@@ -1548,6 +1543,8 @@
                 // Ensure staffSelectedProjectId points to a valid project
                 if (state.projects.length > 0 && !state.projects.some(p => p.id === state.staffSelectedProjectId)) {
                     state.staffSelectedProjectId = state.projects[0].id;
+                } else if (state.projects.length === 0) {
+                    state.staffSelectedProjectId = '';
                 }
 
                 refreshActiveView();
