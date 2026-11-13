@@ -19,6 +19,9 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+    <!-- SheetJS (XLSX) for Multi-Sheet Excel Report Export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
     <script>
         tailwind.config = {
             theme: {
@@ -211,8 +214,8 @@
                         <i data-lucide="database" class="w-4 h-4 shrink-0"></i>
                         <span>Nạp Dữ Liệu Mẫu</span>
                     </button>
-                    <button onclick="exportReportCSV()" class="inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl bg-white hover:bg-gray-50 text-gray-700 font-semibold text-xs sm:text-sm border border-gray-200/80 shadow-ios transition active:scale-95">
-                        <i data-lucide="download" class="w-4 h-4 text-gray-600 shrink-0"></i>
+                    <button onclick="openExportReportModal()" class="inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl bg-white hover:bg-gray-50 text-gray-700 font-semibold text-xs sm:text-sm border border-gray-200/80 shadow-ios transition active:scale-95">
+                        <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-600 shrink-0"></i>
                         <span>Xuất Báo Cáo</span>
                     </button>
                     <button onclick="exportProjectBackupJSON()" class="inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl bg-white hover:bg-emerald-50 text-emerald-700 font-semibold text-xs sm:text-sm border border-emerald-200/80 shadow-ios transition active:scale-95">
@@ -1042,6 +1045,87 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- =====================================================================
+         CENTER MODAL: EXPORT MULTI-SHEET EXCEL REPORT (ADMIN)
+    ====================================================================== -->
+    <div id="exportReportBackdrop" onclick="closeExportReportModal(event)" class="modal-backdrop fixed inset-0 z-50 bg-black/45 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+        <div onclick="event.stopPropagation()" class="center-modal w-full max-w-lg bg-white rounded-3xl shadow-ios-lg overflow-hidden flex flex-col max-h-[90vh]">
+            
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0 bg-gray-50/70">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                        <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base text-gray-900">Xuất Báo Cáo Excel (.XLSX)</h3>
+                        <p class="text-xs text-gray-500">Sheet 1: Bảng tổng hợp Dashboard • Các sheet sau: Chi tiết từng dự án</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeExportReportModal()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <div class="p-5 sm:p-6 overflow-y-auto space-y-4">
+                <!-- Export Mode Segmented Choice -->
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-600">Chế độ xuất báo cáo</label>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="exportMode" value="ALL" checked onchange="toggleExportProjectChecklist()" class="peer sr-only">
+                            <div class="p-3 rounded-2xl border-2 border-gray-200 bg-white text-left peer-checked:border-emerald-600 peer-checked:bg-emerald-50/60 transition">
+                                <div class="font-bold text-xs sm:text-sm text-gray-900">Xuất tất cả dự án</div>
+                                <div id="exportAllCountHint" class="text-[11px] text-gray-500 mt-0.5">Toàn bộ dự án hiện có</div>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="exportMode" value="SELECTED" onchange="toggleExportProjectChecklist()" class="peer sr-only">
+                            <div class="p-3 rounded-2xl border-2 border-gray-200 bg-white text-left peer-checked:border-emerald-600 peer-checked:bg-emerald-50/60 transition">
+                                <div class="font-bold text-xs sm:text-sm text-gray-900">Chọn từng dự án</div>
+                                <div class="text-[11px] text-gray-500 mt-0.5">Tích chọn dự án cần xuất</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Project Checklist (Visible when SELECTED mode is active) -->
+                <div id="exportProjectChecklistBox" class="hidden bg-gray-50 rounded-2xl p-3.5 border border-gray-200/80 space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-gray-700">Chọn các dự án đưa vào báo cáo:</span>
+                        <div class="flex items-center gap-2 text-[11px]">
+                            <button type="button" onclick="setAllExportProjectCheckboxes(true)" class="font-semibold text-blue-600 hover:underline">Chọn tất cả</button>
+                            <span class="text-gray-300">|</span>
+                            <button type="button" onclick="setAllExportProjectCheckboxes(false)" class="font-semibold text-gray-500 hover:underline">Bỏ chọn</button>
+                        </div>
+                    </div>
+                    <div id="exportProjectChecklist" class="space-y-2 max-h-52 overflow-y-auto pr-1">
+                        <!-- Rendered dynamically -->
+                    </div>
+                </div>
+
+                <!-- Report Structure Preview -->
+                <div class="bg-blue-50/70 border border-blue-200/70 rounded-2xl p-3.5 text-xs text-blue-950 space-y-1.5">
+                    <div class="font-bold flex items-center gap-1.5 text-blue-800">
+                        <i data-lucide="layers" class="w-4 h-4"></i>
+                        <span>Cấu trúc tệp Excel sẽ được tạo:</span>
+                    </div>
+                    <ul class="space-y-1 text-[11px] text-blue-900/90 pl-5 list-disc">
+                        <li><strong>Sheet 1 (Tong_Hop_Dashboard):</strong> Chỉ số KPI tổng quan, bảng tiến độ Ocean Wing & Garden Wing theo từng tầng (T1–T4) và bảng tổng hợp từng dự án.</li>
+                        <li><strong>Sheet 2, 3... (Tên từng dự án):</strong> Tách riêng danh sách chi tiết từng phòng, phân khu, trạng thái, nhân viên thực hiện & ghi chú.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="px-6 py-4 border-t border-gray-100 bg-gray-50/60 flex gap-2.5 shrink-0">
+                <button type="button" onclick="closeExportReportModal()" class="flex-1 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-700 font-semibold text-sm hover:bg-gray-50 transition">Hủy</button>
+                <button type="button" onclick="executeExportExcelReport()" class="flex-[2] py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md shadow-emerald-600/20 transition flex items-center justify-center gap-2 active:scale-95">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                    <span>Tải Xuống Báo Cáo (.XLSX)</span>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -2804,11 +2888,231 @@
             lucide.createIcons();
         }
 
-        // Export CSV Report
-        function exportReportCSV() {
-            let csvContent = "\uFEFF"; // UTF-8 BOM for Vietnamese Excel compatibility
-            csvContent += "Dự Án,Phòng,Khu Vực (Wing),Tầng,Trạng Thái,Người Thực Hiện,Thời Gian Cập Nhật,Ghi Chú\n";
+        // Export Multi-Sheet Excel Report (.XLSX)
+        function openExportReportModal() {
+            if (state.projects.length === 0) {
+                showToast('Chưa có dự án nào để xuất báo cáo!', 'error');
+                return;
+            }
 
+            document.getElementById('exportAllCountHint').textContent = `Toàn bộ ${state.projects.length} dự án hiện có`;
+            const allRadio = document.querySelector('input[name="exportMode"][value="ALL"]');
+            if (allRadio) allRadio.checked = true;
+
+            const checklistEl = document.getElementById('exportProjectChecklist');
+            checklistEl.innerHTML = state.projects.map(proj => {
+                const pStats = calculateStats(proj.id);
+                const pct = pStats.totalTasks > 0 ? Math.round((pStats.done / pStats.totalTasks) * 100) : 0;
+                return `
+                    <label class="flex items-center justify-between gap-2 bg-white p-2.5 rounded-xl border border-gray-200/80 cursor-pointer hover:border-emerald-400 transition">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <input type="checkbox" name="exportProjItem" value="${proj.id}" checked class="rounded text-emerald-600 w-4 h-4 shrink-0">
+                            <div class="truncate">
+                                <div class="font-bold text-xs text-gray-900 truncate">${proj.name}</div>
+                                <div class="text-[11px] text-gray-500">${proj.targetRooms.length} phòng • Hạn: ${proj.deadline}</div>
+                            </div>
+                        </div>
+                        <span class="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold text-[11px] shrink-0">${pct}%</span>
+                    </label>
+                `;
+            }).join('');
+
+            toggleExportProjectChecklist();
+            document.getElementById('exportReportBackdrop').classList.add('active');
+            lucide.createIcons();
+        }
+
+        function closeExportReportModal(e) {
+            if (e && e.target !== e.currentTarget) return;
+            document.getElementById('exportReportBackdrop').classList.remove('active');
+        }
+
+        function toggleExportProjectChecklist() {
+            const mode = document.querySelector('input[name="exportMode"]:checked')?.value || 'ALL';
+            document.getElementById('exportProjectChecklistBox').classList.toggle('hidden', mode !== 'SELECTED');
+        }
+
+        function setAllExportProjectCheckboxes(checked) {
+            document.querySelectorAll('input[name="exportProjItem"]').forEach(cb => {
+                cb.checked = checked;
+            });
+        }
+
+        function sanitizeExcelSheetName(rawName, usedNamesSet) {
+            // Excel sheet names max 31 chars, cannot contain \ / ? * [ ] :
+            let cleaned = String(rawName || 'Du_An')
+                .replace(/[\\\/\?\*\[\]\:]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+            if (!cleaned) cleaned = 'Du_An';
+
+            let candidate = cleaned.slice(0, 31);
+            let counter = 2;
+            while (usedNamesSet.has(candidate.toLowerCase())) {
+                const suffix = ` (${counter})`;
+                candidate = cleaned.slice(0, 31 - suffix.length) + suffix;
+                counter++;
+            }
+            usedNamesSet.add(candidate.toLowerCase());
+            return candidate;
+        }
+
+        function computeAggregatedStatsForProjects(projectList) {
+            let totalTasks = 0;
+            let done = 0;
+            let inProgress = 0;
+            let issue = 0;
+            let pending = 0;
+
+            const floorWingStats = {
+                1: { 'Ocean Wing': { total: 0, done: 0 }, 'Garden Wing': { total: 0, done: 0 } },
+                2: { 'Ocean Wing': { total: 0, done: 0 }, 'Garden Wing': { total: 0, done: 0 } },
+                3: { 'Ocean Wing': { total: 0, done: 0 }, 'Garden Wing': { total: 0, done: 0 } },
+                4: { 'Ocean Wing': { total: 0, done: 0 }, 'Garden Wing': { total: 0, done: 0 } }
+            };
+
+            const wingStats = {
+                'Ocean Wing': { total: 0, done: 0, inProgress: 0, issue: 0, pending: 0 },
+                'Garden Wing': { total: 0, done: 0, inProgress: 0, issue: 0, pending: 0 }
+            };
+
+            projectList.forEach(proj => {
+                (proj.targetRooms || []).forEach(roomId => {
+                    const task = state.tasks[`${proj.id}_${roomId}`] || { status: 'Pending' };
+                    const meta = ROOM_META_MAP[roomId];
+                    if (!meta) return;
+
+                    totalTasks++;
+                    floorWingStats[meta.floor][meta.wing].total++;
+                    wingStats[meta.wing].total++;
+
+                    if (task.status === 'Done') {
+                        done++;
+                        floorWingStats[meta.floor][meta.wing].done++;
+                        wingStats[meta.wing].done++;
+                    } else if (task.status === 'In_Progress') {
+                        inProgress++;
+                        wingStats[meta.wing].inProgress++;
+                    } else if (task.status === 'Issue') {
+                        issue++;
+                        wingStats[meta.wing].issue++;
+                    } else {
+                        pending++;
+                        wingStats[meta.wing].pending++;
+                    }
+                });
+            });
+
+            return { totalTasks, done, inProgress, issue, pending, floorWingStats, wingStats };
+        }
+
+        function executeExportExcelReport() {
+            if (typeof XLSX === 'undefined') {
+                showToast('Thư viện xuất Excel đang tải, vui lòng thử lại sau giây lát!', 'error');
+                return;
+            }
+
+            const mode = document.querySelector('input[name="exportMode"]:checked')?.value || 'ALL';
+            let selectedProjects = [];
+
+            if (mode === 'ALL') {
+                selectedProjects = [...state.projects];
+            } else {
+                const checkedIds = Array.from(document.querySelectorAll('input[name="exportProjItem"]:checked')).map(cb => cb.value);
+                selectedProjects = state.projects.filter(p => checkedIds.includes(p.id));
+            }
+
+            if (selectedProjects.length === 0) {
+                showToast('Vui lòng chọn ít nhất 1 dự án để xuất báo cáo!', 'error');
+                return;
+            }
+
+            const wb = XLSX.utils.book_new();
+            const usedSheetNames = new Set(['tong_hop_dashboard']);
+            const agg = computeAggregatedStatsForProjects(selectedProjects);
+            const overallPct = agg.totalTasks > 0 ? Math.round((agg.done / agg.totalTasks) * 100) : 0;
+            const exportTimeStr = new Date().toLocaleString('vi-VN');
+
+            // -----------------------------------------------------------------
+            // SHEET 1: TONG_HOP_DASHBOARD (Mirrors Admin Dashboard)
+            // -----------------------------------------------------------------
+            const ow = agg.wingStats['Ocean Wing'];
+            const gw = agg.wingStats['Garden Wing'];
+            const owPct = ow.total > 0 ? Math.round((ow.done / ow.total) * 100) : 0;
+            const gwPct = gw.total > 0 ? Math.round((gw.done / gw.total) * 100) : 0;
+
+            const summaryRows = [
+                ['BÁO CÁO TỔNG HỢP ĐIỀU HÀNH DỰ ÁN & BẢO TRÌ - ROOMOPS PRO'],
+                [`Thời gian xuất báo cáo: ${exportTimeStr}`, '', `Phạm vi xuất: ${selectedProjects.length} dự án`],
+                [],
+                ['1. CHỈ SỐ TỔNG QUAN (KPI DASHBOARD)'],
+                ['Số dự án trong báo cáo', 'Tổng hạng mục phòng', 'Đã hoàn thành', 'Đang làm / Hoãn', 'Gặp sự cố', 'Chưa làm', 'Tỷ lệ hoàn thành chung'],
+                [selectedProjects.length, agg.totalTasks, agg.done, agg.inProgress, agg.issue, agg.pending, `${overallPct}%`],
+                [],
+                ['2. SO SÁNH TIẾN ĐỘ THEO PHÂN KHU (OCEAN WING VS GARDEN WING)'],
+                ['Phân khu (Wing)', 'Tổng hạng mục', 'Hoàn thành', 'Đang làm / Hoãn', 'Sự cố', 'Chưa làm', 'Tỷ lệ hoàn thành'],
+                ['Ocean Wing (98P)', ow.total, ow.done, ow.inProgress, ow.issue, ow.pending, `${owPct}%`],
+                ['Garden Wing (100P)', gw.total, gw.done, gw.inProgress, gw.issue, gw.pending, `${gwPct}%`],
+                [],
+                ['3. SO SÁNH TIẾN ĐỘ THEO TẦNG (TẦNG 1 - TẦNG 4)'],
+                ['Tầng', 'Ocean Wing (Hoàn thành/Tổng)', 'Ocean Wing (%)', 'Garden Wing (Hoàn thành/Tổng)', 'Garden Wing (%)', 'Tổng tầng (%)'],
+                ...[1, 2, 3, 4].map(f => {
+                    const fOw = agg.floorWingStats[f]['Ocean Wing'];
+                    const fGw = agg.floorWingStats[f]['Garden Wing'];
+                    const fOwPct = fOw.total > 0 ? Math.round((fOw.done / fOw.total) * 100) : 0;
+                    const fGwPct = fGw.total > 0 ? Math.round((fGw.done / fGw.total) * 100) : 0;
+                    const fAllTotal = fOw.total + fGw.total;
+                    const fAllDone = fOw.done + fGw.done;
+                    const fAllPct = fAllTotal > 0 ? Math.round((fAllDone / fAllTotal) * 100) : 0;
+                    return [
+                        `Tầng ${f}`,
+                        `${fOw.done}/${fOw.total}`,
+                        `${fOwPct}%`,
+                        `${fGw.done}/${fGw.total}`,
+                        `${fGwPct}%`,
+                        `${fAllPct}%`
+                    ];
+                }),
+                [],
+                ['4. BẢNG TỔNG HỢP TIẾN ĐỘ TỪNG DỰ ÁN'],
+                ['STT', 'Tên Dự Án', 'Độ Ưu Tiên', 'Hạn Hoàn Thành', 'Tổng Phòng', 'Hoàn Thành', 'Đang Làm', 'Sự Cố', 'Chưa Làm', 'Tiến Độ (%)']
+            ];
+
+            selectedProjects.forEach((proj, idx) => {
+                const pStats = calculateStats(proj.id);
+                const pPct = pStats.totalTasks > 0 ? Math.round((pStats.done / pStats.totalTasks) * 100) : 0;
+                summaryRows.push([
+                    idx + 1,
+                    proj.name,
+                    proj.priority || 'Bình thường',
+                    proj.deadline || '-',
+                    pStats.totalTasks,
+                    pStats.done,
+                    pStats.inProgress,
+                    pStats.issue,
+                    pStats.pending,
+                    `${pPct}%`
+                ]);
+            });
+
+            const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+            wsSummary['!cols'] = [
+                { wch: 24 },
+                { wch: 36 },
+                { wch: 18 },
+                { wch: 24 },
+                { wch: 18 },
+                { wch: 16 },
+                { wch: 16 },
+                { wch: 14 },
+                { wch: 14 },
+                { wch: 16 }
+            ];
+            XLSX.utils.book_append_sheet(wb, wsSummary, 'Tong_Hop_Dashboard');
+
+            // -----------------------------------------------------------------
+            // SHEETS 2..N: INDIVIDUAL SHEET FOR EACH PROJECT
+            // -----------------------------------------------------------------
             const statusMap = {
                 'Done': 'Hoàn thành',
                 'In_Progress': 'Đang làm / Hoãn',
@@ -2816,34 +3120,56 @@
                 'Pending': 'Chưa làm'
             };
 
-            state.projects.forEach(proj => {
-                (proj.targetRooms || []).forEach(roomId => {
+            selectedProjects.forEach(proj => {
+                const pStats = calculateStats(proj.id);
+                const pPct = pStats.totalTasks > 0 ? Math.round((pStats.done / pStats.totalTasks) * 100) : 0;
+                const sheetName = sanitizeExcelSheetName(proj.name, usedSheetNames);
+
+                const projRows = [
+                    [`CHI TIẾT DỰ ÁN: ${proj.name.toUpperCase()}`],
+                    [`Mô tả: ${proj.description || '-'}`, '', `Hạn hoàn thành: ${proj.deadline || '-'}`, '', `Độ ưu tiên: ${proj.priority || 'Bình thường'}`],
+                    [`Tổng phòng: ${pStats.totalTasks}`, `Hoàn thành: ${pStats.done} (${pPct}%)`, `Đang làm: ${pStats.inProgress}`, `Sự cố: ${pStats.issue}`, `Chưa làm: ${pStats.pending}`],
+                    [],
+                    ['STT', 'Số Phòng', 'Phân Khu (Wing)', 'Tầng', 'Trạng Thái', 'Nhân Viên Thực Hiện', 'Thời Gian Cập Nhật', 'Ghi Chú Hiện Trường']
+                ];
+
+                (proj.targetRooms || []).forEach((roomId, idx) => {
                     const t = state.tasks[`${proj.id}_${roomId}`] || { status: 'Pending' };
                     const meta = ROOM_META_MAP[roomId];
-                    const row = [
-                        `"${proj.name}"`,
+                    projRows.push([
+                        idx + 1,
                         roomId,
-                        `"${meta ? meta.wing : '-'}"`,
+                        meta ? meta.wing : '-',
                         `Tầng ${meta ? meta.floor : roomId[0]}`,
-                        `"${statusMap[t.status]}"`,
-                        `"${t.updatedBy || '-'}"`,
-                        `"${t.updatedAt || '-'}"`,
-                        `"${(t.note || '').replace(/"/g, '""')}"`
-                    ].join(",");
-                    csvContent += row + "\n";
+                        statusMap[t.status] || 'Chưa làm',
+                        t.updatedBy || '-',
+                        t.updatedAt || '-',
+                        t.note || ''
+                    ]);
                 });
+
+                const wsProj = XLSX.utils.aoa_to_sheet(projRows);
+                wsProj['!cols'] = [
+                    { wch: 8 },
+                    { wch: 14 },
+                    { wch: 18 },
+                    { wch: 12 },
+                    { wch: 20 },
+                    { wch: 24 },
+                    { wch: 22 },
+                    { wch: 42 }
+                ];
+                XLSX.utils.book_append_sheet(wb, wsProj, sheetName);
             });
 
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.setAttribute("href", url);
-            link.setAttribute("download", `Bao_Cao_Du_An_200_Phong_${new Date().toISOString().slice(0,10)}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            const dateStamp = new Date().toISOString().slice(0, 10);
+            const fileName = selectedProjects.length === 1
+                ? `Bao_Cao_${sanitizeExcelSheetName(selectedProjects[0].name, new Set()).replace(/\s+/g, '_')}_${dateStamp}.xlsx`
+                : `Bao_Cao_Tong_Hop_${selectedProjects.length}_Du_An_${dateStamp}.xlsx`;
 
-            showToast('Đã xuất báo cáo tổng hợp thành công!');
+            XLSX.writeFile(wb, fileName);
+            closeExportReportModal();
+            showToast(`Đã xuất file Excel (${selectedProjects.length + 1} sheet) thành công!`);
         }
 
         // ---------------------------------------------------------------------
@@ -3294,7 +3620,11 @@
             closeDeleteProjectModal,
             confirmDeleteProject,
             seedInitialFirestoreData,
-            exportReportCSV,
+            openExportReportModal,
+            closeExportReportModal,
+            toggleExportProjectChecklist,
+            setAllExportProjectCheckboxes,
+            executeExportExcelReport,
             exportProjectBackupJSON,
             handlePreviewBackupFile,
             executeRestoreBackup,
