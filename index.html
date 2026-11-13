@@ -1,0 +1,3321 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RoomOps Pro - Quản Lý Dự Án & Bảo Trì 200 Phòng</title>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+                    },
+                    colors: {
+                        ios: {
+                            bg: '#F2F2F7',
+                            card: 'rgba(255, 255, 255, 0.85)',
+                            blue: '#007AFF',
+                            green: '#34C759',
+                            orange: '#FF9500',
+                            red: '#FF3B30',
+                            gray: '#8E8E93',
+                            lightGray: '#E5E5EA'
+                        }
+                    },
+                    boxShadow: {
+                        'ios': '0 4px 24px -1px rgba(0, 0, 0, 0.05), 0 1px 4px -1px rgba(0, 0, 0, 0.03)',
+                        'ios-lg': '0 12px 32px -4px rgba(0, 0, 0, 0.1), 0 4px 12px -2px rgba(0, 0, 0, 0.05)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        html, body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
+        body {
+            background-color: #F2F2F7;
+            color: #1C1C1E;
+            -webkit-tap-highlight-color: transparent;
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        .safe-top {
+            padding-top: max(0.75rem, env(safe-area-inset-top, 0.75rem));
+        }
+
+        .safe-bottom {
+            padding-bottom: max(1rem, env(safe-area-inset-bottom, 1rem));
+        }
+
+        /* Glassmorphism Effect */
+        .glass {
+            background: rgba(255, 255, 255, 0.82);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+
+        .glass-header {
+            background: rgba(242, 242, 247, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+        }
+
+        /* Smooth transitions */
+        .view-transition {
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(142, 142, 147, 0.3);
+            border-radius: 9999px;
+        }
+
+        /* Bottom Sheet & Modal Animations */
+        .modal-backdrop {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .modal-backdrop.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .bottom-sheet {
+            transform: translateY(100%);
+            transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        .modal-backdrop.active .bottom-sheet {
+            transform: translateY(0);
+        }
+
+        .center-modal {
+            transform: scale(0.95) translateY(10px);
+            opacity: 0;
+            transition: all 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        .modal-backdrop.active .center-modal {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+        }
+
+        /* Room Tile Press Effect */
+        .room-tile {
+            transition: transform 0.12s ease, box-shadow 0.12s ease;
+        }
+        .room-tile:active {
+            transform: scale(0.92);
+        }
+
+        /* Hide scrollbar for horizontal filter pills */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-blue-500 selection:text-white">
+
+    <!-- ==================== TOP NAVIGATION & ROLE SWITCHER ==================== -->
+    <header class="glass-header sticky top-0 z-40 px-3 sm:px-6 pb-3 safe-top">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-2.5 md:gap-4">
+            <!-- Brand Logo -->
+            <div class="flex items-center justify-between w-full md:w-auto">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 shrink-0">
+                        <i data-lucide="building-2" class="w-5 h-5"></i>
+                    </div>
+                    <div class="truncate">
+                        <h1 class="font-bold text-base tracking-tight text-gray-900 leading-none">RoomOps <span class="text-blue-600">Pro</span></h1>
+                        <p class="text-[11px] font-medium text-gray-500 mt-0.5 truncate">198 Phòng • Ocean & Garden Wing</p>
+                    </div>
+                </div>
+                
+                <!-- Live Sync Badge (Mobile & Small Tablet) -->
+                <div id="syncStatusMobile" class="flex md:hidden items-center gap-1.5 bg-amber-500/10 text-amber-700 px-2.5 py-1 rounded-full text-[11px] font-medium shrink-0">
+                    <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+                    <span>Đang kết nối...</span>
+                </div>
+            </div>
+
+            <!-- iOS Segmented Control: Role Switcher -->
+            <div class="bg-gray-200/80 p-1 rounded-xl flex items-center w-full md:w-auto relative">
+                <button id="btnRoleAdmin" onclick="switchRole('admin')" class="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2 md:py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 bg-white text-gray-900 shadow-sm">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4 text-blue-600 shrink-0"></i>
+                    <span>Quản trị viên</span>
+                </button>
+                <button id="btnRoleStaff" onclick="switchRole('staff')" class="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2 md:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 text-gray-600 hover:text-gray-900">
+                    <i data-lucide="smartphone" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+                    <span>Nhân viên hiện trường</span>
+                </button>
+            </div>
+
+            <!-- Live Sync Badge (Desktop & Large Tablet) -->
+            <div id="syncStatusDesktop" class="hidden md:flex items-center gap-2 bg-white/80 border border-gray-200/80 px-3 py-1.5 rounded-full text-xs font-medium text-gray-600 shadow-xs shrink-0">
+                <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+                <span>Đang kết nối Firestore...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ==================== MAIN CONTENT AREA ==================== -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-6">
+
+        <!-- =====================================================================
+             VIEW 1: ADMIN DASHBOARD
+        ====================================================================== -->
+        <section id="adminView" class="space-y-5 sm:space-y-6 view-transition">
+            
+            <!-- Header Actions -->
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 sm:gap-4">
+                <div>
+                    <h2 class="text-xl sm:text-2xl font-bold tracking-tight text-gray-900">Tổng Quan Điều Hành</h2>
+                    <p class="text-xs sm:text-sm text-gray-500 mt-0.5">Theo dõi tiến độ thực tế trên 198 phòng (Ocean Wing & Garden Wing • 4 Tầng)</p>
+                </div>
+                <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-2.5 w-full lg:w-auto">
+                    <button id="btnSeedDemo" onclick="seedInitialFirestoreData(true)" class="hidden col-span-2 sm:col-span-1 inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold text-xs sm:text-sm border border-emerald-200/80 transition active:scale-95">
+                        <i data-lucide="database" class="w-4 h-4 shrink-0"></i>
+                        <span>Nạp Dữ Liệu Mẫu</span>
+                    </button>
+                    <button onclick="exportReportCSV()" class="inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl bg-white hover:bg-gray-50 text-gray-700 font-semibold text-xs sm:text-sm border border-gray-200/80 shadow-ios transition active:scale-95">
+                        <i data-lucide="download" class="w-4 h-4 text-gray-600 shrink-0"></i>
+                        <span>Xuất Báo Cáo</span>
+                    </button>
+                    <button onclick="exportProjectBackupJSON()" class="inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl bg-white hover:bg-emerald-50 text-emerald-700 font-semibold text-xs sm:text-sm border border-emerald-200/80 shadow-ios transition active:scale-95">
+                        <i data-lucide="hard-drive-download" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+                        <span>Sao Lưu JSON</span>
+                    </button>
+                    <button onclick="openAdminSettingsModal()" class="inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl bg-white hover:bg-gray-50 text-gray-800 font-semibold text-xs sm:text-sm border border-gray-200/80 shadow-ios transition active:scale-95">
+                        <i data-lucide="settings" class="w-4 h-4 text-indigo-600 shrink-0"></i>
+                        <span>Cài Đặt Quản Trị</span>
+                    </button>
+                    <button onclick="openCreateProjectModal()" class="col-span-2 sm:col-span-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm shadow-md shadow-blue-600/20 transition active:scale-95">
+                        <i data-lucide="plus" class="w-4 h-4 shrink-0"></i>
+                        <span>Tạo Dự Án Mới</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 4 KPI Cards -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+                <!-- KPI 1 -->
+                <div class="glass rounded-2xl p-3.5 sm:p-5 shadow-ios">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-[11px] sm:text-sm font-medium text-gray-500">Dự án đang chạy</span>
+                        <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
+                            <i data-lucide="folder-kanban" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2.5 sm:mt-3 flex flex-wrap items-baseline gap-1.5 sm:gap-2">
+                        <span id="kpiActiveProjects" class="text-xl sm:text-3xl font-bold text-gray-900">3</span>
+                        <span class="text-[10px] sm:text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">Đang chạy</span>
+                    </div>
+                </div>
+
+                <!-- KPI 2 -->
+                <div class="glass rounded-2xl p-3.5 sm:p-5 shadow-ios">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-[11px] sm:text-sm font-medium text-gray-500">Tiến độ tổng thể</span>
+                        <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
+                            <i data-lucide="pie-chart" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2.5 sm:mt-3 flex flex-wrap items-baseline gap-1.5 sm:gap-2">
+                        <span id="kpiOverallProgress" class="text-xl sm:text-3xl font-bold text-gray-900">0%</span>
+                        <span id="kpiProgressRatio" class="text-[11px] sm:text-xs font-medium text-gray-500">0/0 hạng mục</span>
+                    </div>
+                </div>
+
+                <!-- KPI 3 -->
+                <div class="glass rounded-2xl p-3.5 sm:p-5 shadow-ios">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-[11px] sm:text-sm font-medium text-gray-500">Xong hôm nay</span>
+                        <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center shrink-0">
+                            <i data-lucide="check-circle-2" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2.5 sm:mt-3 flex flex-wrap items-baseline gap-1.5 sm:gap-2">
+                        <span id="kpiCompletedToday" class="text-xl sm:text-3xl font-bold text-gray-900">0</span>
+                        <span class="text-[10px] sm:text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">phòng</span>
+                    </div>
+                </div>
+
+                <!-- KPI 4 -->
+                <div class="glass rounded-2xl p-3.5 sm:p-5 shadow-ios">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-[11px] sm:text-sm font-medium text-gray-500">Sự cố / Chờ xử lý</span>
+                        <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-red-500/10 text-red-600 flex items-center justify-center shrink-0">
+                            <i data-lucide="alert-triangle" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2.5 sm:mt-3 flex flex-wrap items-baseline gap-1.5 sm:gap-2">
+                        <span id="kpiIssuesCount" class="text-xl sm:text-3xl font-bold text-red-600">0</span>
+                        <span id="kpiInProgressCount" class="text-[10px] sm:text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">0 đang làm</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Wing Summary Comparison Widget (Ocean Wing vs Garden Wing) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                <!-- Ocean Wing Card -->
+                <div class="glass rounded-2xl p-4 sm:p-5 shadow-ios border-l-4 border-l-sky-500">
+                    <div class="flex items-center justify-between mb-2.5">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-xl bg-sky-500/10 text-sky-600 flex items-center justify-center">
+                                <i data-lucide="waves" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-sm text-gray-900">Khu Ocean Wing</h3>
+                                <p class="text-[11px] text-gray-500">98 phòng (Tầng 1–3: 26P/tầng • Tầng 4: 20P)</p>
+                            </div>
+                        </div>
+                        <span id="oceanWingPct" class="text-lg font-extrabold text-sky-600">0%</span>
+                    </div>
+                    <div class="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden mb-2">
+                        <div id="oceanWingBar" class="h-full bg-sky-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <div class="flex items-center justify-between text-xs text-gray-600">
+                        <span>Hoàn thành: <strong id="oceanWingRatio" class="text-gray-900">0/0</strong> hạng mục</span>
+                        <span id="oceanWingIssueText" class="text-red-600 font-medium">0 sự cố</span>
+                    </div>
+                </div>
+
+                <!-- Garden Wing Card -->
+                <div class="glass rounded-2xl p-4 sm:p-5 shadow-ios border-l-4 border-l-emerald-500">
+                    <div class="flex items-center justify-between mb-2.5">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                                <i data-lucide="trees" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-sm text-gray-900">Khu Garden Wing</h3>
+                                <p class="text-[11px] text-gray-500">100 phòng (Tầng 1–3: 26P/tầng • Tầng 4: 22P)</p>
+                            </div>
+                        </div>
+                        <span id="gardenWingPct" class="text-lg font-extrabold text-emerald-600">0%</span>
+                    </div>
+                    <div class="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden mb-2">
+                        <div id="gardenWingBar" class="h-full bg-emerald-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <div class="flex items-center justify-between text-xs text-gray-600">
+                        <span>Hoàn thành: <strong id="gardenWingRatio" class="text-gray-900">0/0</strong> hạng mục</span>
+                        <span id="gardenWingIssueText" class="text-red-600 font-medium">0 sự cố</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+                <!-- Bar Chart: Floor Progress Comparison -->
+                <div class="glass rounded-2xl p-5 shadow-ios lg:col-span-2 flex flex-col">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                        <div>
+                            <h3 class="font-bold text-base text-gray-900">So Sánh Tiến Độ Ocean Wing & Garden Wing Theo Tầng</h3>
+                            <p class="text-xs text-gray-500">Tỷ lệ hoàn thành công việc từ Tầng 1 đến Tầng 4 giữa 2 khu</p>
+                        </div>
+                        <select id="adminChartProjectFilter" onchange="updateAdminDashboard()" class="text-xs font-medium bg-white border border-gray-200 rounded-xl px-3 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="ALL">Tất cả dự án</option>
+                        </select>
+                    </div>
+                    <div class="relative flex-1 min-h-[240px]">
+                        <canvas id="floorBarChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Doughnut Chart: Status Breakdown -->
+                <div class="glass rounded-2xl p-5 shadow-ios flex flex-col">
+                    <div class="mb-4">
+                        <h3 class="font-bold text-base text-gray-900">Tỷ Lệ Trạng Thái</h3>
+                        <p class="text-xs text-gray-500">Phân bổ trạng thái các hạng mục</p>
+                    </div>
+                    <div class="relative flex-1 min-h-[200px] flex items-center justify-center">
+                        <canvas id="statusDoughnutChart"></canvas>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-gray-100 text-xs">
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#34C759]"></span>
+                            <span class="text-gray-600">Hoàn thành: <strong id="legendDone" class="text-gray-900">0</strong></span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#FF9500]"></span>
+                            <span class="text-gray-600">Đang làm: <strong id="legendInProgress" class="text-gray-900">0</strong></span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#FF3B30]"></span>
+                            <span class="text-gray-600">Sự cố: <strong id="legendIssue" class="text-gray-900">0</strong></span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#D1D1D6]"></span>
+                            <span class="text-gray-600">Chưa làm: <strong id="legendPending" class="text-gray-900">0</strong></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Projects List & Recent Issues -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+                <!-- Projects List -->
+                <div class="glass rounded-2xl p-5 shadow-ios lg:col-span-2">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="font-bold text-base text-gray-900">Danh Sách Dự Án Đang Triển Khai</h3>
+                            <p class="text-xs text-gray-500">Bấm vào dự án để chuyển sang chế độ xem chi tiết từng phòng</p>
+                        </div>
+                    </div>
+                    <div id="adminProjectsList" class="space-y-3">
+                        <!-- Rendered dynamically -->
+                    </div>
+                </div>
+
+                <!-- Recent Activity & Issues Feed -->
+                <div class="glass rounded-2xl p-5 shadow-ios flex flex-col">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="font-bold text-base text-gray-900">Cập Nhật & Sự Cố Gần Đây</h3>
+                            <p class="text-xs text-gray-500">Luồng dữ liệu nhân viên vừa gửi lên</p>
+                        </div>
+                        <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-600">Live</span>
+                    </div>
+                    <div id="adminActivityFeed" class="space-y-3 overflow-y-auto max-h-[380px] pr-1">
+                        <!-- Rendered dynamically -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- =====================================================================
+             VIEW 2: STAFF MOBILE-FIRST VIEW
+        ====================================================================== -->
+        <section id="staffView" class="hidden max-w-7xl mx-auto space-y-4 view-transition pb-12">
+            
+            <!-- Staff Control Card (One-hand friendly) -->
+            <div class="glass rounded-2xl p-3.5 sm:p-4 shadow-ios space-y-3.5 max-w-4xl mx-auto">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <!-- Staff Name Selector -->
+                    <div>
+                        <label class="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Nhân viên thực hiện</label>
+                        <div class="relative">
+                            <select id="staffNameSelect" onchange="onStaffMemberChange()" class="w-full appearance-none bg-white border border-gray-200/90 rounded-xl pl-9 pr-8 py-2.5 text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs">
+                                <!-- Populated dynamically from Firestore staff collection -->
+                            </select>
+                            <i data-lucide="user-check" class="w-4 h-4 text-blue-600 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                            <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                        </div>
+                        <div id="staffRoleBadgeBox" class="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px]">
+                            <!-- Active permissions summary -->
+                        </div>
+                    </div>
+
+                    <!-- Project Selector -->
+                    <div>
+                        <label class="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Dự án đang triển khai</label>
+                        <div class="relative">
+                            <select id="staffProjectSelect" onchange="onStaffProjectChange()" class="w-full appearance-none bg-white border border-gray-200/90 rounded-xl pl-9 pr-8 py-2.5 text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs">
+                                <!-- Populated dynamically -->
+                            </select>
+                            <i data-lucide="briefcase" class="w-4 h-4 text-indigo-600 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                            <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Selected Project Quick Progress Bar -->
+                <div class="bg-gray-100/80 rounded-xl p-3">
+                    <div class="flex items-center justify-between text-xs mb-1.5">
+                        <span id="staffProjectMeta" class="font-medium text-gray-600">Phạm vi: 198 phòng</span>
+                        <span id="staffProjectProgressText" class="font-bold text-blue-600">0/198 (0%)</span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div id="staffProjectProgressBar" class="h-full bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sticky Filters & Legend Bar -->
+            <div class="glass rounded-2xl p-3 sm:p-3.5 shadow-ios space-y-3 max-w-4xl mx-auto">
+                <!-- Wing Filter Segmented Pills -->
+                <div class="grid grid-cols-3 gap-1.5 bg-gray-100/90 p-1 rounded-xl">
+                    <button onclick="setStaffWingFilter('ALL')" data-wing="ALL" class="wing-pill py-1.5 px-2 rounded-lg text-xs font-bold transition bg-white text-gray-900 shadow-2xs">
+                        Tất cả (198)
+                    </button>
+                    <button onclick="setStaffWingFilter('Ocean Wing')" data-wing="Ocean Wing" class="wing-pill py-1.5 px-2 rounded-lg text-xs font-semibold transition text-gray-600 hover:text-gray-900 flex items-center justify-center gap-1">
+                        <span class="w-2 h-2 rounded-full bg-sky-500"></span> Ocean (98)
+                    </button>
+                    <button onclick="setStaffWingFilter('Garden Wing')" data-wing="Garden Wing" class="wing-pill py-1.5 px-2 rounded-lg text-xs font-semibold transition text-gray-600 hover:text-gray-900 flex items-center justify-center gap-1">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Garden (100)
+                    </button>
+                </div>
+
+                <!-- Floor Filter Pills (Tầng 1 - Tầng 4) -->
+                <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                    <button onclick="setStaffFloorFilter('ALL')" data-floor="ALL" class="floor-pill px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition bg-gray-900 text-white">Tất cả tầng</button>
+                    <button onclick="setStaffFloorFilter(1)" data-floor="1" class="floor-pill px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition bg-white text-gray-600 hover:bg-gray-100">Tầng 1</button>
+                    <button onclick="setStaffFloorFilter(2)" data-floor="2" class="floor-pill px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition bg-white text-gray-600 hover:bg-gray-100">Tầng 2</button>
+                    <button onclick="setStaffFloorFilter(3)" data-floor="3" class="floor-pill px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition bg-white text-gray-600 hover:bg-gray-100">Tầng 3</button>
+                    <button onclick="setStaffFloorFilter(4)" data-floor="4" class="floor-pill px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition bg-white text-gray-600 hover:bg-gray-100">Tầng 4</button>
+                </div>
+
+                <!-- Status Filter Pills -->
+                <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1 border-t border-gray-100">
+                    <button onclick="setStaffStatusFilter('ALL')" data-status="ALL" class="status-pill px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition bg-blue-600 text-white">Tất cả</button>
+                    <button onclick="setStaffStatusFilter('Pending')" data-status="Pending" class="status-pill flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition bg-gray-100 text-gray-700">
+                        <span class="w-2 h-2 rounded-full bg-gray-400"></span> Chưa làm
+                    </button>
+                    <button onclick="setStaffStatusFilter('In_Progress')" data-status="In_Progress" class="status-pill flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition bg-amber-50 text-amber-800">
+                        <span class="w-2 h-2 rounded-full bg-amber-500"></span> Đang làm/Hoãn
+                    </button>
+                    <button onclick="setStaffStatusFilter('Done')" data-status="Done" class="status-pill flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition bg-emerald-50 text-emerald-800">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Hoàn thành
+                    </button>
+                    <button onclick="setStaffStatusFilter('Issue')" data-status="Issue" class="status-pill flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition bg-red-50 text-red-800">
+                        <span class="w-2 h-2 rounded-full bg-red-500"></span> Sự cố
+                    </button>
+                </div>
+            </div>
+
+            <!-- Room Matrix Container (Strictly Separated by Wing: Ocean Wing & Garden Wing) -->
+            <div id="roomMatrixContainer" class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 items-start">
+                <!-- Rendered dynamically -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- =====================================================================
+         BOTTOM SHEET MODAL: ROOM QUICK UPDATE (STAFF)
+    ====================================================================== -->
+    <div id="roomModalBackdrop" onclick="closeRoomModal(event)" class="modal-backdrop fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-center sm:p-4">
+        <div onclick="event.stopPropagation()" class="bottom-sheet w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-ios-lg overflow-hidden max-h-[92dvh] flex flex-col">
+            
+            <!-- Drag Handle (Mobile) -->
+            <div class="w-full flex justify-center pt-3 pb-1 sm:hidden">
+                <div class="w-10 h-1.5 bg-gray-300 rounded-full"></div>
+            </div>
+
+            <!-- Modal Header -->
+            <div class="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
+                <div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span id="modalRoomTitle" class="text-xl font-extrabold text-gray-900">Phòng 101</span>
+                        <span id="modalRoomWingBadge" class="px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 text-xs font-semibold">Ocean Wing</span>
+                        <span id="modalRoomFloorBadge" class="px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 text-xs font-semibold">Tầng 1</span>
+                    </div>
+                    <p id="modalProjectSubtitle" class="text-xs text-gray-500 mt-0.5 line-clamp-1">Dự án: Thay thế khóa từ thông minh</p>
+                </div>
+                <button onclick="closeRoomModal()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-5 overflow-y-auto space-y-4">
+                
+                <!-- 1-Tap Status Buttons Grid -->
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Chọn trạng thái thực hiện</label>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <button type="button" onclick="selectModalStatus('Done')" id="statusBtn_Done" class="status-choice-btn flex items-center gap-2.5 p-3.5 rounded-2xl border-2 border-gray-200 text-left transition active:scale-95">
+                            <div class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                                <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <div class="font-bold text-sm text-gray-900">Hoàn thành</div>
+                                <div class="text-[11px] text-gray-500">Đã nghiệm thu</div>
+                            </div>
+                        </button>
+
+                        <button type="button" onclick="selectModalStatus('In_Progress')" id="statusBtn_In_Progress" class="status-choice-btn flex items-center gap-2.5 p-3.5 rounded-2xl border-2 border-gray-200 text-left transition active:scale-95">
+                            <div class="w-8 h-8 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                                <i data-lucide="clock" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <div class="font-bold text-sm text-gray-900">Đang làm / Hoãn</div>
+                                <div class="text-[11px] text-gray-500">Chờ khách / Đang xử lý</div>
+                            </div>
+                        </button>
+
+                        <button type="button" onclick="selectModalStatus('Issue')" id="statusBtn_Issue" class="status-choice-btn flex items-center gap-2.5 p-3.5 rounded-2xl border-2 border-gray-200 text-left transition active:scale-95">
+                            <div class="w-8 h-8 rounded-xl bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+                                <i data-lucide="alert-octagon" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <div class="font-bold text-sm text-gray-900">Báo sự cố</div>
+                                <div class="text-[11px] text-gray-500">Hỏng hóc / Thiếu đồ</div>
+                            </div>
+                        </button>
+
+                        <button type="button" onclick="selectModalStatus('Pending')" id="statusBtn_Pending" class="status-choice-btn flex items-center gap-2.5 p-3.5 rounded-2xl border-2 border-gray-200 text-left transition active:scale-95">
+                            <div class="w-8 h-8 rounded-xl bg-gray-100 text-gray-600 flex items-center justify-center shrink-0">
+                                <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <div class="font-bold text-sm text-gray-900">Chưa làm</div>
+                                <div class="text-[11px] text-gray-500">Đặt lại ban đầu</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Quick Note & Presets -->
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Ghi chú hiện trường (Tùy chọn)</label>
+                    <div class="flex flex-wrap gap-1.5 mb-2">
+                        <button type="button" onclick="appendQuickNote('Khách treo biển DND')" class="px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-xs font-medium text-gray-700 transition">+ Khách treo biển DND</button>
+                        <button type="button" onclick="appendQuickNote('Thiếu vật tư thay thế')" class="px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-xs font-medium text-gray-700 transition">+ Thiếu vật tư</button>
+                        <button type="button" onclick="appendQuickNote('Đã kiểm tra hoạt động tốt')" class="px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-xs font-medium text-gray-700 transition">+ Hoạt động tốt</button>
+                    </div>
+                    <textarea id="modalNoteInput" rows="2" placeholder="Nhập chi tiết tình trạng phòng hoặc lý do sự cố..." class="w-full rounded-xl border border-gray-200 p-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+
+                <!-- History Info -->
+                <div id="modalHistoryBox" class="bg-gray-50 rounded-xl p-3 text-xs text-gray-600 space-y-1 border border-gray-100">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-4 pt-3.5 safe-bottom border-t border-gray-100 bg-gray-50/50 flex gap-2.5">
+                <button type="button" onclick="closeRoomModal()" class="flex-1 py-3 rounded-xl bg-white border border-gray-200 text-gray-700 font-semibold text-sm hover:bg-gray-50 transition">Hủy</button>
+                <button type="button" onclick="saveRoomUpdate()" class="flex-[2] py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md shadow-blue-600/20 transition active:scale-95 flex items-center justify-center gap-2">
+                    <i data-lucide="check" class="w-4 h-4"></i>
+                    <span>Lưu Cập Nhật</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =====================================================================
+         CENTER MODAL: ADMIN AUTHENTICATION GATE
+    ====================================================================== -->
+    <div id="adminLoginBackdrop" onclick="closeAdminLoginModal(event)" class="modal-backdrop fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div onclick="event.stopPropagation()" class="center-modal w-full max-w-sm bg-white rounded-3xl shadow-ios-lg overflow-hidden p-6 space-y-5">
+            <div class="text-center space-y-2">
+                <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-xs">
+                    <i data-lucide="shield-lock" class="w-6 h-6"></i>
+                </div>
+                <h3 class="font-bold text-lg text-gray-900">Xác Thực Quản Trị Viên</h3>
+                <p class="text-xs text-gray-500">Vui lòng đăng nhập để truy cập bảng điều khiển và cài đặt hệ thống (Mặc định: <strong class="text-gray-700">shp</strong> / <strong class="text-gray-700">150620</strong>)</p>
+            </div>
+
+            <form onsubmit="handleAdminLogin(event)" class="space-y-3.5">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Tên đăng nhập</label>
+                    <input type="text" id="adminLoginUsername" required autocomplete="username" placeholder="Nhập tên đăng nhập..." class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Mật khẩu</label>
+                    <input type="password" id="adminLoginPassword" required autocomplete="current-password" placeholder="Nhập mật khẩu..." class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <p id="adminLoginError" class="hidden text-xs font-semibold text-red-600 bg-red-50 px-3 py-2 rounded-xl border border-red-200"></p>
+                <div class="flex gap-2.5 pt-2">
+                    <button type="button" onclick="closeAdminLoginModal()" class="flex-1 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-sm transition">Đóng</button>
+                    <button type="submit" class="flex-[2] py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md shadow-blue-600/20 transition">Đăng Nhập</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- =====================================================================
+         CENTER MODAL: ADMIN SETTINGS (CREDENTIALS + STAFF & PERMISSIONS)
+    ====================================================================== -->
+    <div id="adminSettingsBackdrop" onclick="closeAdminSettingsModal(event)" class="modal-backdrop fixed inset-0 z-50 bg-black/45 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+        <div onclick="event.stopPropagation()" class="center-modal w-full max-w-4xl bg-white rounded-3xl shadow-ios-lg overflow-hidden flex flex-col max-h-[92vh]">
+            
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0 bg-gray-50/60">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                        <i data-lucide="settings" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base sm:text-lg text-gray-900">Cài Đặt Quản Trị Viên</h3>
+                        <p class="text-xs text-gray-500">Quản lý tài khoản đăng nhập, nhân sự & phân quyền thực thi (Đồng bộ Firestore)</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="logoutAdminSession()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold transition">
+                        <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+                        <span>Khóa phiên</span>
+                    </button>
+                    <button type="button" onclick="closeAdminSettingsModal()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tabs Switcher -->
+            <div class="px-6 pt-3 border-b border-gray-100 flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0">
+                <button type="button" id="tabBtnStaff" onclick="switchAdminSettingsTab('staff')" class="px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 border-blue-600 text-blue-600 transition flex items-center gap-2 whitespace-nowrap">
+                    <i data-lucide="users" class="w-4 h-4"></i>
+                    <span>Nhân Viên & Phân Quyền</span>
+                </button>
+                <button type="button" id="tabBtnBackup" onclick="switchAdminSettingsTab('backup')" class="px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-800 transition flex items-center gap-2 whitespace-nowrap">
+                    <i data-lucide="database-backup" class="w-4 h-4"></i>
+                    <span>Sao Lưu & Phục Hồi</span>
+                </button>
+                <button type="button" id="tabBtnSecurity" onclick="switchAdminSettingsTab('security')" class="px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-800 transition flex items-center gap-2 whitespace-nowrap">
+                    <i data-lucide="key-round" class="w-4 h-4"></i>
+                    <span>Thông Tin Đăng Nhập Admin</span>
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="p-5 sm:p-6 overflow-y-auto flex-1">
+                
+                <!-- TAB 1: STAFF & PERMISSIONS MANAGEMENT -->
+                <div id="settingsTabStaff" class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+                    
+                    <!-- Left: Add / Edit Staff Form -->
+                    <form id="staffForm" onsubmit="handleSaveStaff(event)" class="lg:col-span-5 bg-gray-50/90 border border-gray-200/80 rounded-2xl p-4 space-y-3.5">
+                        <div class="flex items-center justify-between">
+                            <h4 id="staffFormTitle" class="font-bold text-sm text-gray-900">Thêm Nhân Viên Mới</h4>
+                            <button type="button" id="btnCancelEditStaff" onclick="resetStaffForm()" class="hidden text-xs font-semibold text-gray-500 hover:text-gray-800">Hủy sửa</button>
+                        </div>
+
+                        <input type="hidden" id="editStaffId">
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Họ và tên nhân viên *</label>
+                            <input type="text" id="staffFullNameInput" required placeholder="VD: Phạm Hoàng Nam" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2.5">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-700 mb-1">Bộ phận / Chức vụ</label>
+                                <input type="text" id="staffDepartmentInput" required placeholder="VD: Kỹ thuật" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-700 mb-1">Vai trò hệ thống</label>
+                                <select id="staffRoleInput" onchange="applyRolePermissionPreset()" class="w-full rounded-xl border border-gray-200 bg-white px-2.5 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="staff">Nhân viên</option>
+                                    <option value="supervisor">Giám sát</option>
+                                    <option value="sub_admin">Phó quản lý</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Phân khu được phép thao tác</label>
+                            <select id="staffWingScopeInput" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="ALL">Tất cả 2 khu (Ocean & Garden Wing)</option>
+                                <option value="Ocean Wing">Chỉ khu Ocean Wing (98P)</option>
+                                <option value="Garden Wing">Chỉ khu Garden Wing (100P)</option>
+                            </select>
+                        </div>
+
+                        <!-- Granular Permission Checkboxes -->
+                        <div class="bg-white rounded-xl p-3 border border-gray-200/80 space-y-2">
+                            <span class="block text-[11px] font-bold uppercase tracking-wider text-gray-500">Chi tiết phân quyền</span>
+                            
+                            <label class="flex items-center gap-2.5 text-xs font-medium text-gray-700 cursor-pointer">
+                                <input type="checkbox" id="permUpdateRoom" checked class="rounded text-blue-600 w-4 h-4">
+                                <span>Cập nhật tiến độ phòng (Hoàn thành / Đang làm)</span>
+                            </label>
+                            <label class="flex items-center gap-2.5 text-xs font-medium text-gray-700 cursor-pointer">
+                                <input type="checkbox" id="permReportIssue" checked class="rounded text-blue-600 w-4 h-4">
+                                <span>Gửi báo cáo sự cố & ghi chú hiện trường</span>
+                            </label>
+                            <label class="flex items-center gap-2.5 text-xs font-medium text-gray-700 cursor-pointer">
+                                <input type="checkbox" id="permCreateProject" class="rounded text-blue-600 w-4 h-4">
+                                <span>Được phép tạo dự án phát sinh mới</span>
+                            </label>
+                            <label class="flex items-center gap-2.5 text-xs font-medium text-gray-700 cursor-pointer">
+                                <input type="checkbox" id="permExportReport" class="rounded text-blue-600 w-4 h-4">
+                                <span>Được phép xuất báo cáo tổng hợp CSV</span>
+                            </label>
+                        </div>
+
+                        <button type="submit" id="btnSaveStaffSubmit" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-sm transition flex items-center justify-center gap-1.5">
+                            <i data-lucide="user-plus" class="w-4 h-4"></i>
+                            <span>Lưu Nhân Viên</span>
+                        </button>
+                    </form>
+
+                    <!-- Right: Staff Directory & Permissions List -->
+                    <div class="lg:col-span-7 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h4 class="font-bold text-sm text-gray-900">Danh Sách Nhân Sự (<span id="settingsStaffCount">0</span>)</h4>
+                            <span class="text-[11px] text-gray-500">Tự động cập nhật vào danh sách chọn hiện trường</span>
+                        </div>
+                        <div id="settingsStaffList" class="space-y-2.5 max-h-[430px] overflow-y-auto pr-1">
+                            <!-- Rendered dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: BACKUP & RESTORE DATA -->
+                <div id="settingsTabBackup" class="hidden space-y-5">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Export Backup Card -->
+                        <div class="bg-emerald-50/60 border border-emerald-200/80 rounded-2xl p-5 flex flex-col justify-between space-y-4">
+                            <div class="space-y-2">
+                                <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                                    <i data-lucide="hard-drive-download" class="w-5 h-5"></i>
+                                </div>
+                                <h4 class="font-bold text-base text-gray-900">Xuất Tệp Sao Lưu Toàn Bộ (.JSON)</h4>
+                                <p class="text-xs text-gray-600 leading-relaxed">
+                                    Đóng gói toàn bộ dữ liệu dự án, trạng thái 198 phòng, nhật ký cập nhật và danh sách nhân sự hiện tại thành tệp JSON lưu trữ an toàn trên thiết bị của bạn.
+                                </p>
+                                <div id="backupSummaryStats" class="bg-white/90 rounded-xl p-3 border border-emerald-200/60 text-xs text-gray-700 space-y-1">
+                                    <!-- Populated dynamically -->
+                                </div>
+                            </div>
+                            <button type="button" onclick="exportProjectBackupJSON()" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md shadow-emerald-600/20 transition flex items-center justify-center gap-2 active:scale-95">
+                                <i data-lucide="download" class="w-4 h-4"></i>
+                                <span>Tải Xuống Bản Sao Lưu (.JSON)</span>
+                            </button>
+                        </div>
+
+                        <!-- Restore Backup Card -->
+                        <div class="bg-blue-50/50 border border-blue-200/80 rounded-2xl p-5 flex flex-col justify-between space-y-4">
+                            <div class="space-y-2">
+                                <div class="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">
+                                    <i data-lucide="upload-cloud" class="w-5 h-5"></i>
+                                </div>
+                                <h4 class="font-bold text-base text-gray-900">Phục Hồi Dữ Liệu Từ Tệp Sao Lưu</h4>
+                                <p class="text-xs text-gray-600 leading-relaxed">
+                                    Chọn tệp sao lưu <code class="bg-white px-1.5 py-0.5 rounded border border-gray-200 font-mono text-[11px]">RoomOps_Backup_*.json</code> đã tải trước đó để đồng bộ khôi phục lên Firebase Firestore.
+                                </p>
+                                <div class="pt-1">
+                                    <input type="file" id="restoreBackupFileInput" accept=".json,application/json" onchange="handlePreviewBackupFile(event)" class="block w-full text-xs text-gray-600 file:mr-3 file:py-2 file:px-3.5 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-white file:text-blue-700 hover:file:bg-blue-50 file:border file:border-blue-200 cursor-pointer">
+                                </div>
+                                <div id="restorePreviewBox" class="hidden bg-white rounded-xl p-3 border border-blue-200 text-xs text-gray-700 space-y-1">
+                                    <!-- Populated on file select -->
+                                </div>
+                            </div>
+                            <button type="button" id="btnRestoreBackupSubmit" disabled onclick="executeRestoreBackup()" class="w-full py-2.5 rounded-xl bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-blue-700 text-white font-bold text-sm shadow-sm transition flex items-center justify-center gap-2 active:scale-95">
+                                <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                                <span>Khôi Phục Lên Firestore</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 3: ADMIN LOGIN CREDENTIALS -->
+                <div id="settingsTabSecurity" class="hidden max-w-md mx-auto py-2">
+                    <form onsubmit="handleUpdateAdminCredentials(event)" class="bg-gray-50/90 border border-gray-200/80 rounded-2xl p-5 space-y-4">
+                        <div class="flex items-center gap-2.5 pb-2 border-b border-gray-200/70">
+                            <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                                <i data-lucide="shield-check" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-sm text-gray-900">Đổi Thông Tin Đăng Nhập Quản Trị</h4>
+                                <p class="text-[11px] text-gray-500">Lưu bảo mật trên Firestore để áp dụng cho mọi thiết bị</p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Tên đăng nhập quản trị mới *</label>
+                            <input type="text" id="settingsAdminUsername" required class="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 mb-1">Mật khẩu hiện tại *</label>
+                            <input type="password" id="settingsCurrentPassword" required placeholder="Nhập mật khẩu đang dùng để xác nhận..." class="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-700 mb-1">Mật khẩu mới *</label>
+                                <input type="password" id="settingsNewPassword" required minlength="4" placeholder="Tối thiểu 4 ký tự" class="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-700 mb-1">Nhập lại mật khẩu mới *</label>
+                                <input type="password" id="settingsConfirmPassword" required minlength="4" placeholder="Xác nhận mật khẩu" class="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                        </div>
+
+                        <button type="submit" id="btnSaveCredentials" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-600/20 transition flex items-center justify-center gap-2">
+                            <i data-lucide="save" class="w-4 h-4"></i>
+                            <span>Cập Nhật Tài Khoản Quản Trị</span>
+                        </button>
+                    </form>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- =====================================================================
+         CENTER MODAL: CREATE NEW PROJECT (ADMIN)
+    ====================================================================== -->
+    <div id="createProjectBackdrop" onclick="closeCreateProjectModal(event)" class="modal-backdrop fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+        <div onclick="event.stopPropagation()" class="center-modal w-full max-w-3xl bg-white rounded-3xl shadow-ios-lg overflow-hidden flex flex-col max-h-[92vh]">
+            
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                        <i data-lucide="folder-plus" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base text-gray-900">Tạo Dự Án Phát Sinh Mới</h3>
+                        <p class="text-xs text-gray-500">Tự động khởi tạo danh sách phòng cho nhân viên</p>
+                    </div>
+                </div>
+                <button onclick="closeCreateProjectModal()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <form id="createProjectForm" onsubmit="handleCreateProject(event)" class="p-5 sm:p-6 overflow-y-auto space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Tên dự án / Hạng mục công việc *</label>
+                    <input type="text" id="newProjName" required placeholder="VD: Thay rèm cửa chống nắng, Kiểm tra đầu báo khói..." class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Hạn hoàn thành</label>
+                        <input type="date" id="newProjDeadline" required class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 mb-1">Độ ưu tiên</label>
+                        <select id="newProjPriority" class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="Bình thường">Bình thường</option>
+                            <option value="Cao">Cao (Gấp)</option>
+                            <option value="Định kỳ">Bảo trì định kỳ</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 mb-1">Mô tả / Yêu cầu kỹ thuật</label>
+                    <textarea id="newProjDesc" rows="2" placeholder="Ghi chú hướng dẫn cho nhân viên kỹ thuật..." class="w-full rounded-xl border border-gray-200 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+
+                <!-- Scope Selection -->
+                <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200/70 space-y-3">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-gray-600">Phạm vi phòng áp dụng *</label>
+                    
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="roomScope" value="ALL" checked onchange="toggleScopeInputs()" class="peer sr-only">
+                            <div class="p-2.5 rounded-xl border border-gray-200 bg-white text-center text-xs font-semibold text-gray-700 peer-checked:border-blue-600 peer-checked:bg-blue-50 peer-checked:text-blue-700 transition">
+                                Tất cả (198P)
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="roomScope" value="WINGS" onchange="toggleScopeInputs()" class="peer sr-only">
+                            <div class="p-2.5 rounded-xl border border-gray-200 bg-white text-center text-xs font-semibold text-gray-700 peer-checked:border-blue-600 peer-checked:bg-blue-50 peer-checked:text-blue-700 transition">
+                                Theo Khu
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="roomScope" value="FLOORS" onchange="toggleScopeInputs()" class="peer sr-only">
+                            <div class="p-2.5 rounded-xl border border-gray-200 bg-white text-center text-xs font-semibold text-gray-700 peer-checked:border-blue-600 peer-checked:bg-blue-50 peer-checked:text-blue-700 transition">
+                                Theo Tầng
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="roomScope" value="CUSTOM" onchange="toggleScopeInputs()" class="peer sr-only">
+                            <div class="p-2.5 rounded-xl border border-gray-200 bg-white text-center text-xs font-semibold text-gray-700 peer-checked:border-blue-600 peer-checked:bg-blue-50 peer-checked:text-blue-700 transition">
+                                Chọn lẻ / Sơ đồ phòng
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- Option: By Wings -->
+                    <div id="scopeWingsBox" class="hidden pt-2">
+                        <p class="text-xs text-gray-500 mb-2">Chọn khu vực triển khai:</p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="inline-flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-gray-200 text-xs font-semibold cursor-pointer">
+                                <input type="checkbox" name="selectedWings" value="Ocean Wing" checked class="rounded text-sky-600">
+                                <span class="w-2 h-2 rounded-full bg-sky-500"></span> Ocean Wing (98P)
+                            </label>
+                            <label class="inline-flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-gray-200 text-xs font-semibold cursor-pointer">
+                                <input type="checkbox" name="selectedWings" value="Garden Wing" class="rounded text-emerald-600">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Garden Wing (100P)
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Option: By Floors -->
+                    <div id="scopeFloorsBox" class="hidden pt-2">
+                        <p class="text-xs text-gray-500 mb-2">Tích chọn các tầng cần triển khai (bao gồm cả 2 khu):</p>
+                        <div class="flex flex-wrap gap-2">
+                            <label class="inline-flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium cursor-pointer">
+                                <input type="checkbox" name="selectedFloors" value="1" checked class="rounded text-blue-600"> Tầng 1 (52P)
+                            </label>
+                            <label class="inline-flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium cursor-pointer">
+                                <input type="checkbox" name="selectedFloors" value="2" checked class="rounded text-blue-600"> Tầng 2 (52P)
+                            </label>
+                            <label class="inline-flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium cursor-pointer">
+                                <input type="checkbox" name="selectedFloors" value="3" class="rounded text-blue-600"> Tầng 3 (52P)
+                            </label>
+                            <label class="inline-flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium cursor-pointer">
+                                <input type="checkbox" name="selectedFloors" value="4" class="rounded text-blue-600"> Tầng 4 (42P)
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Option: Interactive Visual Room Picker -->
+                    <div id="scopeCustomBox" class="hidden pt-2 space-y-3">
+                        <!-- Live Counter & Clear Action -->
+                        <div class="flex flex-wrap items-center justify-between gap-2 bg-blue-50/90 border border-blue-200/80 rounded-xl px-3.5 py-2.5">
+                            <div class="flex items-center gap-2 text-xs text-blue-900">
+                                <i data-lucide="check-square" class="w-4 h-4 text-blue-600 shrink-0"></i>
+                                <span id="customRoomSelectedCounter" class="font-bold">Đã chọn: 0 phòng (Ocean: 0 • Garden: 0)</span>
+                            </div>
+                            <button type="button" onclick="clearCustomSelectedRooms()" class="text-[11px] font-semibold text-red-600 hover:text-red-700 bg-white px-2.5 py-1 rounded-lg border border-red-200/80 transition active:scale-95">
+                                Bỏ chọn tất cả
+                            </button>
+                        </div>
+
+                        <!-- Filter & Quick Search Row -->
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <div class="grid grid-cols-3 gap-1 bg-gray-200/75 p-1 rounded-xl flex-1">
+                                <button type="button" onclick="setPickerWingFilter('ALL')" data-picker-wing="ALL" class="picker-wing-pill py-1.5 px-2 rounded-lg text-[11px] font-bold bg-white text-gray-900 shadow-2xs transition">
+                                    Tất cả 2 khu
+                                </button>
+                                <button type="button" onclick="setPickerWingFilter('Ocean Wing')" data-picker-wing="Ocean Wing" class="picker-wing-pill py-1.5 px-2 rounded-lg text-[11px] font-semibold text-gray-600 hover:text-gray-900 transition flex items-center justify-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span> Chỉ Ocean Wing
+                                </button>
+                                <button type="button" onclick="setPickerWingFilter('Garden Wing')" data-picker-wing="Garden Wing" class="picker-wing-pill py-1.5 px-2 rounded-lg text-[11px] font-semibold text-gray-600 hover:text-gray-900 transition flex items-center justify-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Chỉ Garden Wing
+                                </button>
+                            </div>
+
+                            <div class="relative sm:w-44">
+                                <input type="text" id="pickerSearchInput" oninput="renderCustomRoomPicker()" placeholder="Tìm số phòng..." class="w-full rounded-xl border border-gray-200 bg-white pl-8 pr-3 py-1.5 text-xs font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <i data-lucide="search" class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                            </div>
+                        </div>
+
+                        <!-- Quick Select Wing Buttons -->
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <button type="button" onclick="toggleSelectEntireWing('Ocean Wing')" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200/80 text-[11px] font-semibold transition active:scale-95">
+                                <span class="w-2 h-2 rounded-full bg-sky-500"></span>
+                                <span>Chọn tất cả phân khu Ocean (98P)</span>
+                            </button>
+                            <button type="button" onclick="toggleSelectEntireWing('Garden Wing')" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 text-[11px] font-semibold transition active:scale-95">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                <span>Chọn tất cả phân khu Garden (100P)</span>
+                            </button>
+                        </div>
+
+                        <!-- Interactive Room Grid Container -->
+                        <div id="customRoomPickerGrid" class="max-h-[340px] overflow-y-auto pr-1 space-y-3">
+                            <!-- Rendered dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-2 flex gap-2.5">
+                    <button type="button" onclick="closeCreateProjectModal()" class="flex-1 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-sm transition">Hủy bỏ</button>
+                    <button type="submit" id="btnSubmitCreateProject" class="flex-[2] py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md shadow-blue-600/20 transition flex items-center justify-center gap-2">
+                        <span>Khởi Tạo Dự Án</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- =====================================================================
+         CENTER MODAL: DELETE PROJECT CONFIRMATION (ADMIN)
+    ====================================================================== -->
+    <div id="deleteProjectBackdrop" onclick="closeDeleteProjectModal(event)" class="modal-backdrop fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+        <div onclick="event.stopPropagation()" class="center-modal w-full max-w-md bg-white rounded-3xl shadow-ios-lg overflow-hidden p-6 space-y-4">
+            <div class="flex items-start gap-3.5">
+                <div class="w-11 h-11 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center shrink-0">
+                    <i data-lucide="trash-2" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-base text-gray-900">Xóa Dự Án Trên Firestore?</h3>
+                    <p id="deleteProjectMessage" class="text-xs text-gray-600 mt-1 leading-relaxed">
+                        Bạn có chắc chắn muốn xóa dự án này và toàn bộ dữ liệu trạng thái phòng liên quan khỏi cơ sở dữ liệu?
+                    </p>
+                </div>
+            </div>
+            <div class="flex gap-2.5 pt-2">
+                <button type="button" onclick="closeDeleteProjectModal()" class="flex-1 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-sm transition">Hủy</button>
+                <button type="button" id="btnConfirmDeleteProject" onclick="confirmDeleteProject()" class="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm shadow-md shadow-red-600/20 transition flex items-center justify-center gap-1.5">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    <span>Xác Nhận Xóa</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =====================================================================
+         TOAST NOTIFICATION (iOS Style)
+    ====================================================================== -->
+    <div id="toastContainer" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col items-center gap-2 w-full max-w-sm px-4"></div>
+
+    <!-- =====================================================================
+         APPLICATION LOGIC (JAVASCRIPT + FIREBASE FIRESTORE v11 MODULAR)
+    ====================================================================== -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+        import {
+            getFirestore,
+            collection,
+            doc,
+            setDoc,
+            addDoc,
+            deleteDoc,
+            onSnapshot,
+            query,
+            orderBy,
+            limit,
+            writeBatch,
+            getDocs
+        } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
+        // ---------------------------------------------------------------------
+        // 0. FIREBASE INITIALIZATION (roomtracking-9c5ab)
+        // ---------------------------------------------------------------------
+        const firebaseConfig = {
+            apiKey: "AIzaSyAx8NA4jVmFXz95hnelGazLbLU0316Igp4",
+            authDomain: "roomtracking-9c5ab.firebaseapp.com",
+            projectId: "roomtracking-9c5ab",
+            storageBucket: "roomtracking-9c5ab.firebasestorage.app",
+            messagingSenderId: "308414778034",
+            appId: "1:308414778034:web:29bec54b0e8a3eacd297ab",
+            measurementId: "G-FZ1X869VM7"
+        };
+
+        const firebaseApp = initializeApp(firebaseConfig);
+        const db = getFirestore(firebaseApp);
+
+        const projectsCol = collection(db, "projects");
+        const tasksCol = collection(db, "tasks");
+        const logsCol = collection(db, "activity_logs");
+        const staffCol = collection(db, "staff_members");
+        const adminSettingsDocRef = doc(db, "system_settings", "admin_auth");
+
+        // ---------------------------------------------------------------------
+        // 1. DATA INITIALIZATION (Exact 198 Real Rooms: Ocean Wing & Garden Wing)
+        // ---------------------------------------------------------------------
+        const REAL_HOTEL_DATA = {
+            'Ocean Wing': {
+                1: ['101', '102', '103', '104', '105', '106', '107', '108', '109', '110', '111', '112', '113', '114', '115', '116', '117', '118', '119', '120', '121', '123', '125', '127', '129', '131'],
+                2: ['201', '202', '203', '204', '205', '206', '207', '208', '209', '210', '211', '212', '213', '214', '215', '216', '217', '218', '219', '220', '221', '223', '225', '227', '229', '231'],
+                3: ['301', '302', '303', '304', '305', '306', '307', '308', '309', '310', '311', '312', '313', '314', '315', '316', '317', '318', '319', '320', '321', '323', '325', '327', '329', '331'],
+                4: ['401', '405', '406', '407', '408', '409', '410', '411', '412', '413', '414', '416', '417', '418', '420', '421', '423', '425', '427', '429']
+            },
+            'Garden Wing': {
+                1: ['132', '133', '134', '135', '136', '137', '138', '139', '140', '141', '142', '143', '144', '145', '146', '147', '148', '149', '150', '151', '153', '155', '157', '159', '161', '163'],
+                2: ['232', '233', '234', '235', '236', '237', '238', '239', '240', '241', '242', '243', '244', '245', '246', '247', '248', '249', '250', '251', '253', '255', '257', '259', '261', '263'],
+                3: ['332', '333', '334', '335', '336', '337', '338', '339', '340', '341', '342', '343', '344', '345', '346', '347', '348', '349', '350', '351', '353', '355', '357', '359', '361', '363'],
+                4: ['433', '435', '436', '437', '438', '439', '440', '441', '442', '443', '444', '445', '446', '447', '448', '449', '450', '453', '455', '457', '459', '461']
+            }
+        };
+
+        const ALL_ROOMS = [];
+        const ROOM_META_MAP = {};
+
+        ['Ocean Wing', 'Garden Wing'].forEach(wing => {
+            [1, 2, 3, 4].forEach(floor => {
+                REAL_HOTEL_DATA[wing][floor].forEach(roomId => {
+                    const roomObj = { id: roomId, floor, wing };
+                    ALL_ROOMS.push(roomObj);
+                    ROOM_META_MAP[roomId] = roomObj;
+                });
+            });
+        });
+
+        const DEFAULT_STAFF_MEMBERS = [
+            {
+                id: 'staff_1',
+                name: 'Nguyễn Văn Châu',
+                department: 'Kỹ thuật',
+                role: 'staff',
+                wingScope: 'ALL',
+                permissions: { updateRoom: true, reportIssue: true, createProject: false, exportReport: false }
+            },
+            {
+                id: 'staff_2',
+                name: 'Trịnh Văn Hùng',
+                department: 'Kỹ thuật',
+                role: 'staff',
+                wingScope: 'Ocean Wing',
+                permissions: { updateRoom: true, reportIssue: true, createProject: false, exportReport: false }
+            },
+            {
+                id: 'staff_3',
+                name: 'Lê Ngọc Hưng',
+                department: 'Bảo trì',
+                role: 'staff',
+                wingScope: 'Garden Wing',
+                permissions: { updateRoom: true, reportIssue: true, createProject: false, exportReport: false }
+            },
+            {
+                id: 'staff_4',
+                name: 'Võ Đức Khoa',
+                department: 'IT & Mạng',
+                role: 'supervisor',
+                wingScope: 'ALL',
+                permissions: { updateRoom: true, reportIssue: true, createProject: true, exportReport: false }
+            },
+            {
+                id: 'staff_5',
+                name: 'Trần Minh Tuấn',
+                department: 'Giám sát',
+                role: 'sub_admin',
+                wingScope: 'ALL',
+                permissions: { updateRoom: true, reportIssue: true, createProject: true, exportReport: true }
+            }
+        ];
+
+        const STAFF_LIST = DEFAULT_STAFF_MEMBERS.map(s => s.name);
+        const SAMPLE_NOTES_ISSUE = [
+            "Khách đang lưu trú, treo biển DND",
+            "Thiếu vật tư đầu nối, đã báo kho",
+            "Cửa kẹt bản lề cần thợ mộc hỗ trợ trước",
+            "Nguồn điện chờ bị ngắt, cần kiểm tra CB"
+        ];
+        const SAMPLE_NOTES_INPROGRESS = [
+            "Đang đi dây tín hiệu",
+            "Khách hẹn 14h00 chiều quay lại",
+            "Đang chờ kích hoạt phần mềm trung tâm"
+        ];
+
+        // State Store
+        let state = {
+            currentRole: 'admin', // 'admin' | 'staff'
+            isAdminAuthenticated: true, // Default unlocked on initial preview, lockable via settings
+            pendingAdminAction: null,
+            adminAuth: {
+                username: 'shp',
+                password: '150620'
+            },
+            staffMembers: [...DEFAULT_STAFF_MEMBERS],
+            selectedStaffId: 'staff_1',
+            projects: [],
+            tasks: {}, // Key: `${projectId}_${roomId}`
+            activityLogs: [],
+            completedTodayCount: 0,
+            // Staff view filters
+            staffSelectedProjectId: '',
+            staffWingFilter: 'ALL',
+            staffFloorFilter: 'ALL',
+            staffStatusFilter: 'ALL',
+            // Modal temporary state
+            editingRoomId: null,
+            editingTempStatus: 'Pending',
+            deletingProjectId: null,
+            pendingRestorePayload: null,
+            // Admin Custom Room Picker state
+            customSelectedRooms: new Set(),
+            pickerWingFilter: 'ALL',
+            // Firebase sync state
+            isSeeding: false,
+            hasCheckedInitialSeed: false
+        };
+
+        // Chart instances
+        let floorBarChartInstance = null;
+        let statusDoughnutChartInstance = null;
+
+        // ---------------------------------------------------------------------
+        // CONNECTION STATUS INDICATOR
+        // ---------------------------------------------------------------------
+        function updateConnectionBanner(status, customMessage = '') {
+            const mobileEl = document.getElementById('syncStatusMobile');
+            const desktopEl = document.getElementById('syncStatusDesktop');
+            if (!mobileEl || !desktopEl) return;
+
+            if (status === 'connected') {
+                mobileEl.className = 'flex md:hidden items-center gap-1.5 bg-emerald-500/10 text-emerald-700 px-2.5 py-1 rounded-full text-[11px] font-medium shrink-0';
+                mobileEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>Live Firestore</span>`;
+
+                desktopEl.className = 'hidden md:flex items-center gap-2 bg-white/90 border border-emerald-200/80 px-3 py-1.5 rounded-full text-xs font-medium text-emerald-700 shadow-xs shrink-0';
+                desktopEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>Đã đồng bộ Firestore • roomtracking-9c5ab</span>`;
+            } else if (status === 'syncing') {
+                mobileEl.className = 'flex md:hidden items-center gap-1.5 bg-blue-500/10 text-blue-700 px-2.5 py-1 rounded-full text-[11px] font-medium shrink-0';
+                mobileEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-blue-500 animate-ping"></span><span>Đang đồng bộ...</span>`;
+
+                desktopEl.className = 'hidden md:flex items-center gap-2 bg-blue-50/90 border border-blue-200/80 px-3 py-1.5 rounded-full text-xs font-medium text-blue-700 shadow-xs shrink-0';
+                desktopEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-blue-500 animate-ping"></span><span>${customMessage || 'Đang ghi dữ liệu lên Firestore...'}</span>`;
+            } else if (status === 'error') {
+                mobileEl.className = 'flex md:hidden items-center gap-1.5 bg-red-500/10 text-red-700 px-2.5 py-1 rounded-full text-[11px] font-medium shrink-0';
+                mobileEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span><span>Lỗi Firestore</span>`;
+
+                desktopEl.className = 'hidden md:flex items-center gap-2 bg-red-50 border border-red-200 px-3 py-1.5 rounded-full text-xs font-semibold text-red-700 shadow-xs shrink-0';
+                desktopEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span><span>${customMessage || 'Lỗi quyền truy cập Firestore Rules'}</span>`;
+            }
+        }
+
+        // Helper: Commit operations in chunks of 450 (Firestore limit is 500 per batch)
+        async function commitBatchOperations(operations) {
+            const CHUNK_SIZE = 450;
+            for (let i = 0; i < operations.length; i += CHUNK_SIZE) {
+                const chunk = operations.slice(i, i + CHUNK_SIZE);
+                const batch = writeBatch(db);
+                chunk.forEach(op => {
+                    if (op.type === 'set') {
+                        batch.set(op.ref, op.data, op.options || {});
+                    } else if (op.type === 'delete') {
+                        batch.delete(op.ref);
+                    }
+                });
+                await batch.commit();
+            }
+        }
+
+        // ---------------------------------------------------------------------
+        // SEED INITIAL DATA TO FIRESTORE (If empty on first run)
+        // ---------------------------------------------------------------------
+        async function seedInitialFirestoreData(isManual = false) {
+            if (state.isSeeding) return;
+            state.isSeeding = true;
+            updateConnectionBanner('syncing', 'Đang khởi tạo dữ liệu mẫu 198 phòng...');
+
+            try {
+                const today = new Date();
+                const formatFutureDate = (days) => {
+                    const d = new Date(today);
+                    d.setDate(d.getDate() + days);
+                    return d.toISOString().split('T')[0];
+                };
+
+                const nowMs = Date.now();
+                const sampleProjects = [
+                    {
+                        id: 'proj_1',
+                        name: 'Thay thế khóa từ thông minh',
+                        description: 'Nâng cấp toàn bộ khóa thẻ từ sang khóa Bluetooth/App thế hệ mới.',
+                        deadline: formatFutureDate(7),
+                        priority: 'Cao',
+                        targetRooms: ALL_ROOMS.map(r => r.id),
+                        createdAt: '05/11/2026',
+                        createdAtMs: nowMs - 3000
+                    },
+                    {
+                        id: 'proj_2',
+                        name: 'Bảo trì & vệ sinh FCU điều hòa Q4',
+                        description: 'Vệ sinh lưới lọc, thông đường ống thoát nước ngưng và kiểm tra gas.',
+                        deadline: formatFutureDate(14),
+                        priority: 'Định kỳ',
+                        targetRooms: ALL_ROOMS.map(r => r.id),
+                        createdAt: '08/11/2026',
+                        createdAtMs: nowMs - 2000
+                    },
+                    {
+                        id: 'proj_3',
+                        name: 'Nâng cấp Smart TV 55 inch - Khu Ocean Wing',
+                        description: 'Thay thế TV cũ bằng Smart TV 4K tích hợp IPTV cho toàn bộ 98 phòng Ocean Wing.',
+                        deadline: formatFutureDate(5),
+                        priority: 'Bình thường',
+                        targetRooms: ALL_ROOMS.filter(r => r.wing === 'Ocean Wing').map(r => r.id),
+                        createdAt: '10/11/2026',
+                        createdAtMs: nowMs - 1000
+                    }
+                ];
+
+                const operations = [];
+
+                sampleProjects.forEach((proj, pIdx) => {
+                    operations.push({
+                        type: 'set',
+                        ref: doc(db, 'projects', proj.id),
+                        data: proj
+                    });
+
+                    proj.targetRooms.forEach((roomId, rIdx) => {
+                        const taskId = `${proj.id}_${roomId}`;
+                        let status = 'Pending';
+                        let note = '';
+                        let updatedBy = '';
+                        let updatedAt = '';
+                        let updatedAtMs = 0;
+
+                        const rand = (rIdx * 17 + pIdx * 31) % 100;
+
+                        if (proj.id === 'proj_1') {
+                            if (rand < 65) {
+                                status = 'Done';
+                                updatedBy = STAFF_LIST[rIdx % STAFF_LIST.length];
+                                updatedAt = 'Hôm nay, ' + `${8 + (rIdx % 9)}:${(rIdx % 50 + 10)}`.padStart(5, '0');
+                                updatedAtMs = nowMs - (rIdx * 60000);
+                            } else if (rand < 73) {
+                                status = 'In_Progress';
+                                updatedBy = STAFF_LIST[(rIdx + 1) % STAFF_LIST.length];
+                                updatedAt = 'Hôm nay, 10:15';
+                                updatedAtMs = nowMs - 3600000;
+                                note = SAMPLE_NOTES_INPROGRESS[rIdx % SAMPLE_NOTES_INPROGRESS.length];
+                            } else if (rand < 77) {
+                                status = 'Issue';
+                                updatedBy = STAFF_LIST[(rIdx + 2) % STAFF_LIST.length];
+                                updatedAt = 'Hôm nay, 09:40';
+                                updatedAtMs = nowMs - 5400000;
+                                note = SAMPLE_NOTES_ISSUE[rIdx % SAMPLE_NOTES_ISSUE.length];
+                            }
+                        } else if (proj.id === 'proj_2') {
+                            if (rand < 25) {
+                                status = 'Done';
+                                updatedBy = STAFF_LIST[rIdx % STAFF_LIST.length];
+                                updatedAt = 'Hôm qua, 16:20';
+                                updatedAtMs = nowMs - 86400000;
+                            } else if (rand < 31) {
+                                status = 'In_Progress';
+                                updatedBy = STAFF_LIST[rIdx % STAFF_LIST.length];
+                                updatedAt = 'Hôm nay, 11:05';
+                                updatedAtMs = nowMs - 2400000;
+                                note = 'Đang chờ khô dàn lạnh';
+                            } else if (rand < 33) {
+                                status = 'Issue';
+                                updatedBy = 'Trịnh Văn Hùng';
+                                updatedAt = 'Hôm nay, 08:50';
+                                updatedAtMs = nowMs - 7200000;
+                                note = 'Nghẹt ống thoát nước ngưng cần xử lý kỹ';
+                            }
+                        } else if (proj.id === 'proj_3') {
+                            if (rand < 40) {
+                                status = 'Done';
+                                updatedBy = 'Võ Đức Khoa';
+                                updatedAt = 'Hôm nay, 14:10';
+                                updatedAtMs = nowMs - 1800000;
+                            } else if (rand < 50) {
+                                status = 'In_Progress';
+                                updatedBy = 'Võ Đức Khoa';
+                                updatedAt = 'Hôm nay, 15:00';
+                                updatedAtMs = nowMs - 1200000;
+                                note = 'Đã treo giá đỡ, chờ cấu hình kênh IPTV';
+                            } else if (rand < 53) {
+                                status = 'Issue';
+                                updatedBy = 'Nguyễn Văn Châu';
+                                updatedAt = 'Hôm nay, 13:25';
+                                updatedAtMs = nowMs - 2900000;
+                                note = 'Cổng mạng LAN âm tường không có tín hiệu';
+                            }
+                        }
+
+                        operations.push({
+                            type: 'set',
+                            ref: doc(db, 'tasks', taskId),
+                            data: {
+                                projectId: proj.id,
+                                roomId: roomId,
+                                status: status,
+                                note: note,
+                                updatedBy: updatedBy,
+                                updatedAt: updatedAt,
+                                updatedAtMs: updatedAtMs
+                            }
+                        });
+                    });
+                });
+
+                const seedLogs = [
+                    { roomId: '412', wing: 'Ocean Wing', projectName: 'Nâng cấp Smart TV 55 inch - Khu Ocean Wing', status: 'Issue', staff: 'Nguyễn Văn Châu', note: 'Cổng mạng LAN âm tường không có tín hiệu', time: '5 phút trước', timestamp: nowMs - 300000 },
+                    { roomId: '245', wing: 'Garden Wing', projectName: 'Thay thế khóa từ thông minh', status: 'Done', staff: 'Trịnh Văn Hùng', note: 'Hoạt động tốt', time: '12 phút trước', timestamp: nowMs - 720000 },
+                    { roomId: '109', wing: 'Ocean Wing', projectName: 'Bảo trì & vệ sinh FCU điều hòa Q4', status: 'Done', staff: 'Lê Ngọc Hưng', note: '', time: '24 phút trước', timestamp: nowMs - 1440000 },
+                    { roomId: '429', wing: 'Ocean Wing', projectName: 'Nâng cấp Smart TV 55 inch - Khu Ocean Wing', status: 'In_Progress', staff: 'Võ Đức Khoa', note: 'Chờ cấu hình kênh IPTV', time: '38 phút trước', timestamp: nowMs - 2280000 },
+                    { roomId: '355', wing: 'Garden Wing', projectName: 'Thay thế khóa từ thông minh', status: 'Issue', staff: 'Nguyễn Văn Châu', note: 'Khách đang lưu trú, treo biển DND', time: '1 giờ trước', timestamp: nowMs - 3600000 },
+                ];
+
+                seedLogs.forEach((logItem, idx) => {
+                    operations.push({
+                        type: 'set',
+                        ref: doc(db, 'activity_logs', `seed_log_${idx + 1}`),
+                        data: logItem
+                    });
+                });
+
+                // Seed default staff members & admin auth settings
+                DEFAULT_STAFF_MEMBERS.forEach(member => {
+                    operations.push({
+                        type: 'set',
+                        ref: doc(db, 'staff_members', member.id),
+                        data: member
+                    });
+                });
+
+                operations.push({
+                    type: 'set',
+                    ref: adminSettingsDocRef,
+                    data: { username: 'shp', password: '150620', updatedAt: new Date().toLocaleDateString('vi-VN') },
+                    options: { merge: true }
+                });
+
+                await commitBatchOperations(operations);
+                updateConnectionBanner('connected');
+                if (isManual) {
+                    showToast('Đã nạp dữ liệu mẫu lên Firestore thành công!');
+                }
+            } catch (err) {
+                console.error("Firestore seed error:", err);
+                updateConnectionBanner('error', 'Lỗi ghi Firestore: Kiểm tra Security Rules');
+                showToast('Không thể ghi dữ liệu mẫu lên Firestore. Hãy kiểm tra Firestore Rules!', 'error');
+            } finally {
+                state.isSeeding = false;
+            }
+        }
+
+        // ---------------------------------------------------------------------
+        // REAL-TIME FIRESTORE LISTENERS (onSnapshot)
+        // ---------------------------------------------------------------------
+        function initFirestoreRealtimeSync() {
+            // 0. Listen to `system_settings/admin_auth`
+            onSnapshot(adminSettingsDocRef, async (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    // Upgrade legacy default credentials ('admin'/'123456') to new default ('shp'/'150620')
+                    if (data.username === 'admin' && data.password === '123456') {
+                        state.adminAuth = { username: 'shp', password: '150620' };
+                        await setDoc(adminSettingsDocRef, { username: 'shp', password: '150620' }, { merge: true });
+                    } else {
+                        state.adminAuth = {
+                            username: data.username || 'shp',
+                            password: data.password || '150620'
+                        };
+                    }
+                } else {
+                    await setDoc(adminSettingsDocRef, { username: 'shp', password: '150620' }, { merge: true });
+                }
+            }, (error) => {
+                console.error("Admin auth snapshot error:", error);
+            });
+
+            // 0b. Listen to `staff_members` collection
+            onSnapshot(staffCol, async (snapshot) => {
+                if (snapshot.empty) {
+                    const ops = DEFAULT_STAFF_MEMBERS.map(m => ({
+                        type: 'set',
+                        ref: doc(db, 'staff_members', m.id),
+                        data: m
+                    }));
+                    await commitBatchOperations(ops);
+                    return;
+                }
+
+                state.staffMembers = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                if (!state.staffMembers.some(s => s.id === state.selectedStaffId) && state.staffMembers.length > 0) {
+                    state.selectedStaffId = state.staffMembers[0].id;
+                }
+                populateStaffMemberDropdown();
+                renderSettingsStaffList();
+            }, (error) => {
+                console.error("Staff snapshot error:", error);
+            });
+
+            // 1. Listen to `projects` collection
+            const qProjects = query(projectsCol, orderBy("createdAtMs", "desc"));
+            onSnapshot(qProjects, async (snapshot) => {
+                updateConnectionBanner('connected');
+
+                if (snapshot.empty && !state.hasCheckedInitialSeed) {
+                    state.hasCheckedInitialSeed = true;
+                    document.getElementById('btnSeedDemo')?.classList.remove('hidden');
+                    await seedInitialFirestoreData(false);
+                    return;
+                }
+
+                state.hasCheckedInitialSeed = true;
+                document.getElementById('btnSeedDemo')?.classList.toggle('hidden', !snapshot.empty);
+
+                state.projects = snapshot.docs.map(docSnap => ({
+                    id: docSnap.id,
+                    ...docSnap.data()
+                }));
+
+                // Ensure staffSelectedProjectId points to a valid project
+                if (state.projects.length > 0 && !state.projects.some(p => p.id === state.staffSelectedProjectId)) {
+                    state.staffSelectedProjectId = state.projects[0].id;
+                }
+
+                refreshActiveView();
+            }, (error) => {
+                console.error("Projects snapshot error:", error);
+                updateConnectionBanner('error', 'Lỗi quyền đọc Firestore (projects)');
+                showToast('Lỗi kết nối Firestore! Vui lòng kiểm tra Firestore Rules.', 'error');
+            });
+
+            // 2. Listen to `tasks` collection
+            onSnapshot(tasksCol, (snapshot) => {
+                const updatedTasks = {};
+                let doneToday = 0;
+
+                snapshot.docs.forEach(docSnap => {
+                    const data = docSnap.data();
+                    updatedTasks[docSnap.id] = data;
+                    if (data.status === 'Done' && typeof data.updatedAt === 'string' && data.updatedAt.startsWith('Hôm nay')) {
+                        doneToday++;
+                    }
+                });
+
+                state.tasks = updatedTasks;
+                state.completedTodayCount = doneToday;
+                refreshActiveView();
+            }, (error) => {
+                console.error("Tasks snapshot error:", error);
+                updateConnectionBanner('error', 'Lỗi quyền đọc Firestore (tasks)');
+            });
+
+            // 3. Listen to `activity_logs` collection
+            const qLogs = query(logsCol, orderBy("timestamp", "desc"), limit(20));
+            onSnapshot(qLogs, (snapshot) => {
+                state.activityLogs = snapshot.docs.map(docSnap => ({
+                    id: docSnap.id,
+                    ...docSnap.data()
+                }));
+                if (state.currentRole === 'admin') {
+                    renderAdminActivityFeed();
+                }
+            }, (error) => {
+                console.error("Logs snapshot error:", error);
+            });
+        }
+
+        function refreshActiveView() {
+            populateStaffMemberDropdown();
+            populateStaffProjectDropdown();
+            if (state.currentRole === 'admin') {
+                updateAdminDashboard();
+            } else {
+                renderStaffView();
+            }
+        }
+
+        // ---------------------------------------------------------------------
+        // 2. ROLE SWITCHER, ADMIN AUTH & SETTINGS MANAGEMENT
+        // ---------------------------------------------------------------------
+        function switchRole(role) {
+            if (role === 'admin' && !state.isAdminAuthenticated) {
+                state.pendingAdminAction = () => switchRole('admin');
+                openAdminLoginModal();
+                return;
+            }
+
+            state.currentRole = role;
+            const adminView = document.getElementById('adminView');
+            const staffView = document.getElementById('staffView');
+            const btnAdmin = document.getElementById('btnRoleAdmin');
+            const btnStaff = document.getElementById('btnRoleStaff');
+
+            if (role === 'admin') {
+                adminView.classList.remove('hidden');
+                staffView.classList.add('hidden');
+                
+                btnAdmin.className = 'flex-1 md:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2 md:py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 bg-white text-gray-900 shadow-sm';
+                btnStaff.className = 'flex-1 md:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2 md:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 text-gray-600 hover:text-gray-900';
+                
+                updateAdminDashboard();
+            } else {
+                adminView.classList.add('hidden');
+                staffView.classList.remove('hidden');
+                
+                btnStaff.className = 'flex-1 md:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2 md:py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 bg-white text-gray-900 shadow-sm';
+                btnAdmin.className = 'flex-1 md:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2 md:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 text-gray-600 hover:text-gray-900';
+                
+                renderStaffView();
+            }
+            lucide.createIcons();
+        }
+
+        function openAdminLoginModal() {
+            document.getElementById('adminLoginUsername').value = '';
+            document.getElementById('adminLoginPassword').value = '';
+            document.getElementById('adminLoginError').classList.add('hidden');
+            document.getElementById('adminLoginBackdrop').classList.add('active');
+            lucide.createIcons();
+        }
+
+        function closeAdminLoginModal(e) {
+            if (e && e.target !== e.currentTarget) return;
+            state.pendingAdminAction = null;
+            document.getElementById('adminLoginBackdrop').classList.remove('active');
+        }
+
+        function handleAdminLogin(e) {
+            e.preventDefault();
+            const inputUser = document.getElementById('adminLoginUsername').value.trim();
+            const inputPass = document.getElementById('adminLoginPassword').value;
+            const errEl = document.getElementById('adminLoginError');
+
+            if (inputUser === state.adminAuth.username && inputPass === state.adminAuth.password) {
+                state.isAdminAuthenticated = true;
+                errEl.classList.add('hidden');
+                const nextAction = state.pendingAdminAction;
+                closeAdminLoginModal();
+                showToast(`Đăng nhập Quản trị viên (${inputUser}) thành công!`);
+                if (typeof nextAction === 'function') {
+                    nextAction();
+                }
+            } else {
+                errEl.textContent = 'Sai tên đăng nhập hoặc mật khẩu Quản trị viên!';
+                errEl.classList.remove('hidden');
+            }
+        }
+
+        function logoutAdminSession() {
+            state.isAdminAuthenticated = false;
+            closeAdminSettingsModal();
+            switchRole('staff');
+            showToast('Đã khóa phiên Quản trị viên. Cần đăng nhập lại để vào trang Quản trị.');
+        }
+
+        function openAdminSettingsModal() {
+            if (!state.isAdminAuthenticated) {
+                state.pendingAdminAction = () => openAdminSettingsModal();
+                openAdminLoginModal();
+                return;
+            }
+            document.getElementById('settingsAdminUsername').value = state.adminAuth.username;
+            document.getElementById('settingsCurrentPassword').value = '';
+            document.getElementById('settingsNewPassword').value = '';
+            document.getElementById('settingsConfirmPassword').value = '';
+            resetStaffForm();
+            renderSettingsStaffList();
+            switchAdminSettingsTab('staff');
+            document.getElementById('adminSettingsBackdrop').classList.add('active');
+            lucide.createIcons();
+        }
+
+        function closeAdminSettingsModal(e) {
+            if (e && e.target !== e.currentTarget) return;
+            document.getElementById('adminSettingsBackdrop').classList.remove('active');
+        }
+
+        function switchAdminSettingsTab(tab) {
+            const isStaff = tab === 'staff';
+            const isBackup = tab === 'backup';
+            const isSecurity = tab === 'security';
+
+            document.getElementById('settingsTabStaff').classList.toggle('hidden', !isStaff);
+            document.getElementById('settingsTabBackup').classList.toggle('hidden', !isBackup);
+            document.getElementById('settingsTabSecurity').classList.toggle('hidden', !isSecurity);
+
+            const activeCls = 'px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 border-blue-600 text-blue-600 transition flex items-center gap-2 whitespace-nowrap';
+            const inactiveCls = 'px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-800 transition flex items-center gap-2 whitespace-nowrap';
+
+            document.getElementById('tabBtnStaff').className = isStaff ? activeCls : inactiveCls;
+            document.getElementById('tabBtnBackup').className = isBackup ? activeCls : inactiveCls;
+            document.getElementById('tabBtnSecurity').className = isSecurity ? activeCls : inactiveCls;
+
+            if (isBackup) {
+                updateBackupSummaryUI();
+            }
+            lucide.createIcons();
+        }
+
+        function updateBackupSummaryUI() {
+            const box = document.getElementById('backupSummaryStats');
+            if (!box) return;
+            const totalTasksCount = Object.keys(state.tasks).length;
+            box.innerHTML = `
+                <div class="flex justify-between"><span>Số dự án hiện có:</span> <strong>${state.projects.length} dự án</strong></div>
+                <div class="flex justify-between"><span>Dữ liệu trạng thái phòng:</span> <strong>${totalTasksCount} bản ghi</strong></div>
+                <div class="flex justify-between"><span>Danh sách nhân sự:</span> <strong>${state.staffMembers.length} nhân viên</strong></div>
+                <div class="flex justify-between"><span>Nhật ký hoạt động:</span> <strong>${state.activityLogs.length} dòng gần nhất</strong></div>
+            `;
+        }
+
+        function exportProjectBackupJSON() {
+            const backupPayload = {
+                app: 'RoomOps Pro',
+                version: '1.0',
+                exportedAt: new Date().toISOString(),
+                exportedAtLocal: new Date().toLocaleString('vi-VN'),
+                data: {
+                    projects: state.projects,
+                    tasks: state.tasks,
+                    staffMembers: state.staffMembers,
+                    activityLogs: state.activityLogs
+                }
+            };
+
+            const jsonStr = JSON.stringify(backupPayload, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `RoomOps_Backup_${timestamp}.json`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            showToast(`Đã tải xuống tệp sao lưu (${state.projects.length} dự án)!`);
+        }
+
+        function handlePreviewBackupFile(e) {
+            const file = e.target.files?.[0];
+            const previewBox = document.getElementById('restorePreviewBox');
+            const submitBtn = document.getElementById('btnRestoreBackupSubmit');
+            state.pendingRestorePayload = null;
+
+            if (!file) {
+                previewBox.classList.add('hidden');
+                submitBtn.disabled = true;
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const parsed = JSON.parse(event.target.result);
+                    if (!parsed || parsed.app !== 'RoomOps Pro' || !parsed.data || !Array.isArray(parsed.data.projects)) {
+                        throw new Error('Định dạng tệp sao lưu không hợp lệ');
+                    }
+
+                    state.pendingRestorePayload = parsed.data;
+                    const projCount = parsed.data.projects.length;
+                    const taskCount = Object.keys(parsed.data.tasks || {}).length;
+                    const staffCount = (parsed.data.staffMembers || []).length;
+
+                    previewBox.innerHTML = `
+                        <div class="font-bold text-blue-800">✓ Tệp sao lưu hợp lệ</div>
+                        <div>• Thời điểm tạo: <strong>${parsed.exportedAtLocal || parsed.exportedAt || '-'}</strong></div>
+                        <div>• Nội dung: <strong>${projCount} dự án</strong>, <strong>${taskCount} trạng thái phòng</strong>, <strong>${staffCount} nhân sự</strong></div>
+                    `;
+                    previewBox.classList.remove('hidden');
+                    submitBtn.disabled = false;
+                } catch (err) {
+                    previewBox.innerHTML = `<span class="text-red-600 font-semibold">⚠ Tệp không đúng định dạng sao lưu của RoomOps Pro!</span>`;
+                    previewBox.classList.remove('hidden');
+                    submitBtn.disabled = true;
+                    showToast('Tệp sao lưu không hợp lệ!', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        async function executeRestoreBackup() {
+            const payload = state.pendingRestorePayload;
+            if (!payload) return;
+
+            const submitBtn = document.getElementById('btnRestoreBackupSubmit');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `<span>Đang khôi phục lên Firestore...</span>`;
+            updateConnectionBanner('syncing', 'Đang phục hồi dữ liệu sao lưu...');
+
+            try {
+                const operations = [];
+
+                // 1. Restore projects
+                (payload.projects || []).forEach(proj => {
+                    if (proj && proj.id) {
+                        operations.push({
+                            type: 'set',
+                            ref: doc(db, 'projects', proj.id),
+                            data: proj,
+                            options: { merge: true }
+                        });
+                    }
+                });
+
+                // 2. Restore room tasks
+                Object.entries(payload.tasks || {}).forEach(([taskId, taskData]) => {
+                    if (taskId && taskData) {
+                        operations.push({
+                            type: 'set',
+                            ref: doc(db, 'tasks', taskId),
+                            data: taskData,
+                            options: { merge: true }
+                        });
+                    }
+                });
+
+                // 3. Restore staff members
+                (payload.staffMembers || []).forEach(member => {
+                    if (member && member.id) {
+                        operations.push({
+                            type: 'set',
+                            ref: doc(db, 'staff_members', member.id),
+                            data: member,
+                            options: { merge: true }
+                        });
+                    }
+                });
+
+                await commitBatchOperations(operations);
+
+                state.pendingRestorePayload = null;
+                document.getElementById('restoreBackupFileInput').value = '';
+                document.getElementById('restorePreviewBox').classList.add('hidden');
+                updateConnectionBanner('connected');
+                showToast(`Đã phục hồi thành công ${payload.projects.length} dự án lên Firestore!`);
+            } catch (err) {
+                console.error("Restore backup error:", err);
+                updateConnectionBanner('error', 'Lỗi phục hồi dữ liệu lên Firestore');
+                showToast('Không thể phục hồi dữ liệu! Kiểm tra kết nối Firestore.', 'error');
+            } finally {
+                submitBtn.innerHTML = `<i data-lucide="rotate-ccw" class="w-4 h-4"></i><span>Khôi Phục Lên Firestore</span>`;
+                lucide.createIcons();
+            }
+        }
+
+        function applyRolePermissionPreset() {
+            const role = document.getElementById('staffRoleInput').value;
+            document.getElementById('permUpdateRoom').checked = true;
+            document.getElementById('permReportIssue').checked = true;
+            document.getElementById('permCreateProject').checked = (role === 'supervisor' || role === 'sub_admin');
+            document.getElementById('permExportReport').checked = (role === 'sub_admin');
+        }
+
+        function resetStaffForm() {
+            document.getElementById('editStaffId').value = '';
+            document.getElementById('staffFormTitle').textContent = 'Thêm Nhân Viên Mới';
+            document.getElementById('btnCancelEditStaff').classList.add('hidden');
+            document.getElementById('staffFullNameInput').value = '';
+            document.getElementById('staffDepartmentInput').value = 'Kỹ thuật';
+            document.getElementById('staffRoleInput').value = 'staff';
+            document.getElementById('staffWingScopeInput').value = 'ALL';
+            applyRolePermissionPreset();
+            document.getElementById('btnSaveStaffSubmit').innerHTML = `<i data-lucide="user-plus" class="w-4 h-4"></i><span>Lưu Nhân Viên</span>`;
+            lucide.createIcons();
+        }
+
+        function editStaffMember(staffId) {
+            const member = state.staffMembers.find(s => s.id === staffId);
+            if (!member) return;
+
+            document.getElementById('editStaffId').value = member.id;
+            document.getElementById('staffFormTitle').textContent = `Chỉnh Sửa: ${member.name}`;
+            document.getElementById('btnCancelEditStaff').classList.remove('hidden');
+            document.getElementById('staffFullNameInput').value = member.name;
+            document.getElementById('staffDepartmentInput').value = member.department || 'Kỹ thuật';
+            document.getElementById('staffRoleInput').value = member.role || 'staff';
+            document.getElementById('staffWingScopeInput').value = member.wingScope || 'ALL';
+
+            const perms = member.permissions || {};
+            document.getElementById('permUpdateRoom').checked = perms.updateRoom !== false;
+            document.getElementById('permReportIssue').checked = perms.reportIssue !== false;
+            document.getElementById('permCreateProject').checked = !!perms.createProject;
+            document.getElementById('permExportReport').checked = !!perms.exportReport;
+
+            document.getElementById('btnSaveStaffSubmit').innerHTML = `<i data-lucide="check" class="w-4 h-4"></i><span>Cập Nhật Nhân Viên</span>`;
+            lucide.createIcons();
+        }
+
+        async function handleSaveStaff(e) {
+            e.preventDefault();
+            const existingId = document.getElementById('editStaffId').value;
+            const name = document.getElementById('staffFullNameInput').value.trim();
+            const department = document.getElementById('staffDepartmentInput').value.trim() || 'Kỹ thuật';
+            const role = document.getElementById('staffRoleInput').value;
+            const wingScope = document.getElementById('staffWingScopeInput').value;
+
+            const permissions = {
+                updateRoom: document.getElementById('permUpdateRoom').checked,
+                reportIssue: document.getElementById('permReportIssue').checked,
+                createProject: document.getElementById('permCreateProject').checked,
+                exportReport: document.getElementById('permExportReport').checked
+            };
+
+            if (!name) return;
+
+            const staffId = existingId || ('staff_' + Date.now());
+            const btn = document.getElementById('btnSaveStaffSubmit');
+            btn.disabled = true;
+
+            try {
+                await setDoc(doc(db, 'staff_members', staffId), {
+                    id: staffId,
+                    name,
+                    department,
+                    role,
+                    wingScope,
+                    permissions
+                }, { merge: true });
+
+                resetStaffForm();
+                showToast(existingId ? `Đã cập nhật thông tin "${name}"!` : `Đã thêm nhân viên "${name}"!`);
+            } catch (err) {
+                console.error("Save staff error:", err);
+                showToast('Lỗi lưu thông tin nhân viên lên Firestore!', 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function deleteStaffMember(staffId) {
+            if (state.staffMembers.length <= 1) {
+                showToast('Hệ thống cần giữ lại ít nhất 1 nhân viên!', 'error');
+                return;
+            }
+            const member = state.staffMembers.find(s => s.id === staffId);
+            if (!member) return;
+
+            try {
+                await deleteDoc(doc(db, 'staff_members', staffId));
+                if (document.getElementById('editStaffId').value === staffId) {
+                    resetStaffForm();
+                }
+                showToast(`Đã xóa nhân viên "${member.name}"!`);
+            } catch (err) {
+                console.error("Delete staff error:", err);
+                showToast('Lỗi xóa nhân viên trên Firestore!', 'error');
+            }
+        }
+
+        async function handleUpdateAdminCredentials(e) {
+            e.preventDefault();
+            const newUsername = document.getElementById('settingsAdminUsername').value.trim();
+            const currentPass = document.getElementById('settingsCurrentPassword').value;
+            const newPass = document.getElementById('settingsNewPassword').value;
+            const confirmPass = document.getElementById('settingsConfirmPassword').value;
+
+            if (!newUsername) {
+                showToast('Vui lòng nhập tên đăng nhập mới!', 'error');
+                return;
+            }
+            if (currentPass !== state.adminAuth.password) {
+                showToast('Mật khẩu hiện tại không chính xác!', 'error');
+                return;
+            }
+            if (newPass.length < 4) {
+                showToast('Mật khẩu mới phải có ít nhất 4 ký tự!', 'error');
+                return;
+            }
+            if (newPass !== confirmPass) {
+                showToast('Xác nhận mật khẩu mới không khớp!', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('btnSaveCredentials');
+            btn.disabled = true;
+
+            try {
+                await setDoc(adminSettingsDocRef, {
+                    username: newUsername,
+                    password: newPass,
+                    updatedAt: new Date().toLocaleString('vi-VN')
+                }, { merge: true });
+
+                state.adminAuth = { username: newUsername, password: newPass };
+                document.getElementById('settingsCurrentPassword').value = '';
+                document.getElementById('settingsNewPassword').value = '';
+                document.getElementById('settingsConfirmPassword').value = '';
+                showToast('Đã cập nhật thông tin đăng nhập Quản trị viên!');
+            } catch (err) {
+                console.error("Update admin credentials error:", err);
+                showToast('Lỗi lưu thông tin đăng nhập lên Firestore!', 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function renderSettingsStaffList() {
+            const listEl = document.getElementById('settingsStaffList');
+            const countEl = document.getElementById('settingsStaffCount');
+            if (!listEl) return;
+
+            if (countEl) countEl.textContent = state.staffMembers.length;
+
+            const roleLabels = {
+                'staff': { text: 'Nhân viên', cls: 'bg-gray-100 text-gray-700' },
+                'supervisor': { text: 'Giám sát', cls: 'bg-indigo-50 text-indigo-700' },
+                'sub_admin': { text: 'Phó quản lý', cls: 'bg-purple-50 text-purple-700' }
+            };
+
+            listEl.innerHTML = state.staffMembers.map(member => {
+                const rInfo = roleLabels[member.role] || roleLabels.staff;
+                const p = member.permissions || {};
+                const wingBadge = member.wingScope === 'Ocean Wing'
+                    ? '<span class="px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 font-semibold">Chỉ Ocean Wing</span>'
+                    : member.wingScope === 'Garden Wing'
+                        ? '<span class="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-semibold">Chỉ Garden Wing</span>'
+                        : '<span class="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-semibold">Toàn bộ 2 khu</span>';
+
+                return `
+                    <div class="bg-white border border-gray-200/80 rounded-2xl p-3.5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div class="space-y-1.5">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="font-bold text-sm text-gray-900">${member.name}</span>
+                                <span class="text-xs text-gray-500">(${member.department || 'Kỹ thuật'})</span>
+                                <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold ${rInfo.cls}">${rInfo.text}</span>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-1.5 text-[11px]">
+                                ${wingBadge}
+                                ${p.updateRoom !== false ? '<span class="px-2 py-0.5 rounded-md bg-emerald-50/70 text-emerald-700">✓ Cập nhật phòng</span>' : '<span class="px-2 py-0.5 rounded-md bg-gray-100 text-gray-400 line-through">Cập nhật phòng</span>'}
+                                ${p.reportIssue !== false ? '<span class="px-2 py-0.5 rounded-md bg-amber-50/70 text-amber-700">✓ Báo sự cố</span>' : ''}
+                                ${p.createProject ? '<span class="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700">✓ Tạo dự án</span>' : ''}
+                                ${p.exportReport ? '<span class="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700">✓ Xuất CSV</span>' : ''}
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                            <button type="button" onclick="editStaffMember('${member.id}')" class="px-2.5 py-1.5 rounded-xl bg-gray-100 hover:bg-blue-50 text-gray-700 hover:text-blue-600 text-xs font-semibold transition inline-flex items-center gap-1">
+                                <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                <span>Sửa</span>
+                            </button>
+                            <button type="button" onclick="deleteStaffMember('${member.id}')" class="px-2.5 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold transition inline-flex items-center gap-1">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                <span>Xóa</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        function getCurrentStaffMember() {
+            return state.staffMembers.find(s => s.id === state.selectedStaffId) || state.staffMembers[0] || DEFAULT_STAFF_MEMBERS[0];
+        }
+
+        function populateStaffMemberDropdown() {
+            const select = document.getElementById('staffNameSelect');
+            if (!select) return;
+            select.innerHTML = state.staffMembers.map(s =>
+                `<option value="${s.id}">${s.name} (${s.department || 'Kỹ thuật'})</option>`
+            ).join('');
+            if (state.staffMembers.some(s => s.id === state.selectedStaffId)) {
+                select.value = state.selectedStaffId;
+            }
+            updateStaffPermissionBadgeUI();
+        }
+
+        function onStaffMemberChange() {
+            state.selectedStaffId = document.getElementById('staffNameSelect').value;
+            updateStaffPermissionBadgeUI();
+            renderStaffView();
+        }
+
+        function updateStaffPermissionBadgeUI() {
+            const box = document.getElementById('staffRoleBadgeBox');
+            if (!box) return;
+            const member = getCurrentStaffMember();
+            if (!member) return;
+
+            const scopeText = member.wingScope === 'Ocean Wing'
+                ? 'Phạm vi: Chỉ Ocean Wing'
+                : member.wingScope === 'Garden Wing'
+                    ? 'Phạm vi: Chỉ Garden Wing'
+                    : 'Phạm vi: Toàn bộ 2 khu';
+
+            const perms = member.permissions || {};
+            const canUpdate = perms.updateRoom !== false;
+
+            box.innerHTML = `
+                <span class="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-semibold">${scopeText}</span>
+                <span class="px-2 py-0.5 rounded-md ${canUpdate ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'} font-semibold">
+                    ${canUpdate ? 'Quyền: Cập nhật tiến độ' : 'Chỉ xem (Không có quyền sửa)'}
+                </span>
+            `;
+        }
+
+        function jumpToStaffProject(projectId) {
+            state.staffSelectedProjectId = projectId;
+            const selectEl = document.getElementById('staffProjectSelect');
+            if (selectEl) selectEl.value = projectId;
+            switchRole('staff');
+            const proj = getProjectById(projectId);
+            if (proj) showToast(`Đã mở bảng phòng dự án: ${proj.name}`);
+        }
+
+        // ---------------------------------------------------------------------
+        // 3. ADMIN DASHBOARD LOGIC & CHARTS
+        // ---------------------------------------------------------------------
+        function getProjectById(id) {
+            return state.projects.find(p => p.id === id);
+        }
+
+        function calculateStats(filterProjectId = 'ALL') {
+            let totalTasks = 0;
+            let done = 0;
+            let inProgress = 0;
+            let issue = 0;
+            let pending = 0;
+
+            const floorWingStats = {
+                1: { 'Ocean Wing': { total: 0, done: 0 }, 'Garden Wing': { total: 0, done: 0 } },
+                2: { 'Ocean Wing': { total: 0, done: 0 }, 'Garden Wing': { total: 0, done: 0 } },
+                3: { 'Ocean Wing': { total: 0, done: 0 }, 'Garden Wing': { total: 0, done: 0 } },
+                4: { 'Ocean Wing': { total: 0, done: 0 }, 'Garden Wing': { total: 0, done: 0 } }
+            };
+
+            const wingStats = {
+                'Ocean Wing': { total: 0, done: 0, issue: 0 },
+                'Garden Wing': { total: 0, done: 0, issue: 0 }
+            };
+
+            const targetProjects = filterProjectId === 'ALL' 
+                ? state.projects 
+                : state.projects.filter(p => p.id === filterProjectId);
+
+            targetProjects.forEach(proj => {
+                (proj.targetRooms || []).forEach(roomId => {
+                    const task = state.tasks[`${proj.id}_${roomId}`] || { status: 'Pending' };
+                    const meta = ROOM_META_MAP[roomId];
+                    if (!meta) return;
+
+                    totalTasks++;
+                    floorWingStats[meta.floor][meta.wing].total++;
+                    wingStats[meta.wing].total++;
+
+                    if (task.status === 'Done') {
+                        done++;
+                        floorWingStats[meta.floor][meta.wing].done++;
+                        wingStats[meta.wing].done++;
+                    } else if (task.status === 'In_Progress') {
+                        inProgress++;
+                    } else if (task.status === 'Issue') {
+                        issue++;
+                        wingStats[meta.wing].issue++;
+                    } else {
+                        pending++;
+                    }
+                });
+            });
+
+            return { totalTasks, done, inProgress, issue, pending, floorWingStats, wingStats };
+        }
+
+        function updateAdminDashboard() {
+            const filterSelect = document.getElementById('adminChartProjectFilter');
+            const currentFilterVal = filterSelect.value;
+            filterSelect.innerHTML = `<option value="ALL">Tất cả dự án (${state.projects.length})</option>` + 
+                state.projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            if (state.projects.some(p => p.id === currentFilterVal) || currentFilterVal === 'ALL') {
+                filterSelect.value = currentFilterVal;
+            }
+
+            // Global KPIs
+            const globalStats = calculateStats('ALL');
+            const overallPct = globalStats.totalTasks > 0 ? Math.round((globalStats.done / globalStats.totalTasks) * 100) : 0;
+
+            document.getElementById('kpiActiveProjects').textContent = state.projects.length;
+            document.getElementById('kpiOverallProgress').textContent = `${overallPct}%`;
+            document.getElementById('kpiProgressRatio').textContent = `${globalStats.done}/${globalStats.totalTasks} hạng mục`;
+            document.getElementById('kpiCompletedToday').textContent = state.completedTodayCount;
+            document.getElementById('kpiIssuesCount').textContent = globalStats.issue;
+            document.getElementById('kpiInProgressCount').textContent = `${globalStats.inProgress} đang làm`;
+
+            // Filtered stats for charts & Wing summary cards
+            const chartStats = calculateStats(filterSelect.value);
+
+            // Update Ocean Wing Card
+            const ow = chartStats.wingStats['Ocean Wing'];
+            const owPct = ow.total > 0 ? Math.round((ow.done / ow.total) * 100) : 0;
+            document.getElementById('oceanWingPct').textContent = `${owPct}%`;
+            document.getElementById('oceanWingBar').style.width = `${owPct}%`;
+            document.getElementById('oceanWingRatio').textContent = `${ow.done}/${ow.total}`;
+            document.getElementById('oceanWingIssueText').textContent = `${ow.issue} sự cố`;
+
+            // Update Garden Wing Card
+            const gw = chartStats.wingStats['Garden Wing'];
+            const gwPct = gw.total > 0 ? Math.round((gw.done / gw.total) * 100) : 0;
+            document.getElementById('gardenWingPct').textContent = `${gwPct}%`;
+            document.getElementById('gardenWingBar').style.width = `${gwPct}%`;
+            document.getElementById('gardenWingRatio').textContent = `${gw.done}/${gw.total}`;
+            document.getElementById('gardenWingIssueText').textContent = `${gw.issue} sự cố`;
+
+            // Update Doughnut Legend
+            document.getElementById('legendDone').textContent = chartStats.done;
+            document.getElementById('legendInProgress').textContent = chartStats.inProgress;
+            document.getElementById('legendIssue').textContent = chartStats.issue;
+            document.getElementById('legendPending').textContent = chartStats.pending;
+
+            renderCharts(chartStats);
+            renderAdminProjectsList();
+            renderAdminActivityFeed();
+            lucide.createIcons();
+        }
+
+        function renderCharts(stats) {
+            // 1. Grouped Floor Bar Chart (4 Floors: Ocean Wing vs Garden Wing)
+            const barCtx = document.getElementById('floorBarChart').getContext('2d');
+            const floorLabels = ['Tầng 1', 'Tầng 2', 'Tầng 3', 'Tầng 4'];
+            
+            const oceanPercentages = [1, 2, 3, 4].map(f => {
+                const { total, done } = stats.floorWingStats[f]['Ocean Wing'];
+                return total > 0 ? Math.round((done / total) * 100) : 0;
+            });
+
+            const gardenPercentages = [1, 2, 3, 4].map(f => {
+                const { total, done } = stats.floorWingStats[f]['Garden Wing'];
+                return total > 0 ? Math.round((done / total) * 100) : 0;
+            });
+
+            if (floorBarChartInstance) {
+                floorBarChartInstance.data.datasets[0].data = oceanPercentages;
+                floorBarChartInstance.data.datasets[1].data = gardenPercentages;
+                floorBarChartInstance.update();
+            } else {
+                floorBarChartInstance = new Chart(barCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: floorLabels,
+                        datasets: [
+                            {
+                                label: 'Ocean Wing',
+                                data: oceanPercentages,
+                                backgroundColor: 'rgba(14, 165, 233, 0.85)',
+                                hoverBackgroundColor: '#0284C7',
+                                borderRadius: 6,
+                                barPercentage: 0.75,
+                                categoryPercentage: 0.65
+                            },
+                            {
+                                label: 'Garden Wing',
+                                data: gardenPercentages,
+                                backgroundColor: 'rgba(16, 185, 129, 0.85)',
+                                hoverBackgroundColor: '#059669',
+                                borderRadius: 6,
+                                barPercentage: 0.75,
+                                categoryPercentage: 0.65
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                align: 'end',
+                                labels: {
+                                    usePointStyle: true,
+                                    boxWidth: 8,
+                                    font: { family: 'Inter', size: 11, weight: '600' }
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: '#1C1C1E',
+                                padding: 10,
+                                cornerRadius: 10,
+                                callbacks: {
+                                    label: (ctx) => ` ${ctx.dataset.label}: ${ctx.parsed.y}%`
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100,
+                                grid: { color: 'rgba(0,0,0,0.04)' },
+                                ticks: {
+                                    font: { family: 'Inter', size: 11 },
+                                    callback: (val) => val + '%'
+                                }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { font: { family: 'Inter', size: 12, weight: '600' } }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // 2. Status Doughnut Chart
+            const doughnutCtx = document.getElementById('statusDoughnutChart').getContext('2d');
+            const doughnutData = [stats.done, stats.inProgress, stats.issue, stats.pending];
+
+            if (statusDoughnutChartInstance) {
+                statusDoughnutChartInstance.data.datasets[0].data = doughnutData;
+                statusDoughnutChartInstance.update();
+            } else {
+                statusDoughnutChartInstance = new Chart(doughnutCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Hoàn thành', 'Đang làm', 'Sự cố', 'Chưa làm'],
+                        datasets: [{
+                            data: doughnutData,
+                            backgroundColor: ['#34C759', '#FF9500', '#FF3B30', '#E5E5EA'],
+                            borderWidth: 0,
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '72%',
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: '#1C1C1E',
+                                padding: 10,
+                                cornerRadius: 10
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        function renderAdminProjectsList() {
+            const container = document.getElementById('adminProjectsList');
+            if (state.projects.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white/70 border border-dashed border-gray-300 rounded-2xl p-8 text-center space-y-2">
+                        <p class="text-sm font-semibold text-gray-700">Chưa có dự án nào trên Firestore</p>
+                        <p class="text-xs text-gray-500">Bấm "Tạo Dự Án Mới" hoặc "Nạp Dữ Liệu Mẫu" để bắt đầu đồng bộ thời gian thực.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = state.projects.map(proj => {
+                const pStats = calculateStats(proj.id);
+                const pct = pStats.totalTasks > 0 ? Math.round((pStats.done / pStats.totalTasks) * 100) : 0;
+                const safeTotal = pStats.totalTasks || 1;
+                
+                let priorityBadge = 'bg-gray-100 text-gray-700';
+                if (proj.priority === 'Cao') priorityBadge = 'bg-red-50 text-red-600';
+                if (proj.priority === 'Định kỳ') priorityBadge = 'bg-blue-50 text-blue-600';
+
+                return `
+                    <div onclick="jumpToStaffProject('${proj.id}')" class="group bg-white/90 hover:bg-white border border-gray-200/70 rounded-2xl p-4 transition cursor-pointer shadow-2xs hover:shadow-md">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2.5">
+                            <div>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <h4 class="font-bold text-sm sm:text-base text-gray-900 group-hover:text-blue-600 transition">${proj.name}</h4>
+                                    <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold ${priorityBadge}">${proj.priority}</span>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-0.5 line-clamp-1">${proj.description}</p>
+                            </div>
+                            <div class="flex items-center gap-2 text-xs text-gray-500 shrink-0">
+                                <span class="inline-flex items-center gap-1"><i data-lucide="calendar" class="w-3.5 h-3.5"></i> Hạn: ${proj.deadline}</span>
+                                <span class="font-bold text-gray-900 bg-gray-100 px-2.5 py-1 rounded-lg">${pStats.done}/${pStats.totalTasks} phòng</span>
+                                <button type="button" onclick="openDeleteProjectModal(event, '${proj.id}')" title="Xóa dự án" class="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 flex items-center justify-center transition">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div class="flex items-center gap-3">
+                            <div class="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden flex">
+                                <div class="bg-[#34C759] h-full transition-all duration-500" style="width: ${(pStats.done / safeTotal) * 100}%"></div>
+                                <div class="bg-[#FF9500] h-full transition-all duration-500" style="width: ${(pStats.inProgress / safeTotal) * 100}%"></div>
+                                <div class="bg-[#FF3B30] h-full transition-all duration-500" style="width: ${(pStats.issue / safeTotal) * 100}%"></div>
+                            </div>
+                            <span class="text-xs font-extrabold text-gray-900 w-10 text-right">${pct}%</span>
+                        </div>
+
+                        <!-- Mini Status Breakdown -->
+                        <div class="flex items-center justify-between mt-2.5 pt-2 border-t border-gray-100 text-[11px] text-gray-500">
+                            <div class="flex items-center gap-3">
+                                <span class="text-emerald-600 font-medium">✓ ${pStats.done} xong</span>
+                                <span class="text-amber-600 font-medium">⏳ ${pStats.inProgress} đang làm</span>
+                                ${pStats.issue > 0 ? `<span class="text-red-600 font-semibold">⚠ ${pStats.issue} sự cố</span>` : ''}
+                            </div>
+                            <span class="text-blue-600 font-semibold inline-flex items-center gap-0.5 group-hover:translate-x-0.5 transition">
+                                Xem sơ đồ phòng <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderAdminActivityFeed() {
+            const feed = document.getElementById('adminActivityFeed');
+            if (state.activityLogs.length === 0) {
+                feed.innerHTML = `<div class="text-center py-8 text-xs text-gray-400">Chưa có nhật ký cập nhật nào.</div>`;
+                return;
+            }
+            feed.innerHTML = state.activityLogs.map(log => {
+                let badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                let statusText = 'Hoàn thành';
+                if (log.status === 'Issue') {
+                    badgeClass = 'bg-red-50 text-red-700 border-red-200';
+                    statusText = 'Báo sự cố';
+                } else if (log.status === 'In_Progress') {
+                    badgeClass = 'bg-amber-50 text-amber-700 border-amber-200';
+                    statusText = 'Đang làm';
+                } else if (log.status === 'Pending') {
+                    badgeClass = 'bg-gray-100 text-gray-700 border-gray-200';
+                    statusText = 'Chưa làm';
+                }
+
+                const wingName = log.wing || (ROOM_META_MAP[log.roomId]?.wing || '');
+                const wingBadge = wingName === 'Ocean Wing'
+                    ? 'bg-sky-50 text-sky-700'
+                    : 'bg-emerald-50 text-emerald-700';
+
+                return `
+                    <div class="bg-white/80 rounded-xl p-3 border border-gray-100 text-xs space-y-1">
+                        <div class="flex items-center justify-between gap-1">
+                            <div class="flex items-center gap-1.5">
+                                <span class="font-bold text-gray-900">P.${log.roomId}</span>
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold ${wingBadge}">${wingName}</span>
+                            </div>
+                            <span class="px-2 py-0.5 rounded-md border text-[10px] font-semibold ${badgeClass}">${statusText}</span>
+                        </div>
+                        <p class="text-gray-600 font-medium line-clamp-1">${log.projectName}</p>
+                        ${log.note ? `<p class="text-gray-500 italic bg-gray-50 px-2 py-1 rounded-md">"${log.note}"</p>` : ''}
+                        <div class="flex items-center justify-between text-[11px] text-gray-400 pt-0.5">
+                            <span>Bởi: <strong class="text-gray-600">${log.staff}</strong></span>
+                            <span>${log.time}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ---------------------------------------------------------------------
+        // DELETE PROJECT MODAL (ADMIN - FIRESTORE)
+        // ---------------------------------------------------------------------
+        function openDeleteProjectModal(e, projectId) {
+            e.stopPropagation();
+            const proj = getProjectById(projectId);
+            if (!proj) return;
+            state.deletingProjectId = projectId;
+            document.getElementById('deleteProjectMessage').textContent =
+                `Bạn có chắc chắn muốn xóa dự án "${proj.name}" cùng toàn bộ ${proj.targetRooms.length} phòng thuộc dự án này khỏi Firebase Firestore?`;
+            document.getElementById('deleteProjectBackdrop').classList.add('active');
+            lucide.createIcons();
+        }
+
+        function closeDeleteProjectModal(e) {
+            if (e && e.target !== e.currentTarget) return;
+            state.deletingProjectId = null;
+            document.getElementById('deleteProjectBackdrop').classList.remove('active');
+        }
+
+        async function confirmDeleteProject() {
+            const projectId = state.deletingProjectId;
+            const proj = getProjectById(projectId);
+            if (!proj) return;
+
+            const btn = document.getElementById('btnConfirmDeleteProject');
+            btn.disabled = true;
+            btn.innerHTML = `<span>Đang xóa...</span>`;
+            updateConnectionBanner('syncing', 'Đang xóa dự án trên Firestore...');
+
+            try {
+                const operations = [
+                    { type: 'delete', ref: doc(db, 'projects', projectId) }
+                ];
+                (proj.targetRooms || []).forEach(roomId => {
+                    operations.push({
+                        type: 'delete',
+                        ref: doc(db, 'tasks', `${projectId}_${roomId}`)
+                    });
+                });
+
+                await commitBatchOperations(operations);
+                closeDeleteProjectModal();
+                updateConnectionBanner('connected');
+                showToast(`Đã xóa dự án "${proj.name}" khỏi Firestore!`);
+            } catch (err) {
+                console.error("Delete project error:", err);
+                updateConnectionBanner('error', 'Lỗi xóa dự án trên Firestore');
+                showToast('Không thể xóa dự án! Kiểm tra quyền Firestore.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i><span>Xác Nhận Xóa</span>`;
+                lucide.createIcons();
+            }
+        }
+
+        // ---------------------------------------------------------------------
+        // 4. CREATE NEW PROJECT MODAL & INTERACTIVE ROOM PICKER (ADMIN)
+        // ---------------------------------------------------------------------
+        function openCreateProjectModal() {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 7);
+            document.getElementById('newProjDeadline').value = tomorrow.toISOString().split('T')[0];
+            state.customSelectedRooms.clear();
+            state.pickerWingFilter = 'ALL';
+            const searchInput = document.getElementById('pickerSearchInput');
+            if (searchInput) searchInput.value = '';
+            toggleScopeInputs();
+            document.getElementById('createProjectBackdrop').classList.add('active');
+            lucide.createIcons();
+        }
+
+        function closeCreateProjectModal(e) {
+            if (e && e.target !== e.currentTarget) return;
+            document.getElementById('createProjectBackdrop').classList.remove('active');
+        }
+
+        function toggleScopeInputs() {
+            const checkedRadio = document.querySelector('input[name="roomScope"]:checked');
+            const scope = checkedRadio ? checkedRadio.value : 'ALL';
+            document.getElementById('scopeWingsBox').classList.toggle('hidden', scope !== 'WINGS');
+            document.getElementById('scopeFloorsBox').classList.toggle('hidden', scope !== 'FLOORS');
+            document.getElementById('scopeCustomBox').classList.toggle('hidden', scope !== 'CUSTOM');
+
+            if (scope === 'CUSTOM') {
+                setPickerWingFilter(state.pickerWingFilter);
+                renderCustomRoomPicker();
+            }
+        }
+
+        function setPickerWingFilter(wing) {
+            state.pickerWingFilter = wing;
+            document.querySelectorAll('.picker-wing-pill').forEach(btn => {
+                const isSelected = btn.dataset.pickerWing === wing;
+                btn.className = isSelected
+                    ? 'picker-wing-pill py-1.5 px-2 rounded-lg text-[11px] font-bold bg-white text-gray-900 shadow-2xs transition flex items-center justify-center gap-1'
+                    : 'picker-wing-pill py-1.5 px-2 rounded-lg text-[11px] font-semibold text-gray-600 hover:text-gray-900 transition flex items-center justify-center gap-1';
+            });
+            renderCustomRoomPicker();
+        }
+
+        function toggleCustomRoomSelection(roomId) {
+            if (state.customSelectedRooms.has(roomId)) {
+                state.customSelectedRooms.delete(roomId);
+            } else {
+                state.customSelectedRooms.add(roomId);
+            }
+            renderCustomRoomPicker();
+        }
+
+        function toggleSelectEntireWing(wing) {
+            const wingRooms = ALL_ROOMS.filter(r => r.wing === wing).map(r => r.id);
+            const allSelected = wingRooms.every(id => state.customSelectedRooms.has(id));
+            if (allSelected) {
+                wingRooms.forEach(id => state.customSelectedRooms.delete(id));
+            } else {
+                wingRooms.forEach(id => state.customSelectedRooms.add(id));
+            }
+            renderCustomRoomPicker();
+        }
+
+        function toggleSelectWingFloor(wing, floor) {
+            const floorRooms = REAL_HOTEL_DATA[wing][floor] || [];
+            const allSelected = floorRooms.every(id => state.customSelectedRooms.has(id));
+            if (allSelected) {
+                floorRooms.forEach(id => state.customSelectedRooms.delete(id));
+            } else {
+                floorRooms.forEach(id => state.customSelectedRooms.add(id));
+            }
+            renderCustomRoomPicker();
+        }
+
+        function clearCustomSelectedRooms() {
+            state.customSelectedRooms.clear();
+            renderCustomRoomPicker();
+        }
+
+        function updateCustomSelectionCounter() {
+            const counterEl = document.getElementById('customRoomSelectedCounter');
+            if (!counterEl) return;
+            const oceanCount = ALL_ROOMS.filter(r => r.wing === 'Ocean Wing' && state.customSelectedRooms.has(r.id)).length;
+            const gardenCount = ALL_ROOMS.filter(r => r.wing === 'Garden Wing' && state.customSelectedRooms.has(r.id)).length;
+            const total = state.customSelectedRooms.size;
+            counterEl.textContent = `Đã chọn: ${total} phòng (Ocean: ${oceanCount} • Garden: ${gardenCount})`;
+        }
+
+        async function handleCreateProject(e) {
+            e.preventDefault();
+            const name = document.getElementById('newProjName').value.trim();
+            const deadline = document.getElementById('newProjDeadline').value;
+            const priority = document.getElementById('newProjPriority').value;
+            const description = document.getElementById('newProjDesc').value.trim() || 'Triển khai theo yêu cầu thực tế tại khách sạn.';
+            const scope = document.querySelector('input[name="roomScope"]:checked').value;
+
+            let targetRooms = [];
+
+            if (scope === 'ALL') {
+                targetRooms = ALL_ROOMS.map(r => r.id);
+            } else if (scope === 'WINGS') {
+                const checkedWings = Array.from(document.querySelectorAll('input[name="selectedWings"]:checked')).map(cb => cb.value);
+                if (checkedWings.length === 0) {
+                    showToast('Vui lòng chọn ít nhất 1 khu (Wing)!', 'error');
+                    return;
+                }
+                targetRooms = ALL_ROOMS.filter(r => checkedWings.includes(r.wing)).map(r => r.id);
+            } else if (scope === 'FLOORS') {
+                const checkedFloors = Array.from(document.querySelectorAll('input[name="selectedFloors"]:checked')).map(cb => parseInt(cb.value));
+                if (checkedFloors.length === 0) {
+                    showToast('Vui lòng chọn ít nhất 1 tầng!', 'error');
+                    return;
+                }
+                targetRooms = ALL_ROOMS.filter(r => checkedFloors.includes(r.floor)).map(r => r.id);
+            } else if (scope === 'CUSTOM') {
+                targetRooms = ALL_ROOMS.filter(r => state.customSelectedRooms.has(r.id)).map(r => r.id);
+
+                if (targetRooms.length === 0) {
+                    showToast('Vui lòng nhấp chọn ít nhất 1 phòng trên sơ đồ!', 'error');
+                    return;
+                }
+            }
+
+            const submitBtn = document.getElementById('btnSubmitCreateProject');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `<span>Đang đồng bộ Firestore...</span>`;
+            updateConnectionBanner('syncing', `Đang tạo dự án cho ${targetRooms.length} phòng...`);
+
+            try {
+                const nowMs = Date.now();
+                const newProjId = 'proj_' + nowMs;
+                const todayStr = new Date().toLocaleDateString('vi-VN');
+
+                const newProject = {
+                    id: newProjId,
+                    name,
+                    description,
+                    deadline,
+                    priority,
+                    targetRooms,
+                    createdAt: todayStr,
+                    createdAtMs: nowMs
+                };
+
+                const operations = [
+                    {
+                        type: 'set',
+                        ref: doc(db, 'projects', newProjId),
+                        data: newProject
+                    }
+                ];
+
+                targetRooms.forEach(roomId => {
+                    operations.push({
+                        type: 'set',
+                        ref: doc(db, 'tasks', `${newProjId}_${roomId}`),
+                        data: {
+                            projectId: newProjId,
+                            roomId: roomId,
+                            status: 'Pending',
+                            note: '',
+                            updatedBy: '',
+                            updatedAt: '',
+                            updatedAtMs: 0
+                        }
+                    });
+                });
+
+                await commitBatchOperations(operations);
+
+                // Reset form & close modal
+                document.getElementById('createProjectForm').reset();
+                state.customSelectedRooms.clear();
+                toggleScopeInputs();
+                closeCreateProjectModal();
+
+                state.staffSelectedProjectId = newProjId;
+                updateConnectionBanner('connected');
+                showToast(`Đã tạo & đồng bộ dự án "${name}" (${targetRooms.length} phòng)!`);
+            } catch (err) {
+                console.error("Create project Firestore error:", err);
+                updateConnectionBanner('error', 'Lỗi lưu dự án lên Firestore');
+                showToast('Lỗi ghi Firestore! Kiểm tra quyền truy cập database.', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = `<span>Khởi Tạo Dự Án</span>`;
+            }
+        }
+
+        function renderCustomRoomPicker() {
+            updateCustomSelectionCounter();
+            const container = document.getElementById('customRoomPickerGrid');
+            if (!container) return;
+
+            const searchQuery = (document.getElementById('pickerSearchInput')?.value || '').trim().toLowerCase();
+            const wingsToRender = state.pickerWingFilter === 'ALL' ? ['Ocean Wing', 'Garden Wing'] : [state.pickerWingFilter];
+
+            container.className = wingsToRender.length > 1
+                ? 'max-h-[50dvh] sm:max-h-[360px] overflow-y-auto pr-1 grid grid-cols-1 lg:grid-cols-2 gap-3 items-start'
+                : 'max-h-[50dvh] sm:max-h-[360px] overflow-y-auto pr-1 space-y-3';
+
+            let html = '';
+
+            wingsToRender.forEach(wing => {
+                const isOcean = wing === 'Ocean Wing';
+                const borderAccent = isOcean ? 'border-t-4 border-t-sky-500' : 'border-t-4 border-t-emerald-500';
+                const badgeClass = isOcean ? 'bg-sky-50 text-sky-700' : 'bg-emerald-50 text-emerald-700';
+                const dotClass = isOcean ? 'bg-sky-500' : 'bg-emerald-500';
+                const wingTotal = ALL_ROOMS.filter(r => r.wing === wing).length;
+                const wingSelected = ALL_ROOMS.filter(r => r.wing === wing && state.customSelectedRooms.has(r.id)).length;
+
+                let floorsHtml = '';
+                [1, 2, 3, 4].forEach(floor => {
+                    const roomsInFloor = REAL_HOTEL_DATA[wing][floor] || [];
+                    const filteredRooms = searchQuery
+                        ? roomsInFloor.filter(id => id.toLowerCase().includes(searchQuery))
+                        : roomsInFloor;
+
+                    if (filteredRooms.length === 0) return;
+
+                    const allFloorSelected = roomsInFloor.every(id => state.customSelectedRooms.has(id));
+                    const gridCols = wingsToRender.length > 1
+                        ? 'grid-cols-4 sm:grid-cols-6'
+                        : 'grid-cols-4 sm:grid-cols-7 md:grid-cols-9';
+
+                    floorsHtml += `
+                        <div class="bg-gray-50/90 rounded-xl p-2.5 border border-gray-200/60 space-y-2">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-[11px] font-bold text-gray-700">Tầng ${floor} (${roomsInFloor.length}P)</span>
+                                <button type="button" onclick="toggleSelectWingFloor('${wing}', ${floor})" class="px-2.5 py-1 rounded-md text-[10px] font-semibold transition ${allFloorSelected ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border border-blue-200 hover:bg-blue-50'}">
+                                    ${allFloorSelected ? 'Bỏ chọn Tầng ' + floor : 'Chọn Tầng ' + floor}
+                                </button>
+                            </div>
+                            <div class="grid ${gridCols} gap-1.5">
+                                ${filteredRooms.map(roomId => {
+                                    const isSelected = state.customSelectedRooms.has(roomId);
+                                    return `
+                                        <button type="button" onclick="toggleCustomRoomSelection('${roomId}')" class="h-10 sm:h-9 rounded-lg text-xs sm:text-[11px] font-bold border transition active:scale-90 flex items-center justify-center gap-0.5 ${isSelected ? 'bg-blue-600 border-blue-700 text-white shadow-2xs' : 'bg-white border-gray-200 text-gray-700 hover:border-blue-400'}">
+                                            <span>${roomId}</span>
+                                            ${isSelected ? '<i data-lucide="check" class="w-3 h-3 stroke-[3]"></i>' : ''}
+                                        </button>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                if (floorsHtml === '') {
+                    floorsHtml = `<div class="text-center py-4 text-[11px] text-gray-400">Không tìm thấy phòng phù hợp ở ${wing}</div>`;
+                }
+
+                html += `
+                    <div class="bg-white rounded-2xl p-3 border border-gray-200/80 shadow-2xs ${borderAccent} space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full ${dotClass}"></span>
+                                <h4 class="font-bold text-xs text-gray-900">${wing}</h4>
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold ${badgeClass}">${wingTotal}P</span>
+                            </div>
+                            <span class="text-[11px] font-bold text-blue-600">Đã chọn: ${wingSelected}/${wingTotal}</span>
+                        </div>
+                        <div class="space-y-2">
+                            ${floorsHtml}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+            lucide.createIcons();
+        }
+
+        // Export CSV Report
+        function exportReportCSV() {
+            let csvContent = "\uFEFF"; // UTF-8 BOM for Vietnamese Excel compatibility
+            csvContent += "Dự Án,Phòng,Khu Vực (Wing),Tầng,Trạng Thái,Người Thực Hiện,Thời Gian Cập Nhật,Ghi Chú\n";
+
+            const statusMap = {
+                'Done': 'Hoàn thành',
+                'In_Progress': 'Đang làm / Hoãn',
+                'Issue': 'Gặp sự cố',
+                'Pending': 'Chưa làm'
+            };
+
+            state.projects.forEach(proj => {
+                (proj.targetRooms || []).forEach(roomId => {
+                    const t = state.tasks[`${proj.id}_${roomId}`] || { status: 'Pending' };
+                    const meta = ROOM_META_MAP[roomId];
+                    const row = [
+                        `"${proj.name}"`,
+                        roomId,
+                        `"${meta ? meta.wing : '-'}"`,
+                        `Tầng ${meta ? meta.floor : roomId[0]}`,
+                        `"${statusMap[t.status]}"`,
+                        `"${t.updatedBy || '-'}"`,
+                        `"${t.updatedAt || '-'}"`,
+                        `"${(t.note || '').replace(/"/g, '""')}"`
+                    ].join(",");
+                    csvContent += row + "\n";
+                });
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Bao_Cao_Du_An_200_Phong_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showToast('Đã xuất báo cáo tổng hợp thành công!');
+        }
+
+        // ---------------------------------------------------------------------
+        // 5. STAFF MOBILE VIEW LOGIC
+        // ---------------------------------------------------------------------
+        function populateStaffProjectDropdown() {
+            const select = document.getElementById('staffProjectSelect');
+            select.innerHTML = state.projects.map(p => 
+                `<option value="${p.id}">${p.name} (${p.targetRooms.length}P)</option>`
+            ).join('');
+            select.value = state.staffSelectedProjectId;
+        }
+
+        function onStaffProjectChange() {
+            state.staffSelectedProjectId = document.getElementById('staffProjectSelect').value;
+            renderStaffView();
+        }
+
+        function setStaffWingFilter(wing) {
+            state.staffWingFilter = wing;
+            document.querySelectorAll('.wing-pill').forEach(btn => {
+                const isSelected = btn.dataset.wing === wing;
+                btn.className = isSelected
+                    ? 'wing-pill py-1.5 px-2 rounded-lg text-xs font-bold transition bg-white text-gray-900 shadow-2xs flex items-center justify-center gap-1'
+                    : 'wing-pill py-1.5 px-2 rounded-lg text-xs font-semibold transition text-gray-600 hover:text-gray-900 flex items-center justify-center gap-1';
+            });
+            renderStaffView();
+        }
+
+        function setStaffFloorFilter(floor) {
+            state.staffFloorFilter = floor;
+            document.querySelectorAll('.floor-pill').forEach(btn => {
+                const isSelected = String(btn.dataset.floor) === String(floor);
+                btn.className = isSelected
+                    ? 'floor-pill px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition bg-gray-900 text-white shadow-xs'
+                    : 'floor-pill px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition bg-white text-gray-600 hover:bg-gray-100';
+            });
+            renderStaffView();
+        }
+
+        function setStaffStatusFilter(status) {
+            state.staffStatusFilter = status;
+            document.querySelectorAll('.status-pill').forEach(btn => {
+                const isSelected = btn.dataset.status === status;
+                if (isSelected) {
+                    btn.className = 'status-pill flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition bg-blue-600 text-white shadow-xs';
+                } else {
+                    btn.className = 'status-pill flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition bg-white text-gray-700 border border-gray-200/70';
+                }
+            });
+            renderStaffView();
+        }
+
+        function renderStaffView() {
+            populateStaffProjectDropdown();
+            const proj = getProjectById(state.staffSelectedProjectId);
+            const container = document.getElementById('roomMatrixContainer');
+            if (!proj) {
+                container.className = 'max-w-3xl mx-auto';
+                container.innerHTML = `<div class="glass rounded-2xl p-8 text-center text-sm text-gray-500">Đang tải danh sách dự án từ Firestore...</div>`;
+                return;
+            }
+
+            // Update Project Summary Bar
+            const pStats = calculateStats(proj.id);
+            const pct = pStats.totalTasks > 0 ? Math.round((pStats.done / pStats.totalTasks) * 100) : 0;
+            document.getElementById('staffProjectMeta').textContent = `Phạm vi: ${proj.targetRooms.length} phòng • Hạn: ${proj.deadline}`;
+            document.getElementById('staffProjectProgressText').textContent = `${pStats.done}/${pStats.totalTasks} (${pct}%)`;
+            document.getElementById('staffProjectProgressBar').style.width = `${pct}%`;
+
+            // Configure layout: 2-column side-by-side on desktop when viewing ALL wings, full width when filtering 1 wing
+            const targetSet = new Set(proj.targetRooms);
+            const floorsToRender = state.staffFloorFilter === 'ALL' ? [1, 2, 3, 4] : [parseInt(state.staffFloorFilter)];
+            const wingsToRender = state.staffWingFilter === 'ALL' ? ['Ocean Wing', 'Garden Wing'] : [state.staffWingFilter];
+
+            container.className = wingsToRender.length > 1
+                ? 'grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 items-start'
+                : 'max-w-4xl mx-auto space-y-4';
+
+            let html = '';
+
+            const renderRoomButton = (room) => {
+                const task = state.tasks[`${proj.id}_${room.id}`] || { status: 'Pending', note: '' };
+                let tileStyle = 'bg-white border-gray-200 text-gray-700 hover:border-gray-400';
+                let indicator = '';
+
+                if (task.status === 'Done') {
+                    tileStyle = 'bg-[#34C759] border-[#28a745] text-white shadow-xs';
+                    indicator = `<i data-lucide="check" class="w-3 h-3 opacity-90"></i>`;
+                } else if (task.status === 'In_Progress') {
+                    tileStyle = 'bg-[#FF9500] border-[#e08600] text-white shadow-xs';
+                    indicator = `<i data-lucide="clock" class="w-3 h-3 opacity-90"></i>`;
+                } else if (task.status === 'Issue') {
+                    tileStyle = 'bg-[#FF3B30] border-[#d63026] text-white shadow-xs animate-pulse';
+                    indicator = `<i data-lucide="alert-circle" class="w-3 h-3"></i>`;
+                }
+
+                const hasNoteDot = task.note ? `<span class="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-current opacity-80"></span>` : '';
+
+                return `
+                    <button onclick="openRoomModal('${room.id}')" class="room-tile relative min-h-[48px] h-12 sm:h-12 rounded-xl border flex flex-col items-center justify-center font-bold text-xs sm:text-[13px] ${tileStyle}">
+                        ${hasNoteDot}
+                        <span>${room.id}</span>
+                        ${indicator}
+                    </button>
+                `;
+            };
+
+            // Group strictly by Wing first (Ocean Wing block, then Garden Wing block)
+            wingsToRender.forEach(wing => {
+                const wingRoomsInProject = ALL_ROOMS.filter(r => r.wing === wing && targetSet.has(r.id));
+                if (wingRoomsInProject.length === 0) return;
+
+                const wingDoneTotal = wingRoomsInProject.filter(r => (state.tasks[`${proj.id}_${r.id}`]?.status || 'Pending') === 'Done').length;
+                const wingIssueTotal = wingRoomsInProject.filter(r => (state.tasks[`${proj.id}_${r.id}`]?.status || 'Pending') === 'Issue').length;
+                const wingPct = wingRoomsInProject.length > 0 ? Math.round((wingDoneTotal / wingRoomsInProject.length) * 100) : 0;
+
+                const isOcean = wing === 'Ocean Wing';
+                const cardTopBorder = isOcean ? 'border-t-4 border-t-sky-500' : 'border-t-4 border-t-emerald-500';
+                const iconBoxClass = isOcean ? 'bg-sky-500/10 text-sky-600' : 'bg-emerald-500/10 text-emerald-600';
+                const iconName = isOcean ? 'waves' : 'trees';
+                const pctTextColor = isOcean ? 'text-sky-600' : 'text-emerald-600';
+                const barBgColor = isOcean ? 'bg-sky-500' : 'bg-emerald-500';
+                const subtitleText = isOcean ? 'Tầng 1–3: 26P/tầng • Tầng 4: 20P' : 'Tầng 1–3: 26P/tầng • Tầng 4: 22P';
+
+                html += `
+                    <div class="glass rounded-3xl p-4 sm:p-5 shadow-ios ${cardTopBorder} space-y-4">
+                        <!-- Standalone Wing Header -->
+                        <div class="pb-3.5 border-b border-gray-200/70 space-y-2.5">
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="w-10 h-10 rounded-2xl ${iconBoxClass} flex items-center justify-center shrink-0">
+                                        <i data-lucide="${iconName}" class="w-5 h-5"></i>
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center gap-2">
+                                            <h3 class="font-extrabold text-base sm:text-lg text-gray-900 tracking-tight">${wing}</h3>
+                                            <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-100 text-gray-700">${wingRoomsInProject.length}P</span>
+                                        </div>
+                                        <p class="text-[11px] text-gray-500">${subtitleText}</p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-lg sm:text-xl font-extrabold ${pctTextColor}">${wingPct}%</span>
+                                    <div class="text-[11px] font-semibold text-gray-500">${wingDoneTotal}/${wingRoomsInProject.length} xong</div>
+                                </div>
+                            </div>
+
+                            <!-- Wing Progress Bar -->
+                            <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                                <div class="h-full ${barBgColor} rounded-full transition-all duration-500" style="width: ${wingPct}%"></div>
+                            </div>
+
+                            ${wingIssueTotal > 0 ? `
+                                <div class="flex items-center justify-end">
+                                    <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-md">
+                                        <i data-lucide="alert-triangle" class="w-3 h-3"></i> ${wingIssueTotal} phòng đang báo sự cố
+                                    </span>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <!-- Floors inside this Wing -->
+                        <div class="space-y-3.5">
+                `;
+
+                let wingHasAnyMatchingRoom = false;
+
+                floorsToRender.forEach(floor => {
+                    const floorWingRoomsAll = wingRoomsInProject.filter(r => r.floor === floor);
+                    if (floorWingRoomsAll.length === 0) return;
+
+                    const filteredRooms = floorWingRoomsAll.filter(r => {
+                        if (state.staffStatusFilter === 'ALL') return true;
+                        const status = state.tasks[`${proj.id}_${r.id}`]?.status || 'Pending';
+                        return status === state.staffStatusFilter;
+                    });
+
+                    if (filteredRooms.length === 0) return;
+                    wingHasAnyMatchingRoom = true;
+
+                    const floorDone = floorWingRoomsAll.filter(r => (state.tasks[`${proj.id}_${r.id}`]?.status || 'Pending') === 'Done').length;
+                    const gridColsClass = wingsToRender.length > 1
+                        ? 'grid-cols-4 xs:grid-cols-5 sm:grid-cols-6 md:grid-cols-7 lg:grid-cols-6 xl:grid-cols-7'
+                        : 'grid-cols-4 sm:grid-cols-7 md:grid-cols-9 lg:grid-cols-10';
+
+                    html += `
+                        <div class="bg-white/75 rounded-2xl p-2.5 sm:p-3 border border-gray-200/60 space-y-2.5">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-6 h-6 rounded-lg bg-gray-900 text-white font-bold text-[11px] flex items-center justify-center">T${floor}</span>
+                                    <h4 class="font-bold text-xs sm:text-sm text-gray-800">Tầng ${floor}</h4>
+                                </div>
+                                <span class="text-[11px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md">
+                                    Xong: <strong class="text-emerald-600">${floorDone}</strong>/${floorWingRoomsAll.length}
+                                </span>
+                            </div>
+                            <div class="grid ${gridColsClass} gap-1.5 sm:gap-2">
+                                ${filteredRooms.map(renderRoomButton).join('')}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                if (!wingHasAnyMatchingRoom) {
+                    html += `<div class="text-center py-6 text-xs text-gray-400 bg-gray-50/70 rounded-2xl border border-dashed border-gray-200">Không có phòng nào ở ${wing} khớp bộ lọc hiện tại</div>`;
+                }
+
+                html += `
+                        </div>
+                    </div>
+                `;
+            });
+
+            if (html === '') {
+                container.className = 'max-w-3xl mx-auto';
+                html = `<div class="glass rounded-2xl p-8 text-center text-sm text-gray-500">Dự án này không áp dụng cho khu vực / tầng đã chọn.</div>`;
+            }
+
+            container.innerHTML = html;
+            lucide.createIcons();
+        }
+
+        // ---------------------------------------------------------------------
+        // 6. BOTTOM SHEET ROOM UPDATE MODAL
+        // ---------------------------------------------------------------------
+        function openRoomModal(roomId) {
+            const member = getCurrentStaffMember();
+            const meta = ROOM_META_MAP[roomId];
+            const perms = member?.permissions || {};
+
+            // Enforce Wing Scope permission
+            if (member && member.wingScope !== 'ALL' && member.wingScope !== meta.wing) {
+                showToast(`Nhân viên "${member.name}" chỉ được phân quyền thao tác tại khu ${member.wingScope}!`, 'error');
+                return;
+            }
+
+            // Enforce Update Room permission
+            if (perms.updateRoom === false && perms.reportIssue === false) {
+                showToast(`Nhân viên "${member.name}" chỉ có quyền xem, không có quyền cập nhật phòng!`, 'error');
+                return;
+            }
+
+            const proj = getProjectById(state.staffSelectedProjectId);
+            const task = state.tasks[`${proj.id}_${roomId}`] || { status: 'Pending', note: '', updatedBy: '', updatedAt: '' };
+            
+            state.editingRoomId = roomId;
+            state.editingTempStatus = task.status;
+
+            // Disable restricted status buttons based on permissions
+            const btnDone = document.getElementById('statusBtn_Done');
+            const btnProg = document.getElementById('statusBtn_In_Progress');
+            const btnPend = document.getElementById('statusBtn_Pending');
+            const btnIssue = document.getElementById('statusBtn_Issue');
+
+            const allowProgress = perms.updateRoom !== false;
+            const allowIssue = perms.reportIssue !== false;
+
+            [btnDone, btnProg, btnPend].forEach(b => {
+                if (b) {
+                    b.disabled = !allowProgress;
+                    b.classList.toggle('opacity-40', !allowProgress);
+                    b.classList.toggle('cursor-not-allowed', !allowProgress);
+                }
+            });
+            if (btnIssue) {
+                btnIssue.disabled = !allowIssue;
+                btnIssue.classList.toggle('opacity-40', !allowIssue);
+                btnIssue.classList.toggle('cursor-not-allowed', !allowIssue);
+            }
+
+            document.getElementById('modalRoomTitle').textContent = `Phòng ${roomId}`;
+            
+            const wingBadge = document.getElementById('modalRoomWingBadge');
+            wingBadge.textContent = meta.wing;
+            wingBadge.className = meta.wing === 'Ocean Wing'
+                ? 'px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 text-xs font-semibold'
+                : 'px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-xs font-semibold';
+
+            document.getElementById('modalRoomFloorBadge').textContent = `Tầng ${meta.floor}`;
+            document.getElementById('modalProjectSubtitle').textContent = `Dự án: ${proj.name}`;
+            document.getElementById('modalNoteInput').value = task.note || '';
+
+            // Update History Box
+            const historyBox = document.getElementById('modalHistoryBox');
+            if (task.updatedBy) {
+                historyBox.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span>Cập nhật gần nhất bởi: <strong class="text-gray-900">${task.updatedBy}</strong></span>
+                        <span class="text-gray-400">${task.updatedAt}</span>
+                    </div>
+                `;
+            } else {
+                historyBox.innerHTML = `<span class="text-gray-400 italic">Chưa có lịch sử cập nhật cho phòng này.</span>`;
+            }
+
+            selectModalStatus(task.status);
+            document.getElementById('roomModalBackdrop').classList.add('active');
+            lucide.createIcons();
+        }
+
+        function closeRoomModal(e) {
+            if (e && e.target !== e.currentTarget) return;
+            document.getElementById('roomModalBackdrop').classList.remove('active');
+        }
+
+        function selectModalStatus(status) {
+            state.editingTempStatus = status;
+            const statuses = ['Done', 'In_Progress', 'Issue', 'Pending'];
+            const activeBorders = {
+                'Done': 'border-[#34C759] bg-emerald-50/60 ring-2 ring-emerald-500/20',
+                'In_Progress': 'border-[#FF9500] bg-amber-50/60 ring-2 ring-amber-500/20',
+                'Issue': 'border-[#FF3B30] bg-red-50/60 ring-2 ring-red-500/20',
+                'Pending': 'border-gray-600 bg-gray-100/80 ring-2 ring-gray-500/20'
+            };
+
+            statuses.forEach(s => {
+                const btn = document.getElementById(`statusBtn_${s}`);
+                if (s === status) {
+                    btn.className = `status-choice-btn flex items-center gap-2.5 p-3.5 rounded-2xl border-2 text-left transition ${activeBorders[s]}`;
+                } else {
+                    btn.className = `status-choice-btn flex items-center gap-2.5 p-3.5 rounded-2xl border-2 border-gray-200 bg-white text-left transition opacity-75 hover:opacity-100`;
+                }
+            });
+        }
+
+        function appendQuickNote(text) {
+            const input = document.getElementById('modalNoteInput');
+            if (!input.value.trim()) {
+                input.value = text;
+            } else if (!input.value.includes(text)) {
+                input.value = input.value.trim() + '. ' + text;
+            }
+        }
+
+        async function saveRoomUpdate() {
+            const proj = getProjectById(state.staffSelectedProjectId);
+            const roomId = state.editingRoomId;
+            if (!proj || !roomId) return;
+
+            const key = `${proj.id}_${roomId}`;
+            const newStatus = state.editingTempStatus;
+            const note = document.getElementById('modalNoteInput').value.trim();
+            const member = getCurrentStaffMember();
+            const staffName = member ? member.name : 'Nhân viên';
+
+            const now = new Date();
+            const nowMs = now.getTime();
+            const timeStr = `Hôm nay, ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+            const meta = ROOM_META_MAP[roomId];
+
+            closeRoomModal();
+            updateConnectionBanner('syncing', `Đang lưu Phòng ${roomId}...`);
+
+            try {
+                // 1. Update task document in Firestore
+                await setDoc(doc(db, 'tasks', key), {
+                    projectId: proj.id,
+                    roomId: roomId,
+                    status: newStatus,
+                    note: note,
+                    updatedBy: staffName,
+                    updatedAt: timeStr,
+                    updatedAtMs: nowMs
+                }, { merge: true });
+
+                // 2. Append live activity log to Firestore
+                await addDoc(logsCol, {
+                    roomId: roomId,
+                    wing: meta ? meta.wing : '',
+                    projectName: proj.name,
+                    status: newStatus,
+                    staff: staffName,
+                    note: note,
+                    time: timeStr,
+                    timestamp: nowMs
+                });
+
+                updateConnectionBanner('connected');
+                showToast(`Đã đồng bộ Phòng ${roomId} lên Firestore!`);
+            } catch (err) {
+                console.error("Save room update error:", err);
+                updateConnectionBanner('error', 'Lỗi cập nhật phòng lên Firestore');
+                showToast('Không thể lưu trạng thái lên Firestore! Kiểm tra kết nối/Rules.', 'error');
+            }
+        }
+
+        // ---------------------------------------------------------------------
+        // 7. TOAST NOTIFICATION HELPER
+        // ---------------------------------------------------------------------
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            const icon = type === 'error' 
+                ? `<i data-lucide="alert-circle" class="w-4 h-4 text-red-400 shrink-0"></i>`
+                : `<i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400 shrink-0"></i>`;
+
+            toast.className = 'bg-gray-900/95 backdrop-blur-md text-white px-4 py-3 rounded-2xl shadow-ios-lg text-xs font-semibold flex items-center gap-2.5 transform translate-y-4 opacity-0 transition-all duration-300';
+            toast.innerHTML = `${icon}<span>${message}</span>`;
+
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-4', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-4', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 2800);
+        }
+
+        // ---------------------------------------------------------------------
+        // 8. BOOTSTRAP APPLICATION
+        // ---------------------------------------------------------------------
+        // 8. EXPOSE HANDLERS TO WINDOW & BOOTSTRAP APPLICATION
+        // ---------------------------------------------------------------------
+        Object.assign(window, {
+            switchRole,
+            openAdminLoginModal,
+            closeAdminLoginModal,
+            handleAdminLogin,
+            logoutAdminSession,
+            openAdminSettingsModal,
+            closeAdminSettingsModal,
+            switchAdminSettingsTab,
+            handleUpdateAdminCredentials,
+            applyRolePermissionPreset,
+            resetStaffForm,
+            editStaffMember,
+            handleSaveStaff,
+            deleteStaffMember,
+            onStaffMemberChange,
+            jumpToStaffProject,
+            updateAdminDashboard,
+            openCreateProjectModal,
+            closeCreateProjectModal,
+            toggleScopeInputs,
+            setPickerWingFilter,
+            toggleCustomRoomSelection,
+            toggleSelectEntireWing,
+            toggleSelectWingFloor,
+            clearCustomSelectedRooms,
+            handleCreateProject,
+            openDeleteProjectModal,
+            closeDeleteProjectModal,
+            confirmDeleteProject,
+            seedInitialFirestoreData,
+            exportReportCSV,
+            exportProjectBackupJSON,
+            handlePreviewBackupFile,
+            executeRestoreBackup,
+            onStaffProjectChange,
+            setStaffWingFilter,
+            setStaffFloorFilter,
+            setStaffStatusFilter,
+            openRoomModal,
+            closeRoomModal,
+            selectModalStatus,
+            appendQuickNote,
+            saveRoomUpdate
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initFirestoreRealtimeSync();
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>
