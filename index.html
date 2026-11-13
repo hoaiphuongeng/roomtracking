@@ -19,6 +19,10 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+    <!-- jsPDF (multi-page layout report export) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
     <!-- SheetJS (XLSX Export) -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
@@ -102,6 +106,12 @@
         }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        /* Railing drawings stay readable on narrow screens without being clipped by a two-column grid. */
+        .railing-layout-shell { width: 100%; min-width: 0; overflow-x: auto; }
+        .railing-layout-canvas { width: 100%; min-width: 680px; }
+        @media (max-width: 720px) {
+            .railing-layout-canvas { transform-origin: top left; }
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased selection:bg-blue-500 selection:text-white">
@@ -381,9 +391,9 @@
                         <span id="staffProjectMeta" class="font-medium text-gray-600">Phạm vi: 0 hạng mục</span>
                         <div class="flex items-center gap-2">
                             <span id="staffProjectProgressText" class="font-bold text-blue-600">0/0 (0%)</span>
-                            <button type="button" onclick="exportCurrentStaffProjectJPEG()" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] shadow-xs transition active:scale-95">
+                            <button type="button" onclick="exportCurrentStaffProjectPDF()" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] shadow-xs transition active:scale-95">
                                 <i data-lucide="image-down" class="w-3.5 h-3.5"></i>
-                                <span>Tải Ảnh Layout (.JPEG)</span>
+                                <span>Tải PDF Layout</span>
                             </button>
                         </div>
                     </div>
@@ -655,7 +665,7 @@
                     </div>
                     <div>
                         <h3 class="font-bold text-base text-gray-900">Đăng Nhập Quản Trị</h3>
-                        <p class="text-xs text-gray-500">Mặc định: shp / 150620</p>
+                        <p class="text-xs text-gray-500">Nhập thông tin tài khoản quản trị để tiếp tục.</p>
                     </div>
                 </div>
                 <button onclick="closeAdminLoginModal()" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
@@ -665,11 +675,11 @@
             <form onsubmit="handleAdminLogin(event)" class="space-y-3">
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 mb-1">Tên đăng nhập</label>
-                    <input type="text" id="adminLoginUser" required value="shp" class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm">
+                    <input type="text" id="adminLoginUser" required autocomplete="username" placeholder="Tên đăng nhập" class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 mb-1">Mật khẩu</label>
-                    <input type="password" id="adminLoginPass" required placeholder="••••••" class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm">
+                    <input type="password" id="adminLoginPass" required autocomplete="current-password" placeholder="Mật khẩu" class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm">
                 </div>
                 <button type="submit" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm">Xác Nhận</button>
             </form>
@@ -770,7 +780,7 @@
         </div>
     </div>
 
-    <!-- ==================== MODAL 5: EXPORT EXCEL & JPEG LAYOUT REPORT ==================== -->
+    <!-- ==================== MODAL 5: EXPORT EXCEL & PDF LAYOUT REPORT ==================== -->
     <div id="exportReportBackdrop" onclick="closeExportReportModal(event)" class="modal-backdrop fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
         <div onclick="event.stopPropagation()" class="center-modal w-full max-w-lg bg-white rounded-3xl shadow-ios-lg p-6 space-y-4">
             <div class="flex items-center justify-between">
@@ -779,8 +789,8 @@
                         <i data-lucide="file-Output" class="w-5 h-5"></i>
                     </div>
                     <div>
-                        <h3 class="font-bold text-base text-gray-900">Xuất Báo Cáo Dự Án (Excel & Layout .JPEG)</h3>
-                        <p class="text-xs text-gray-500">Chọn dự án để xuất bảng tính Excel hoặc ảnh sơ đồ mặt bằng</p>
+                        <h3 class="font-bold text-base text-gray-900">Xuất Báo Cáo Dự Án (Excel & Layout PDF)</h3>
+                        <p class="text-xs text-gray-500">Chọn dự án để xuất bảng tính Excel hoặc báo cáo sơ đồ mặt bằng PDF</p>
                     </div>
                 </div>
                 <button onclick="closeExportReportModal()" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600">
@@ -801,10 +811,10 @@
 
             <div class="bg-indigo-50/70 border border-indigo-100 rounded-2xl p-3 text-[11px] text-indigo-950 space-y-1">
                 <div class="font-bold text-indigo-800 flex items-center gap-1.5">
-                    <i data-lucide="image" class="w-3.5 h-3.5"></i>
-                    <span>Báo cáo Ảnh Sơ Đồ Mặt Bằng (layout.jpeg):</span>
+                    <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+                    <span>Báo cáo PDF Sơ Đồ Mặt Bằng:</span>
                 </div>
-                <p class="text-indigo-900/80">Vẽ trực tiếp sơ đồ kiến trúc 2 phân khu Ocean Wing & Garden Wing theo từng tầng (cho cả dự án Phòng khách và dự án Lan can) kèm màu trạng thái & thống kê KPI sắc nét.</p>
+                <p class="text-indigo-900/80">Mỗi khu/tầng được xuất thành một trang PDF riêng, giữ nguyên bố cục layout, màu trạng thái và thống kê KPI.</p>
             </div>
 
             <div class="flex flex-col sm:flex-row gap-2 pt-1">
@@ -813,9 +823,9 @@
                     <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
                     <span>Xuất Excel (.XLSX)</span>
                 </button>
-                <button type="button" onclick="executeExportLayoutJPEG()" class="flex-1 py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition">
-                    <i data-lucide="image-down" class="w-4 h-4"></i>
-                    <span>Xuất Ảnh Sơ Đồ (.JPEG)</span>
+                <button type="button" onclick="executeExportLayoutPDF()" class="flex-1 py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition">
+                    <i data-lucide="file-down" class="w-4 h-4"></i>
+                    <span>Xuất Layout PDF</span>
                 </button>
             </div>
         </div>
@@ -840,7 +850,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import {
-            getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch, getDocs
+            getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch, getDocs, getDoc
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -1106,8 +1116,8 @@
         // 2. APPLICATION STATE & CHART INSTANCES
         // ---------------------------------------------------------------------
         let state = {
-            currentRole: 'admin',
-            adminAuthenticated: true,
+            currentRole: 'staff',
+            adminAuthenticated: false,
             adminAuth: { username: 'shp', password: '150620' },
             projects: [],
             tasks: {},
@@ -1129,6 +1139,7 @@
 
         let floorBarChartInstance = null;
         let statusDoughnutChartInstance = null;
+        let isExportingPDF = false;
 
         // ---------------------------------------------------------------------
         // 3. ARCHITECTURAL RAILING CAD LAYOUT RENDERER (Matches Hand-Drawn Yellow Sketch)
@@ -1351,8 +1362,8 @@
             }
 
             return `
-                <div class="overflow-x-auto pb-1">
-                    <div class="min-w-[740px] bg-[#FAF9F5] rounded-2xl p-3.5 border-2 border-slate-300 space-y-2.5 shadow-inner">
+                <div class="railing-layout-shell pb-1">
+                    <div class="railing-layout-canvas bg-[#FAF9F5] rounded-2xl p-3.5 border-2 border-slate-300 space-y-2.5 shadow-inner">
                         <!-- Sketch Legend Header -->
                         <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200 text-[10px] text-slate-600">
                             <span class="font-bold text-slate-700">${leftAxisDesc}</span>
@@ -1669,7 +1680,9 @@
 
             const targetSet = new Set(proj.targetRooms || []);
             const wingsToRender = state.staffWingFilter === 'ALL' ? ['Ocean Wing', 'Garden Wing'] : [state.staffWingFilter];
-            container.className = wingsToRender.length === 1 ? 'grid grid-cols-1 max-w-4xl mx-auto gap-5' : 'grid grid-cols-1 lg:grid-cols-2 gap-5';
+            container.className = isRailingProject
+                ? 'grid grid-cols-1 max-w-6xl mx-auto gap-6'
+                : (wingsToRender.length === 1 ? 'grid grid-cols-1 max-w-4xl mx-auto gap-5' : 'grid grid-cols-1 lg:grid-cols-2 gap-5');
 
             const floorsList = isRailingProject
                 ? (state.staffFloorFilter === 'ALL' ? [2, 3, 4] : [parseInt(state.staffFloorFilter)])
@@ -1690,23 +1703,27 @@
                 `;
             };
 
-            container.innerHTML = wingsToRender.map(wing => {
-                const isOcean = wing === 'Ocean Wing';
-                const borderAccent = isOcean ? 'border-t-4 border-t-sky-500' : 'border-t-4 border-t-emerald-500';
-                const badgeCls = isOcean ? 'bg-sky-50 text-sky-700' : 'bg-emerald-50 text-emerald-700';
-
-                let floorsHtml = '';
-                floorsList.forEach(floor => {
-                    if (isRailingProject) {
+            if (isRailingProject) {
+                const railingPages = [];
+                wingsToRender.forEach(wing => {
+                    const isOcean = wing === 'Ocean Wing';
+                    const borderAccent = isOcean ? 'border-t-4 border-t-sky-500' : 'border-t-4 border-t-emerald-500';
+                    const badgeCls = isOcean ? 'bg-sky-50 text-sky-700' : 'bg-emerald-50 text-emerald-700';
+                    floorsList.forEach(floor => {
                         const floorRailings = ALL_RAILINGS.filter(r => r.wing === wing && r.floor === floor && targetSet.has(r.id));
                         if (floorRailings.length === 0) return;
                         const doneCount = floorRailings.filter(r => state.tasks[`${proj.id}_${r.id}`]?.status === 'Done').length;
-
-                        floorsHtml += `
-                            <div class="bg-gray-50/90 rounded-2xl p-3.5 border border-gray-200/80 space-y-3">
-                                <div class="flex items-center justify-between">
-                                    <span class="font-extrabold text-xs text-gray-900 uppercase tracking-wider">Tầng ${floor} • Sơ Đồ Lan Can Kiến Trúc</span>
-                                    <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-lg">${doneCount}/${floorRailings.length} đoạn</span>
+                        railingPages.push(`
+                            <div class="glass rounded-3xl p-4 sm:p-5 shadow-ios ${borderAccent}">
+                                <div class="flex items-center justify-between gap-3 mb-4">
+                                    <div>
+                                        <h3 class="font-extrabold text-base text-gray-900">${wing} • Tầng ${floor}</h3>
+                                        <p class="text-xs text-gray-500">Sơ đồ lan can kiến trúc — hiển thị riêng từng layout</p>
+                                    </div>
+                                    <div class="flex items-center gap-2 shrink-0">
+                                        <span class="px-2.5 py-1 rounded-xl text-xs font-bold ${badgeCls}">${wing}</span>
+                                        <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg">${doneCount}/${floorRailings.length} đoạn</span>
+                                    </div>
                                 </div>
                                 ${buildArchitecturalRailingFloorHTML(wing, floor, 'STAFF', {
                                     projId: proj.id,
@@ -1714,8 +1731,19 @@
                                     statusFilter: state.staffStatusFilter
                                 })}
                             </div>
-                        `;
-                    } else {
+                        `);
+                    });
+                });
+                container.innerHTML = railingPages.join('') || '<div class="glass rounded-2xl p-8 text-center text-sm text-gray-500">Không có hạng mục khớp bộ lọc</div>';
+            } else {
+                container.innerHTML = wingsToRender.map(wing => {
+                const isOcean = wing === 'Ocean Wing';
+                const borderAccent = isOcean ? 'border-t-4 border-t-sky-500' : 'border-t-4 border-t-emerald-500';
+                const badgeCls = isOcean ? 'bg-sky-50 text-sky-700' : 'bg-emerald-50 text-emerald-700';
+
+                let floorsHtml = '';
+                floorsList.forEach(floor => {
+                    {
                         const floorRooms = REAL_HOTEL_DATA[wing][floor].filter(rId => {
                             if (!targetSet.has(rId)) return false;
                             if (state.staffStatusFilter === 'ALL') return true;
@@ -1774,7 +1802,8 @@
                         <div class="space-y-4">${floorsHtml || '<div class="text-center py-6 text-xs text-gray-400">Không có hạng mục khớp bộ lọc</div>'}</div>
                     </div>
                 `;
-            }).join('');
+                }).join('');
+            }
 
             lucide.createIcons();
         }
@@ -2166,6 +2195,13 @@
         // 8. ADMIN SETTINGS, BACKUP, EXPORT & DELETE
         // ---------------------------------------------------------------------
         function switchRole(role) {
+            if (role === 'admin' && !state.adminAuthenticated) {
+                state.currentRole = 'staff';
+                document.getElementById('adminView').classList.add('hidden');
+                document.getElementById('staffView').classList.remove('hidden');
+                openAdminLoginModal();
+                return;
+            }
             state.currentRole = role;
             document.getElementById('adminView').classList.toggle('hidden', role !== 'admin');
             document.getElementById('staffView').classList.toggle('hidden', role !== 'staff');
@@ -2315,7 +2351,10 @@
         }
 
         function openAdminLoginModal() {
+            document.getElementById('adminLoginUser').value = '';
+            document.getElementById('adminLoginPass').value = '';
             document.getElementById('adminLoginBackdrop').classList.add('active');
+            setTimeout(() => document.getElementById('adminLoginUser')?.focus(), 80);
         }
         function closeAdminLoginModal(e) {
             if (e && e.target !== e.currentTarget) return;
@@ -2404,7 +2443,7 @@
         }
 
         // ---------------------------------------------------------------------
-        // HIGH-RESOLUTION ARCHITECTURAL LAYOUT JPEG GENERATOR (ROOM & RAILING)
+        // HIGH-RESOLUTION MULTI-PAGE PDF LAYOUT GENERATOR (ROOM & RAILING)
         // ---------------------------------------------------------------------
         function drawRoundedRect(ctx, x, y, w, h, r, fill, stroke, lineWidth = 1) {
             ctx.beginPath();
@@ -2443,9 +2482,65 @@
                 : { fill: '#FFFFFF', stroke: '#CBD5E1', text: '#334155', badge: '' };
         }
 
-        function renderProjectLayoutToJPEG(proj) {
+        function addLayoutCanvasToPDF(sourceCanvas, pdf) {
+            const pdfPageW = 297;
+            const pdfPageH = 210;
+            const margin = 8;
+            const ratio = sourceCanvas.width / sourceCanvas.height;
+            let drawW = pdfPageW - margin * 2;
+            let drawH = drawW / ratio;
+            if (drawH > pdfPageH - margin * 2) {
+                drawH = pdfPageH - margin * 2;
+                drawW = drawH * ratio;
+            }
+            const x = (pdfPageW - drawW) / 2;
+            const y = (pdfPageH - drawH) / 2;
+            if (pdf.__roomOpsHasContent) pdf.addPage('a4', 'landscape');
+            pdf.addImage(sourceCanvas.toDataURL('image/png'), 'PNG', x, y, drawW, drawH, undefined, 'FAST');
+            pdf.__roomOpsHasContent = true;
+        }
+
+        async function renderRailingLayoutFromDOM(proj, pdf) {
+            if (!window.html2canvas) throw new Error('html2canvas chưa tải xong');
+            const targetSet = new Set(proj.targetRooms || []);
+            const exportHost = document.createElement('div');
+            exportHost.style.cssText = 'position:fixed;left:0;top:0;width:1200px;padding:16px;background:#ffffff;z-index:-1000;pointer-events:none;';
+            document.body.appendChild(exportHost);
+
+            try {
+                for (const wing of ['Ocean Wing', 'Garden Wing']) {
+                    for (const floor of [2, 3, 4]) {
+                        const floorRailings = ALL_RAILINGS.filter(r => r.wing === wing && r.floor === floor && targetSet.has(r.id));
+                        if (floorRailings.length === 0) continue;
+                        exportHost.innerHTML = `
+                            <div style="width:1168px;background:#ffffff;padding:8px;box-sizing:border-box;">
+                                <div style="font-family:Inter, sans-serif;font-size:16px;font-weight:800;color:#111827;margin:0 0 10px 2px;">${wing} • Tầng ${floor}</div>
+                                ${buildArchitecturalRailingFloorHTML(wing, floor, 'STAFF', {
+                                    projId: proj.id,
+                                    targetSet,
+                                    statusFilter: 'ALL'
+                                })}
+                            </div>`;
+                        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                        if (document.fonts?.ready) await document.fonts.ready;
+                        const captured = await window.html2canvas(exportHost.firstElementChild, {
+                            backgroundColor: '#ffffff',
+                            scale: 2,
+                            useCORS: true,
+                            logging: false
+                        });
+                        addLayoutCanvasToPDF(captured, pdf);
+                    }
+                }
+            } finally {
+                exportHost.remove();
+            }
+        }
+
+        async function renderProjectLayoutToPDF(proj, pdf) {
             if (!proj) return;
             const isRailing = proj.targetType === 'RAILING';
+            if (isRailing) return renderRailingLayoutFromDOM(proj, pdf);
             const targetSet = new Set(proj.targetRooms || []);
             const pStats = calculateStats(proj.id);
             const pct = pStats.totalTasks > 0 ? Math.round((pStats.done / pStats.totalTasks) * 100) : 0;
@@ -2801,47 +2896,160 @@
                 }
             });
 
-            // Convert Canvas to High-Quality JPEG & Trigger Download
-            const safeProjName = proj.name.replace(/[\\/?*[\]:\s]+/g, '_').slice(0, 35);
-            const dateStr = new Date().toISOString().slice(0, 10);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.94);
+            // Crop every floor card from the original drawing and place it on its own PDF page.
+            if (!pdf) return;
+            const cropWingWidth = (W - 90) / 2;
+            const floorCardH = isRailing ? 700 : 345;
+            const floorStartY = isRailing ? 220 + 82 : 220 + 84;
+            const floorStep = floorCardH + 14;
+            const cropW = cropWingWidth - 20;
+            const cropH = floorCardH + 12;
+            const pageCanvas = document.createElement('canvas');
+            const pageCtx = pageCanvas.getContext('2d');
+            const pdfPageW = 297;
+            const pdfPageH = 210;
+            const margin = 8;
 
-            const link = document.createElement('a');
-            link.href = dataUrl;
-            link.download = `${safeProjName}_${dateStr}_layout.jpeg`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            wings.forEach((wing, wIdx) => {
+                const floors = isRailing ? [2, 3, 4] : [1, 2, 3, 4];
+                floors.forEach((floor, floorIdx) => {
+                    const wx = 30 + wIdx * (cropWingWidth + 30);
+                    const cropX = wx + 10;
+                    const cropY = floorStartY + floorIdx * floorStep;
+                    pageCanvas.width = Math.round(cropW * scale);
+                    pageCanvas.height = Math.round(cropH * scale);
+                    pageCtx.setTransform(1, 0, 0, 1, 0, 0);
+                    pageCtx.fillStyle = '#FFFFFF';
+                    pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+                    pageCtx.drawImage(canvas, cropX * scale, cropY * scale, cropW * scale, cropH * scale, 0, 0, pageCanvas.width, pageCanvas.height);
+
+                    const ratio = cropW / cropH;
+                    let drawW = pdfPageW - margin * 2;
+                    let drawH = drawW / ratio;
+                    if (drawH > pdfPageH - margin * 2) {
+                        drawH = pdfPageH - margin * 2;
+                        drawW = drawH * ratio;
+                    }
+                    const x = (pdfPageW - drawW) / 2;
+                    const y = (pdfPageH - drawH) / 2;
+                    // jsPDF luôn tạo sẵn một trang đầu tiên; chỉ thêm trang từ layout thứ hai.
+                    if (pdf.__roomOpsHasContent) pdf.addPage('a4', 'landscape');
+                    pdf.addImage(pageCanvas.toDataURL('image/jpeg', 0.92), 'JPEG', x, y, drawW, drawH, undefined, 'FAST');
+                    pdf.__roomOpsHasContent = true;
+                });
+            });
         }
 
-        function executeExportLayoutJPEG() {
-            const selectedIds = Array.from(document.querySelectorAll('input[name="exportProjItem"]:checked')).map(el => el.value);
-            if (selectedIds.length === 0) {
-                showToast('Hãy chọn ít nhất 1 dự án để xuất ảnh sơ đồ!', 'error');
-                return;
-            }
+        function buildServerReportHTML(selectedIds) {
+            const pages = [];
+            const targetProjects = selectedIds.map(id => getProjectById(id)).filter(Boolean);
 
-            selectedIds.forEach((pid, idx) => {
-                const proj = getProjectById(pid);
-                if (proj) {
-                    setTimeout(() => {
-                        renderProjectLayoutToJPEG(proj);
-                    }, idx * 350);
+            targetProjects.forEach(proj => {
+                const targetSet = new Set(proj.targetRooms || []);
+                if (proj.targetType === 'RAILING') {
+                    ['Ocean Wing', 'Garden Wing'].forEach(wing => {
+                        [2, 3, 4].forEach(floor => {
+                            const floorRailings = ALL_RAILINGS.filter(r => r.wing === wing && r.floor === floor && targetSet.has(r.id));
+                            if (!floorRailings.length) return;
+                            pages.push(`
+                                <section class="pdf-layout-page">
+                                    <div class="pdf-page-heading">${proj.name} · ${wing} · Tầng ${floor}</div>
+                                    ${buildArchitecturalRailingFloorHTML(wing, floor, 'STAFF', {
+                                        projId: proj.id, targetSet, statusFilter: 'ALL'
+                                    })}
+                                </section>`);
+                        });
+                    });
+                } else {
+                    ['Ocean Wing', 'Garden Wing'].forEach(wing => {
+                        [1, 2, 3, 4].forEach(floor => {
+                            const rooms = (REAL_HOTEL_DATA[wing][floor] || []).filter(id => targetSet.has(id));
+                            if (!rooms.length) return;
+                            const tiles = rooms.map(id => {
+                                const st = state.tasks[`${proj.id}_${id}`]?.status || 'Pending';
+                                const cls = st === 'Done' ? 'bg-emerald-500 text-white' : st === 'In_Progress' ? 'bg-amber-500 text-white' : st === 'Issue' ? 'bg-red-500 text-white' : 'bg-white text-slate-800';
+                                return `<span class="inline-flex items-center justify-center h-11 rounded-xl border border-slate-300 px-3 text-xs font-bold ${cls}">${id}</span>`;
+                            }).join('');
+                            pages.push(`<section class="pdf-layout-page"><div class="pdf-page-heading">${proj.name} · ${wing} · Tầng ${floor}</div><div class="bg-slate-50 rounded-2xl border border-slate-300 p-5"><div class="grid grid-cols-5 sm:grid-cols-6 gap-2">${tiles}</div></div></section>`);
+                        });
+                    });
                 }
             });
 
-            closeExportReportModal();
-            showToast(`Đang tải xuống ${selectedIds.length} ảnh báo cáo sơ đồ (.jpeg)!`);
+            const customStyles = document.querySelector('style')?.textContent || '';
+            return `<!doctype html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>RoomOps Layout Report</title><script src="https://cdn.tailwindcss.com"><\/script><style>${customStyles}
+@page { size: A4 landscape; margin: 8mm; }
+html, body { margin: 0; padding: 0; background: #fff; }
+body { font-family: Inter, Arial, sans-serif; color: #1C1C1E; }
+.pdf-layout-page { width: 1168px; min-height: 730px; box-sizing: border-box; page-break-after: always; break-after: page; overflow: visible; background: #fff; padding: 8px; }
+.pdf-layout-page:last-child { page-break-after: auto; break-after: auto; }
+.pdf-page-heading { font-size: 16px; font-weight: 800; color: #111827; margin: 0 0 10px 2px; }
+.railing-layout-shell { width: 100% !important; min-width: 0 !important; overflow: visible !important; }
+.railing-layout-canvas { width: 100% !important; min-width: 0 !important; }
+</style></head><body>${pages.join('')}</body></html>`;
         }
 
-        function exportCurrentStaffProjectJPEG() {
+        async function requestServerPDF(selectedIds, filename) {
+            const reportHtml = buildServerReportHTML(selectedIds);
+            const printWindow = window.open('', '_blank', 'width=1400,height=1000');
+            if (!printWindow) {
+                throw new Error('Trình duyệt đang chặn cửa sổ in. Hãy cho phép popup cho trang RoomOps rồi thử lại.');
+            }
+
+            printWindow.document.open();
+            printWindow.document.write(reportHtml);
+            printWindow.document.close();
+            printWindow.document.title = filename.replace(/\.pdf$/i, '');
+
+            await new Promise(resolve => {
+                const printWhenReady = () => setTimeout(() => {
+                    printWindow.focus();
+                    printWindow.print();
+                    resolve();
+                }, 1200);
+                if (printWindow.document.readyState === 'complete') printWhenReady();
+                else printWindow.addEventListener('load', printWhenReady, { once: true });
+            });
+        }
+
+        async function executeExportLayoutPDF() {
+            if (isExportingPDF) return;
+            const selectedIds = Array.from(document.querySelectorAll('input[name="exportProjItem"]:checked')).map(el => el.value);
+            if (!selectedIds.length) {
+                showToast('Hãy chọn ít nhất 1 dự án để xuất PDF sơ đồ!', 'error');
+                return;
+            }
+            isExportingPDF = true;
+            try {
+                await requestServerPDF(selectedIds, `RoomOps_Layout_BaoCao_${new Date().toISOString().slice(0, 10)}.pdf`);
+                closeExportReportModal();
+                showToast('Đã mở hộp thoại in. Hãy chọn “Save to PDF / Lưu thành PDF” để lưu file.');
+            } catch (err) {
+                console.error('Lỗi Chromium PDF:', err);
+                showToast(err.message || 'Không thể mở hộp thoại in PDF.', 'error');
+            } finally {
+                isExportingPDF = false;
+            }
+        }
+
+        async function exportCurrentStaffProjectPDF() {
+            if (isExportingPDF) return;
             const proj = getProjectById(state.staffSelectedProjectId);
             if (!proj) {
                 showToast('Chưa có dự án nào được chọn!', 'error');
                 return;
             }
-            renderProjectLayoutToJPEG(proj);
-            showToast(`Đã xuất ảnh sơ đồ "${proj.name}" (.jpeg)!`);
+            isExportingPDF = true;
+            try {
+                const safeName = proj.name.replace(/[\/?*[\]:\s]+/g, '_').slice(0, 35);
+                await requestServerPDF([proj.id], `${safeName}_layout.pdf`);
+                showToast(`Đã mở hộp thoại in cho layout "${proj.name}". Hãy chọn “Save to PDF / Lưu thành PDF”.`);
+            } catch (err) {
+                console.error('Lỗi Chromium PDF:', err);
+                showToast(err.message || 'Không thể mở hộp thoại in PDF.', 'error');
+            } finally {
+                isExportingPDF = false;
+            }
         }
 
         function executeExportExcel() {
@@ -3043,6 +3251,19 @@
             if (showNotification) showToast('Đã nạp dự án mẫu Phòng & Lan can!');
         }
 
+        async function loadAdminCredentials() {
+            if (!db) return;
+            try {
+                const snap = await getDoc(doc(db, 'system_settings', 'admin_auth'));
+                if (snap.exists()) {
+                    const saved = snap.data();
+                    if (saved.username && saved.password) state.adminAuth = { username: saved.username, password: saved.password };
+                }
+            } catch (err) {
+                console.warn('Không thể tải thông tin admin:', err);
+            }
+        }
+
         function initFirestoreRealtimeSync() {
             if (!db) return;
             try {
@@ -3135,8 +3356,8 @@
             toggleAllExportProjects,
             closeExportReportModal,
             executeExportExcel,
-            executeExportLayoutJPEG,
-            exportCurrentStaffProjectJPEG,
+            executeExportLayoutPDF,
+            exportCurrentStaffProjectPDF,
             openDeleteProjectModal,
             closeDeleteProjectModal,
             confirmDeleteProject,
@@ -3145,7 +3366,9 @@
 
         window.addEventListener('DOMContentLoaded', () => {
             populateStaffDropdowns();
+            switchRole('staff');
             updateAdminDashboard();
+            loadAdminCredentials();
             initFirestoreRealtimeSync();
             lucide.createIcons();
         });
