@@ -133,13 +133,18 @@
                     <span id="syncDotMobile" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     <span id="syncTextMobile">Live Sync</span>
                 </div>
+                <button onclick="openStaffLoginModal()" class="md:hidden text-[11px] font-bold text-blue-600 px-2 py-1">Đăng nhập</button>
             </div>
 
             <!-- Role Switcher -->
-            <div class="bg-gray-200/80 p-1 rounded-xl flex items-center w-full md:w-auto">
+            <div id="roleSwitcher" class="hidden bg-gray-200/80 p-1 rounded-xl flex items-center w-full md:w-auto">
                 <button id="btnRoleAdmin" onclick="switchRole('admin')" class="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-white text-gray-900 shadow-sm">
                     <i data-lucide="layout-dashboard" class="w-4 h-4 text-blue-600"></i>
                     <span>Quản trị viên</span>
+                </button>
+                <button id="btnRoleDeputy" onclick="switchRole('deputy_admin')" class="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all text-gray-600 hover:text-gray-900">
+                    <i data-lucide="shield-check" class="w-4 h-4 text-violet-600"></i>
+                    <span>Phó admin</span>
                 </button>
                 <button id="btnRoleStaff" onclick="switchRole('staff')" class="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all text-gray-600 hover:text-gray-900">
                     <i data-lucide="smartphone" class="w-4 h-4 text-emerald-600"></i>
@@ -151,6 +156,7 @@
             <div class="hidden md:flex items-center gap-2 bg-white/80 border border-gray-200/80 px-3 py-1.5 rounded-full text-xs font-medium text-gray-600">
                 <span id="syncDotDesktop" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 <span id="syncTextDesktop">Đã đồng bộ Firestore • roomtracking-9c5ab</span>
+                <button onclick="openStaffLoginModal()" class="ml-1 border-l border-gray-200 pl-2 text-blue-600 hover:text-blue-700 font-bold">Đăng nhập</button>
             </div>
         </div>
     </header>
@@ -363,6 +369,13 @@
 
         <!-- ==================== STAFF VIEW ==================== -->
         <section id="staffView" class="hidden space-y-4 pb-12">
+            <div id="accessModeNotice" class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+                <div class="flex items-center gap-2 font-bold"><i data-lucide="eye" class="w-4 h-4"></i><span>Chế độ xem — Vui lòng đăng nhập để cập nhật dữ liệu.</span></div>
+            </div>
+            <div id="returnDashboardBar" class="hidden flex items-center justify-between gap-3 rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-xs text-indigo-900">
+                <span class="font-semibold">Bạn đang xem chi tiết dự án từ Dashboard.</span>
+                <button type="button" onclick="returnToDashboard()" class="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 font-bold text-white hover:bg-indigo-700"><i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i> Về Dashboard</button>
+            </div>
             <!-- Staff Controls -->
             <div class="glass rounded-2xl p-4 shadow-ios space-y-3.5">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -686,6 +699,21 @@
         </div>
     </div>
 
+    <!-- ==================== MODAL 3B: STAFF / DEPUTY ADMIN LOGIN ==================== -->
+    <div id="staffLoginBackdrop" onclick="closeStaffLoginModal(event)" class="modal-backdrop fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+        <div onclick="event.stopPropagation()" class="center-modal w-full max-w-sm bg-white rounded-3xl shadow-ios-lg p-6 space-y-4">
+            <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><i data-lucide="user-round-check" class="w-5 h-5"></i></div>
+                <div><h3 class="font-bold text-base text-gray-900">Đăng nhập hệ thống</h3><p class="text-xs text-gray-500">Dùng tài khoản Admin hoặc tài khoản được cấp cho từng nhân viên.</p></div>
+            </div>
+            <form onsubmit="handleStaffLogin(event)" class="space-y-3">
+                <div><label class="block text-xs font-semibold text-gray-700 mb-1">Tên đăng nhập</label><input type="text" id="staffLoginUser" required autocomplete="username" placeholder="Tên đăng nhập được cấp" class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm"></div>
+                <div><label class="block text-xs font-semibold text-gray-700 mb-1">Mật khẩu</label><input type="password" id="staffLoginPass" required autocomplete="current-password" placeholder="Mật khẩu" class="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm"></div>
+                <button type="submit" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm">Đăng nhập</button>
+            </form>
+        </div>
+    </div>
+
     <!-- ==================== MODAL 4: ADMIN SETTINGS & BACKUP ==================== -->
     <div id="adminSettingsBackdrop" onclick="closeAdminSettingsModal(event)" class="modal-backdrop fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
         <div onclick="event.stopPropagation()" class="center-modal w-full max-w-3xl bg-white rounded-3xl shadow-ios-lg overflow-hidden flex flex-col max-h-[90vh]">
@@ -733,12 +761,31 @@
                                 </select>
                             </div>
                         </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 border-t border-gray-200/70">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-700 mb-1">Tên đăng nhập *</label>
+                                <input type="text" id="staffUsernameInput" required autocomplete="off" placeholder="VD: hung.trinh" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-700 mb-1">Mật khẩu <span class="font-normal text-gray-400">(để trống khi sửa)</span></label>
+                                <input type="password" id="staffPasswordInput" autocomplete="new-password" placeholder="Tối thiểu 4 ký tự" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-700 mb-1">Vai trò tài khoản</label>
+                                <select id="staffRoleInput" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs">
+                                    <option value="staff">Nhân viên hiện trường</option>
+                                    <option value="deputy_admin">Phó admin</option>
+                                </select>
+                            </div>
+                        </div>
                         <div class="flex flex-wrap items-center justify-between gap-2 pt-2">
                             <div class="flex flex-wrap items-center gap-3 text-xs">
                                 <label class="inline-flex items-center gap-1.5"><input type="checkbox" id="permUpdate" checked class="rounded text-blue-600"> Cập nhật tiến độ</label>
                                 <label class="inline-flex items-center gap-1.5"><input type="checkbox" id="permIssue" checked class="rounded text-blue-600"> Báo sự cố</label>
+                                <label class="inline-flex items-center gap-1.5"><input type="checkbox" id="accountActive" checked class="rounded text-blue-600"> Tài khoản hoạt động</label>
                             </div>
-                            <button type="submit" id="saveStaffBtn" class="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs">+ Lưu Nhân Viên</button>
+                            <button type="button" onclick="resetStaffForm()" class="px-3 py-2 rounded-xl bg-white border border-gray-200 text-gray-600 font-semibold text-xs">Làm mới</button>
+                            <button type="submit" id="saveStaffBtn" class="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs">+ Lưu Tài Khoản</button>
                         </div>
                     </form>
                     <div id="settingsStaffList" class="space-y-2"></div>
@@ -1105,11 +1152,11 @@
         }
 
         const DEFAULT_STAFF_MEMBERS = [
-            { id: 'staff_1', name: 'Nguyễn Văn Châu', dept: 'Kỹ thuật', wingScope: 'ALL', canUpdate: true, canReportIssue: true },
-            { id: 'staff_2', name: 'Trịnh Văn Hùng', dept: 'Kỹ thuật', wingScope: 'ALL', canUpdate: true, canReportIssue: true },
-            { id: 'staff_3', name: 'Lê Ngọc Hưng', dept: 'Bảo trì', wingScope: 'ALL', canUpdate: true, canReportIssue: true },
-            { id: 'staff_4', name: 'Võ Đức Khoa', dept: 'IT & Mạng', wingScope: 'Ocean Wing', canUpdate: true, canReportIssue: true },
-            { id: 'staff_5', name: 'Trần Minh Tuấn', dept: 'Giám sát', wingScope: 'ALL', canUpdate: true, canReportIssue: true }
+            { id: 'staff_1', name: 'Nguyễn Văn Châu', dept: 'Kỹ thuật', wingScope: 'ALL', username: 'chau.nguyen', password: '1234', role: 'staff', active: true, canUpdate: true, canReportIssue: true },
+            { id: 'staff_2', name: 'Trịnh Văn Hùng', dept: 'Kỹ thuật', wingScope: 'ALL', username: 'hung.trinh', password: '1234', role: 'staff', active: true, canUpdate: true, canReportIssue: true },
+            { id: 'staff_3', name: 'Lê Ngọc Hưng', dept: 'Bảo trì', wingScope: 'ALL', username: 'hung.le', password: '1234', role: 'staff', active: true, canUpdate: true, canReportIssue: true },
+            { id: 'staff_4', name: 'Võ Đức Khoa', dept: 'IT & Mạng', wingScope: 'Ocean Wing', username: 'khoa.vo', password: '1234', role: 'staff', active: true, canUpdate: true, canReportIssue: true },
+            { id: 'staff_5', name: 'Trần Minh Tuấn', dept: 'Giám sát', wingScope: 'ALL', username: 'tuan.tran', password: '1234', role: 'staff', active: true, canUpdate: true, canReportIssue: true }
         ];
 
         // ---------------------------------------------------------------------
@@ -1118,6 +1165,8 @@
         let state = {
             currentRole: 'staff',
             adminAuthenticated: false,
+            authenticatedUser: null,
+            staffReturnRole: null,
             adminAuth: { username: 'shp', password: '150620' },
             projects: [],
             tasks: {},
@@ -2090,10 +2139,14 @@
         // 7. ROOM / RAILING MODAL UPDATE
         // ---------------------------------------------------------------------
         function openRoomModal(unitId) {
+            if (!state.authenticatedUser) { showToast('Vui lòng đăng nhập để thao tác cập nhật!', 'error'); return; }
             const proj = getProjectById(state.staffSelectedProjectId);
             if (!proj) return;
             const meta = getUnitMeta(unitId);
             if (!meta) return;
+            const member = state.authenticatedUser?.role === 'staff' ? state.authenticatedUser : null;
+            if (member && member.canUpdate === false) { showToast('Tài khoản này chỉ được xem, không có quyền cập nhật!', 'error'); return; }
+            if (member && member.wingScope !== 'ALL' && member.wingScope !== meta.wing) { showToast(`Tài khoản chỉ được thao tác tại ${member.wingScope}.`, 'error'); return; }
 
             const key = `${proj.id}_${unitId}`;
             const task = state.tasks[key] || { projectId: proj.id, roomId: unitId, status: 'Pending', note: '', updatedBy: '', updatedAt: '' };
@@ -2145,8 +2198,11 @@
         }
 
         async function saveRoomUpdate() {
+            if (!state.authenticatedUser) { showToast('Vui lòng đăng nhập để lưu cập nhật!', 'error'); return; }
             const proj = getProjectById(state.staffSelectedProjectId);
             if (!proj || !state.editingRoomId) return;
+            const member = state.authenticatedUser?.role === 'staff' ? state.authenticatedUser : null;
+            if (member && state.editingTempStatus === 'Issue' && member.canReportIssue === false) { showToast('Tài khoản này không có quyền báo sự cố!', 'error'); return; }
 
             const unitId = state.editingRoomId;
             const key = `${proj.id}_${unitId}`;
@@ -2202,9 +2258,30 @@
                 openAdminLoginModal();
                 return;
             }
+            if (role === 'deputy_admin' && (!state.authenticatedUser || state.authenticatedUser.role !== 'deputy_admin')) {
+                openStaffLoginModal();
+                return;
+            }
             state.currentRole = role;
-            document.getElementById('adminView').classList.toggle('hidden', role !== 'admin');
-            document.getElementById('staffView').classList.toggle('hidden', role !== 'staff');
+            const adminView = role === 'admin' || role === 'deputy_admin';
+            document.getElementById('adminView').classList.toggle('hidden', !adminView);
+            document.getElementById('staffView').classList.toggle('hidden', adminView);
+            const returnDashboardBar = document.getElementById('returnDashboardBar');
+            if (returnDashboardBar) {
+                returnDashboardBar.classList.toggle('hidden', !(role === 'staff' && state.staffReturnRole));
+                if (role === 'staff' && state.staffReturnRole) lucide.createIcons();
+            }
+            const accessNotice = document.getElementById('accessModeNotice');
+            if (accessNotice) {
+                const canEdit = !!state.authenticatedUser;
+                accessNotice.className = canEdit
+                    ? 'rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-900'
+                    : 'rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900';
+                accessNotice.innerHTML = canEdit
+                    ? `<div class="flex items-center gap-2 font-bold"><i data-lucide="user-check" class="w-4 h-4"></i><span>${state.authenticatedUser.name} • Đã đăng nhập — quyền thao tác được cấp theo tài khoản.</span></div>`
+                    : '<div class="flex items-center gap-2 font-bold"><i data-lucide="eye" class="w-4 h-4"></i><span>Chế độ xem — Vui lòng đăng nhập để cập nhật dữ liệu.</span></div>';
+                lucide.createIcons();
+            }
 
             document.getElementById('btnRoleAdmin').className = role === 'admin'
                 ? 'flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-white text-gray-900 shadow-sm'
@@ -2212,14 +2289,25 @@
             document.getElementById('btnRoleStaff').className = role === 'staff'
                 ? 'flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-white text-gray-900 shadow-sm'
                 : 'flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all text-gray-600';
+            document.getElementById('btnRoleDeputy').className = role === 'deputy_admin'
+                ? 'flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-white text-gray-900 shadow-sm'
+                : 'flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all text-gray-600';
 
-            if (role === 'admin') updateAdminDashboard();
+            if (adminView) updateAdminDashboard();
             else renderStaffView();
         }
 
         function jumpToStaffProject(projectId) {
             state.staffSelectedProjectId = projectId;
+            state.staffReturnRole = ['admin', 'deputy_admin'].includes(state.currentRole) ? state.currentRole : null;
             switchRole('staff');
+        }
+
+        function returnToDashboard() {
+            const returnRole = state.staffReturnRole;
+            if (!returnRole || !state.authenticatedUser) return;
+            state.staffReturnRole = null;
+            switchRole(returnRole);
         }
 
         function onStaffProjectChange() {
@@ -2286,6 +2374,10 @@
         }
 
         function switchAdminSettingsTab(tab) {
+            if (tab === 'security' && state.currentRole === 'deputy_admin') {
+                showToast('Phó admin không được thay đổi tài khoản Admin chính!', 'error');
+                tab = 'staff';
+            }
             ['staff', 'security', 'backup'].forEach(t => {
                 document.getElementById(`settingsTab_${t}`).classList.toggle('hidden', t !== tab);
                 document.getElementById(`tabBtn_${t}`).className = t === tab
@@ -2297,14 +2389,39 @@
         function renderSettingsStaffList() {
             const container = document.getElementById('settingsStaffList');
             container.innerHTML = state.staffMembers.map(s => `
-                <div class="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-200 text-xs">
-                    <div>
-                        <span class="font-bold text-gray-900">${s.name}</span>
-                        <span class="text-gray-500 ml-2">${s.dept} • Khu: ${s.wingScope}</span>
+                <div class="flex items-center justify-between gap-3 p-3 bg-white rounded-xl border border-gray-200 text-xs">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap"><span class="font-bold text-gray-900">${s.name}</span><span class="px-1.5 py-0.5 rounded bg-${s.role === 'deputy_admin' ? 'violet' : 'emerald'}-50 text-${s.role === 'deputy_admin' ? 'violet' : 'emerald'}-700 font-bold">${s.role === 'deputy_admin' ? 'Phó admin' : 'Nhân viên'}</span><span class="${s.active === false ? 'text-red-600' : 'text-emerald-600'} font-semibold">${s.active === false ? 'Đã khóa' : 'Hoạt động'}</span></div>
+                        <div class="text-gray-500 mt-1 truncate">@${s.username || 'chưa cấp'} • ${s.dept} • Khu: ${s.wingScope}</div>
                     </div>
-                    <button type="button" onclick="deleteStaffMember('${s.id}')" class="text-red-600 font-semibold hover:underline">Xóa</button>
+                    <div class="flex items-center gap-2 shrink-0"><button type="button" onclick="editStaffMember('${s.id}')" class="text-blue-600 font-semibold hover:underline">Sửa</button><button type="button" onclick="deleteStaffMember('${s.id}')" class="text-red-600 font-semibold hover:underline">Xóa</button></div>
                 </div>
             `).join('');
+        }
+
+        function resetStaffForm() {
+            ['editStaffId', 'staffNameInput', 'staffDeptInput', 'staffUsernameInput', 'staffPasswordInput'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+            document.getElementById('staffWingScopeInput').value = 'ALL';
+            document.getElementById('staffRoleInput').value = 'staff';
+            document.getElementById('permUpdate').checked = true;
+            document.getElementById('permIssue').checked = true;
+            document.getElementById('accountActive').checked = true;
+            document.getElementById('saveStaffBtn').textContent = '+ Lưu Tài Khoản';
+        }
+
+        function editStaffMember(id) {
+            const s = state.staffMembers.find(x => x.id === id); if (!s) return;
+            document.getElementById('editStaffId').value = s.id;
+            document.getElementById('staffNameInput').value = s.name || '';
+            document.getElementById('staffDeptInput').value = s.dept || '';
+            document.getElementById('staffWingScopeInput').value = s.wingScope || 'ALL';
+            document.getElementById('staffUsernameInput').value = s.username || '';
+            document.getElementById('staffPasswordInput').value = '';
+            document.getElementById('staffRoleInput').value = s.role || 'staff';
+            document.getElementById('permUpdate').checked = s.canUpdate !== false;
+            document.getElementById('permIssue').checked = s.canReportIssue !== false;
+            document.getElementById('accountActive').checked = s.active !== false;
+            document.getElementById('saveStaffBtn').textContent = 'Lưu thay đổi';
         }
 
         async function handleSaveStaffMember(e) {
@@ -2312,22 +2429,33 @@
             const name = document.getElementById('staffNameInput').value.trim();
             const dept = document.getElementById('staffDeptInput').value.trim();
             const wingScope = document.getElementById('staffWingScopeInput').value;
+            const username = document.getElementById('staffUsernameInput').value.trim().toLowerCase();
+            const password = document.getElementById('staffPasswordInput').value.trim();
+            if (!username || (!document.getElementById('editStaffId').value && password.length < 4)) { showToast('Tên đăng nhập bắt buộc; mật khẩu mới tối thiểu 4 ký tự!', 'error'); return; }
+            if (state.staffMembers.some(s => s.username === username && s.id !== document.getElementById('editStaffId').value)) { showToast('Tên đăng nhập đã tồn tại!', 'error'); return; }
+            const existing = state.staffMembers.find(s => s.id === document.getElementById('editStaffId').value);
             const member = {
-                id: 'staff_' + Date.now(),
+                ...(existing || {}),
+                id: existing?.id || 'staff_' + Date.now(),
                 name,
                 dept,
                 wingScope,
+                username,
+                password: password || existing?.password || '',
+                role: document.getElementById('staffRoleInput').value,
+                active: document.getElementById('accountActive').checked,
                 canUpdate: document.getElementById('permUpdate').checked,
                 canReportIssue: document.getElementById('permIssue').checked
             };
-            state.staffMembers.push(member);
-            document.getElementById('staffNameInput').value = '';
+            if (existing) state.staffMembers = state.staffMembers.map(s => s.id === existing.id ? member : s);
+            else state.staffMembers.push(member);
+            resetStaffForm();
             renderSettingsStaffList();
             populateStaffDropdowns();
             if (db) {
                 try { await setDoc(doc(db, 'staff_members', member.id), member); } catch (err) { console.warn(err); }
             }
-            showToast(`Đã thêm nhân viên ${name}!`);
+            showToast(`${existing ? 'Đã cập nhật' : 'Đã thêm'} tài khoản ${name}!`);
         }
 
         async function deleteStaffMember(id) {
@@ -2366,11 +2494,44 @@
             const p = document.getElementById('adminLoginPass').value.trim();
             if (u === state.adminAuth.username && p === state.adminAuth.password) {
                 state.adminAuthenticated = true;
+                state.authenticatedUser = { username: u, name: 'Quản trị viên', role: 'admin' };
                 closeAdminLoginModal();
                 switchRole('admin');
             } else {
                 showToast('Sai tên đăng nhập hoặc mật khẩu!', 'error');
             }
+        }
+
+        function openStaffLoginModal() {
+            document.getElementById('staffLoginUser').value = '';
+            document.getElementById('staffLoginPass').value = '';
+            document.getElementById('staffLoginBackdrop').classList.add('active');
+            setTimeout(() => document.getElementById('staffLoginUser')?.focus(), 80);
+            lucide.createIcons();
+        }
+        function closeStaffLoginModal(e) {
+            if (e && e.target !== e.currentTarget) return;
+            document.getElementById('staffLoginBackdrop').classList.remove('active');
+        }
+        function handleStaffLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById('staffLoginUser').value.trim().toLowerCase();
+            const p = document.getElementById('staffLoginPass').value;
+            if (u === String(state.adminAuth.username).toLowerCase() && p === state.adminAuth.password) {
+                state.adminAuthenticated = true;
+                state.authenticatedUser = { username: u, name: 'Quản trị viên', role: 'admin' };
+                closeStaffLoginModal();
+                switchRole('admin');
+                showToast('Đăng nhập Admin thành công!');
+                return;
+            }
+            const member = state.staffMembers.find(s => s.username === u && s.password === p);
+            if (!member) { showToast('Sai tên đăng nhập hoặc mật khẩu!', 'error'); return; }
+            if (member.active === false) { showToast('Tài khoản đã bị khóa. Vui lòng liên hệ Admin!', 'error'); return; }
+            state.authenticatedUser = member;
+            closeStaffLoginModal();
+            switchRole(member.role === 'deputy_admin' ? 'deputy_admin' : 'staff');
+            showToast(`Xin chào ${member.name}!`);
         }
 
         function downloadBackupJSON() {
@@ -3267,6 +3428,19 @@ body { font-family: Inter, Arial, sans-serif; color: #1C1C1E; }
         function initFirestoreRealtimeSync() {
             if (!db) return;
             try {
+                onSnapshot(collection(db, 'staff_members'), (snap) => {
+                    const list = [];
+                    snap.forEach(d => {
+                        const fallback = DEFAULT_STAFF_MEMBERS.find(s => s.id === d.id) || {};
+                        list.push({ ...fallback, ...d.data(), id: d.id });
+                    });
+                    if (list.length > 0) {
+                        state.staffMembers = list;
+                        populateStaffDropdowns();
+                        if (document.getElementById('adminSettingsBackdrop')?.classList.contains('active')) renderSettingsStaffList();
+                        if (state.currentRole === 'staff') renderStaffView();
+                    }
+                });
                 onSnapshot(collection(db, 'projects'), (snap) => {
                     const list = [];
                     snap.forEach(d => {
@@ -3317,6 +3491,7 @@ body { font-family: Inter, Arial, sans-serif; color: #1C1C1E; }
         Object.assign(window, {
             switchRole,
             jumpToStaffProject,
+            returnToDashboard,
             updateAdminDashboard,
             openCreateProjectModal,
             openEditProjectModal,
@@ -3345,11 +3520,16 @@ body { font-family: Inter, Arial, sans-serif; color: #1C1C1E; }
             closeAdminSettingsModal,
             switchAdminSettingsTab,
             handleSaveStaffMember,
+            resetStaffForm,
+            editStaffMember,
             deleteStaffMember,
             handleUpdateAdminCredentials,
             openAdminLoginModal,
             closeAdminLoginModal,
             handleAdminLogin,
+            openStaffLoginModal,
+            closeStaffLoginModal,
+            handleStaffLogin,
             downloadBackupJSON,
             handleRestoreBackupJSON,
             openExportReportModal,
