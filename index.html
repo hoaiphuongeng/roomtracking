@@ -619,6 +619,27 @@
                     <input type="text" id="newProjDesc" placeholder="Hướng dẫn kỹ thuật cho nhân viên hiện trường..." class="w-full rounded-xl border border-gray-200 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
 
+                <!-- Excel Import -->
+                <div class="rounded-2xl border border-blue-200 bg-blue-50/70 p-4 space-y-2.5">
+                    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                        <div>
+                            <div class="flex items-center gap-2 text-sm font-bold text-blue-900">
+                                <i data-lucide="file-spreadsheet" class="w-4 h-4 text-blue-600"></i>
+                                <span>Nạp danh sách hạng mục từ Excel</span>
+                            </div>
+                            <p class="text-[11px] text-blue-800/80 mt-1">Hỗ trợ .xlsx, .xls, .csv. Cột mã có thể đặt tên: Mã phòng, Phòng, Room, Mã hạng mục hoặc ID.</p>
+                        </div>
+                        <button type="button" onclick="downloadProjectExcelTemplate()" class="shrink-0 inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-blue-200 text-blue-700 hover:bg-blue-100 text-[11px] font-bold">
+                            <i data-lucide="download" class="w-3.5 h-3.5"></i> Tải file mẫu
+                        </button>
+                    </div>
+                    <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+                        <input type="file" id="projectExcelInput" accept=".xlsx,.xls,.csv" onchange="handleProjectExcelImport(event)" class="block w-full text-[11px] text-gray-600 file:mr-2 file:rounded-lg file:border-0 file:bg-blue-600 file:px-3 file:py-1.5 file:text-[11px] file:font-bold file:text-white hover:file:bg-blue-700">
+                        <span id="projectExcelStatus" class="text-[11px] font-semibold text-gray-500 whitespace-nowrap">Chưa nạp file</span>
+                    </div>
+                    <div id="projectExcelPreview" class="hidden rounded-xl bg-white/80 border border-blue-100 p-2.5 text-[11px]"></div>
+                </div>
+
                 <!-- Interactive Scope Selection Map -->
                 <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200/80 space-y-3">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -1189,6 +1210,7 @@
         let floorBarChartInstance = null;
         let statusDoughnutChartInstance = null;
         let isExportingPDF = false;
+        let projectExcelImport = { fileName: '', validIds: [], invalidRows: [], totalRows: 0 };
 
         // ---------------------------------------------------------------------
         // 3. ARCHITECTURAL RAILING CAD LAYOUT RENDERER (Matches Hand-Drawn Yellow Sketch)
@@ -2012,11 +2034,160 @@
             renderInteractivePickerMap();
         }
 
+        function excelText(value) {
+            return value === null || value === undefined ? '' : String(value).trim();
+        }
+
+        function excelHeaderKey(value) {
+            return excelText(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]/g, '');
+        }
+
+        function normalizeExcelUnitId(value) {
+            let text = excelText(value).replace(/\s+/g, ' ');
+            if (!text) return '';
+            if (/^\d+\.0$/.test(text)) text = text.slice(0, -2);
+            return text;
+        }
+
+        function findExcelUnitId(value) {
+            const candidate = normalizeExcelUnitId(value);
+            if (!candidate) return '';
+            const allUnits = [...ALL_ROOMS, ...ALL_RAILINGS];
+            const exact = allUnits.find(u => String(u.id).toLowerCase() === candidate.toLowerCase());
+            if (exact) return exact.id;
+            const withoutPrefix = candidate.replace(/^(phòng|phong|room|unit|mã phòng|ma phong|mã hạng mục|ma hang muc)\s*[:#-]?\s*/i, '').trim();
+            const prefixed = allUnits.find(u => String(u.id).toLowerCase() === withoutPrefix.toLowerCase());
+            return prefixed ? prefixed.id : '';
+        }
+
+        function getExcelRowValue(row, aliases) {
+            const keys = Object.keys(row);
+            const found = keys.find(key => aliases.includes(excelHeaderKey(key)));
+            return found ? row[found] : '';
+        }
+
+        function parseExcelDate(value) {
+            if (!value) return '';
+            if (typeof value === 'number' && XLSX.SSF) {
+                const parsed = XLSX.SSF.parse_date_code(value);
+                if (parsed) return `${parsed.y}-${String(parsed.m).padStart(2, '0')}-${String(parsed.d).padStart(2, '0')}`;
+            }
+            const text = excelText(value);
+            if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(text)) {
+                const [y, m, d] = text.split('-');
+                return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+            }
+            const match = text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+            return match ? `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}` : '';
+        }
+
+        function escapeExcelPreview(value) {
+            return excelText(value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+        }
+
+        function clearProjectExcelImport() {
+            projectExcelImport = { fileName: '', validIds: [], invalidRows: [], totalRows: 0 };
+            const input = document.getElementById('projectExcelInput');
+            const status = document.getElementById('projectExcelStatus');
+            const preview = document.getElementById('projectExcelPreview');
+            if (input) input.value = '';
+            if (status) { status.textContent = 'Chưa nạp file'; status.className = 'text-[11px] font-semibold text-gray-500 whitespace-nowrap'; }
+            if (preview) { preview.innerHTML = ''; preview.classList.add('hidden'); }
+        }
+
+        function renderProjectExcelPreview() {
+            const preview = document.getElementById('projectExcelPreview');
+            if (!preview) return;
+            const invalidText = projectExcelImport.invalidRows.length
+                ? `<div class="mt-1.5 text-red-600">Không khớp: ${projectExcelImport.invalidRows.slice(0, 5).map(item => `dòng ${item.row} (${escapeExcelPreview(item.value)})`).join(', ')}${projectExcelImport.invalidRows.length > 5 ? '…' : ''}</div>`
+                : '<div class="mt-1.5 text-emerald-700">Tất cả mã hạng mục đều hợp lệ.</div>';
+            preview.innerHTML = `<div class="font-bold text-gray-800">Đã nhận ${projectExcelImport.validIds.length}/${projectExcelImport.totalRows} hạng mục từ <span class="text-blue-700">${escapeExcelPreview(projectExcelImport.fileName)}</span>.</div>${invalidText}`;
+            preview.classList.remove('hidden');
+        }
+
+        async function handleProjectExcelImport(event) {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            if (typeof XLSX === 'undefined') { showToast('Không tải được thư viện đọc Excel. Vui lòng tải lại trang.', 'error'); return; }
+            try {
+                const buffer = await file.arrayBuffer();
+                const workbook = XLSX.read(buffer, { type: 'array', cellDates: false });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(firstSheet, { defval: '', raw: false });
+                const firstRawRows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '', raw: false });
+                if (!rows.length) throw new Error('File không có dữ liệu.');
+
+                const unitAliases = ['maphong', 'phong', 'room', 'roomid', 'unit', 'unitid', 'mabangmuc', 'mahangmuc', 'id', 'malancan', 'lancan', 'segment', 'segmentid'];
+                const nameAliases = ['tenduan', 'duan', 'project', 'projectname', 'name'];
+                const deadlineAliases = ['hanhoanthanh', 'deadline', 'due', 'date', 'ngayhoanthanh'];
+                const priorityAliases = ['douutien', 'priority', 'uutien'];
+                const descAliases = ['mota', 'description', 'yeucau', 'ghichu'];
+                const validIds = new Set();
+                const invalidRows = [];
+                let detectedName = '', detectedDeadline = '', detectedPriority = '', detectedDesc = '';
+                let detectedType = '';
+
+                rows.forEach((row, index) => {
+                    const rowNumber = index + 2;
+                    let rawId = getExcelRowValue(row, unitAliases);
+                    if (!rawId) {
+                        const firstValue = firstRawRows[index + 1]?.[0];
+                        rawId = firstValue || '';
+                    }
+                    const unitId = findExcelUnitId(rawId);
+                    if (unitId) {
+                        const meta = getUnitMeta(unitId);
+                        if (!detectedType) detectedType = meta?.unitType || '';
+                        if (meta?.unitType === detectedType) validIds.add(unitId);
+                        else invalidRows.push({ row: rowNumber, value: rawId });
+                    } else if (excelText(rawId)) {
+                        invalidRows.push({ row: rowNumber, value: rawId });
+                    }
+                    detectedName ||= excelText(getExcelRowValue(row, nameAliases));
+                    detectedDeadline ||= parseExcelDate(getExcelRowValue(row, deadlineAliases));
+                    detectedPriority ||= excelText(getExcelRowValue(row, priorityAliases));
+                    detectedDesc ||= excelText(getExcelRowValue(row, descAliases));
+                });
+
+                if (!validIds.size) throw new Error('Không tìm thấy mã phòng hoặc mã lan can hợp lệ trong file.');
+                projectExcelImport = { fileName: file.name, validIds: Array.from(validIds), invalidRows, totalRows: rows.length };
+                if (detectedName) document.getElementById('newProjName').value = detectedName;
+                if (detectedDeadline) document.getElementById('newProjDeadline').value = detectedDeadline;
+                if (detectedPriority && [...document.getElementById('newProjPriority').options].some(o => o.value === detectedPriority)) document.getElementById('newProjPriority').value = detectedPriority;
+                if (detectedDesc) document.getElementById('newProjDesc').value = detectedDesc;
+                if (detectedType) setProjectFormTargetType(detectedType);
+                state.customSelectedUnits = new Set(projectExcelImport.validIds);
+                renderProjectExcelPreview();
+                renderInteractivePickerMap();
+                const status = document.getElementById('projectExcelStatus');
+                status.textContent = `${projectExcelImport.validIds.length} hạng mục hợp lệ`;
+                status.className = 'text-[11px] font-bold text-emerald-700 whitespace-nowrap';
+                showToast(`Đã nạp ${projectExcelImport.validIds.length} hạng mục từ Excel!`);
+            } catch (error) {
+                clearProjectExcelImport();
+                showToast(error.message || 'Không thể đọc file Excel.', 'error');
+            }
+        }
+
+        function downloadProjectExcelTemplate() {
+            if (typeof XLSX === 'undefined') { showToast('Không tải được thư viện Excel. Vui lòng tải lại trang.', 'error'); return; }
+            const rows = [
+                ['Mã hạng mục', 'Tên dự án', 'Hạn hoàn thành', 'Độ ưu tiên', 'Mô tả'],
+                ['101', 'Bảo trì phòng mẫu', '2026-12-31', 'Bình thường', 'Kiểm tra và hoàn thiện theo checklist'],
+                ['102', '', '', '', '']
+            ];
+            const workbook = XLSX.utils.book_new();
+            const sheet = XLSX.utils.aoa_to_sheet(rows);
+            XLSX.utils.book_append_sheet(workbook, sheet, 'Danh sách hạng mục');
+            XLSX.writeFile(workbook, 'Mau_nap_du_an_RoomOps.xlsx');
+        }
+
         function openCreateProjectModal() {
             state.editingProjectId = null;
             document.getElementById('projectModalTitle').textContent = 'Tạo Dự Án Phát Sinh Mới';
             document.getElementById('projectModalSubmitBtn').textContent = 'Khởi Tạo Dự Án';
             document.getElementById('createProjectForm').reset();
+            clearProjectExcelImport();
 
             const nextWeek = new Date();
             nextWeek.setDate(nextWeek.getDate() + 7);
@@ -2039,6 +2210,7 @@
             document.getElementById('newProjDeadline').value = proj.deadline || '';
             document.getElementById('newProjPriority').value = proj.priority || 'Bình thường';
             document.getElementById('newProjDesc').value = proj.description || '';
+            clearProjectExcelImport();
 
             setProjectFormTargetType(proj.targetType === 'RAILING' ? 'RAILING' : 'ROOM');
             state.customSelectedUnits = new Set(proj.targetRooms || []);
@@ -3498,6 +3670,8 @@ body { font-family: Inter, Arial, sans-serif; color: #1C1C1E; }
             closeCreateProjectModal,
             handleCreateProject,
             setProjectFormTargetType,
+            handleProjectExcelImport,
+            downloadProjectExcelTemplate,
             setPickerWingFilter,
             toggleCustomRoomSelection,
             selectAllPickerUnits,
