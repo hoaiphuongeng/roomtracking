@@ -61,6 +61,10 @@
             -webkit-tap-highlight-color: transparent;
             overflow-x: hidden;
         }
+        .room-layout-arrange-mode [data-room-layout-tile] { cursor: grab; touch-action: none; user-select: none; }
+        .room-layout-arrange-mode [data-room-layout-tile]:active { cursor: grabbing; }
+        [data-room-layout-tile].room-layout-dragging { opacity: .48; transform: scale(.97); outline: 2px dashed #2563eb; }
+        .room-layout-drop-target { box-shadow: 0 0 0 2px #60a5fa inset; }
         .glass {
             background: rgba(255, 255, 255, 0.86);
             backdrop-filter: blur(16px);
@@ -108,7 +112,87 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         /* Railing drawings stay readable on narrow screens without being clipped by a two-column grid. */
         .railing-layout-shell { width: 100%; min-width: 0; overflow-x: auto; }
-        .railing-layout-canvas { width: 100%; min-width: 680px; }
+        .railing-layout-canvas { width: 100%; min-width: 680px; position: relative; }
+        .railing-editor-svg { display: none; position: absolute; inset: 0; width: 100%; height: 100%; z-index: 30; pointer-events: none; touch-action: none; }
+        .railing-layout-has-edits .railing-editor-svg { display: block; pointer-events: auto; cursor: default; }
+        .railing-editor-active .railing-editor-svg { display: block; pointer-events: auto; cursor: crosshair; }
+        .railing-layout-has-edits [data-railing-id] { pointer-events: none !important; }
+        .railing-layout-has-edits .railing-sketch-segment::before,
+        .railing-layout-has-edits .railing-sketch-segment::after,
+        .railing-layout-has-edits .railing-balcony-line::before,
+        .railing-layout-has-edits .railing-balcony-line::after,
+        .railing-editor-active .railing-sketch-segment::before,
+        .railing-editor-active .railing-sketch-segment::after,
+        .railing-editor-active .railing-balcony-line::before,
+        .railing-editor-active .railing-balcony-line::after { display: none !important; }
+        .railing-editor-active .railing-seg-btn { cursor: default; }
+        .railing-editor-toolbar button[data-editor-tool].active,
+        .railing-editor-toolbar button[data-editor-option].active { background: #1D4ED8; color: #fff; border-color: #1D4ED8; }
+        .railing-editor-toolbar button:disabled { opacity: .45; cursor: not-allowed; }
+        /* Sketch-style railing: narrow highlighted segments with a dashed center line. */
+        .railing-layout-compact .railing-sketch-segment,
+        .railing-layout-compact .railing-balcony-line {
+            position: relative !important;
+            background: transparent !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            overflow: visible !important;
+        }
+        .railing-layout-compact .railing-sketch-segment::before,
+        .railing-layout-compact .railing-balcony-line::before {
+            content: "";
+            position: absolute;
+            display: block;
+            z-index: 1;
+            box-sizing: border-box;
+            background: var(--railing-line-color, #F1EA00);
+            border: 1px solid color-mix(in srgb, var(--railing-line-color, #F1EA00) 78%, #111827);
+            border-radius: 2px;
+        }
+        .railing-layout-compact .railing-sketch-segment::after,
+        .railing-layout-compact .railing-balcony-line::after {
+            content: "";
+            position: absolute;
+            display: block;
+            z-index: 2;
+            pointer-events: none;
+        }
+        .railing-layout-compact .railing-line-horizontal::before,
+        .railing-layout-compact .railing-balcony-line::before {
+            left: 0;
+            right: 0;
+            top: 50%;
+            height: 9px;
+            transform: translateY(-50%);
+        }
+        .railing-layout-compact .railing-line-horizontal::after,
+        .railing-layout-compact .railing-balcony-line::after {
+            left: 3px;
+            right: 3px;
+            top: 50%;
+            height: 2px;
+            transform: translateY(-50%);
+            background: repeating-linear-gradient(90deg, #263238 0 4px, transparent 4px 11px);
+        }
+        .railing-layout-compact .railing-line-vertical::before {
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            width: 9px;
+            transform: translateX(-50%);
+        }
+        .railing-layout-compact .railing-line-vertical.railing-line-edge-start::before { left: 0; }
+        .railing-layout-compact .railing-line-vertical.railing-line-edge-end::before { left: 100%; }
+        .railing-layout-compact .railing-line-vertical::after {
+            top: 3px;
+            bottom: 3px;
+            left: 50%;
+            width: 2px;
+            transform: translateX(-50%);
+            background: repeating-linear-gradient(180deg, #263238 0 4px, transparent 4px 11px);
+        }
         @media (max-width: 720px) {
             .railing-layout-canvas { transform-origin: top left; }
         }
@@ -431,6 +515,16 @@
                         </button>
                     </div>
 
+                    <!-- Project view mode: layout map or detailed task list -->
+                    <div class="flex items-center gap-1 bg-gray-100 p-1 rounded-xl shrink-0">
+                        <button type="button" onclick="setProjectViewMode('LAYOUT')" id="btnProjectViewLayout" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white text-gray-900 shadow-2xs" aria-pressed="true">
+                            <span class="inline-flex items-center gap-1"><i data-lucide="map" class="w-3.5 h-3.5"></i> Sơ đồ</span>
+                        </button>
+                        <button type="button" onclick="setProjectViewMode('LIST')" id="btnProjectViewList" class="px-2.5 py-1 rounded-lg text-xs font-medium text-gray-600" aria-pressed="false">
+                            <span class="inline-flex items-center gap-1"><i data-lucide="list" class="w-3.5 h-3.5"></i> Danh sách</span>
+                        </button>
+                    </div>
+
                     <!-- Layout Mode Switcher (for Room projects) -->
                     <div id="roomLayoutModeToggle" class="flex items-center bg-gray-100 p-1 rounded-xl shrink-0">
                         <button onclick="setRoomLayoutMode('CORRIDOR')" id="btnLayoutCorridor" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white text-gray-900 shadow-2xs">
@@ -438,6 +532,12 @@
                         </button>
                         <button onclick="setRoomLayoutMode('GRID')" id="btnLayoutGrid" class="px-2.5 py-1 rounded-lg text-xs font-medium text-gray-600">
                             Dạng lưới gọn
+                        </button>
+                        <button type="button" id="btnRoomLayoutArrange" onclick="toggleRoomLayoutArrangeMode()" class="ml-1 inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-blue-700 hidden" aria-pressed="false">
+                            <i data-lucide="move" class="w-3.5 h-3.5"></i> Sắp xếp phòng
+                        </button>
+                        <button type="button" id="btnRoomLayoutReset" onclick="resetRoomLayoutOrder()" class="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 hidden">
+                            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Mặc định
                         </button>
                     </div>
                 </div>
@@ -1198,6 +1298,8 @@
             staffFloorFilter: 'ALL',
             staffStatusFilter: 'ALL',
             roomLayoutMode: 'CORRIDOR',
+            roomLayoutArrangeMode: false,
+            projectViewMode: 'LAYOUT',
             projectFormTargetType: 'ROOM',
             pickerWingFilter: 'ALL',
             customSelectedUnits: new Set(),
@@ -1209,6 +1311,7 @@
 
         let floorBarChartInstance = null;
         let statusDoughnutChartInstance = null;
+        let activeRailingEditorContext = null;
         let isExportingPDF = false;
         let projectExcelImport = { fileName: '', validIds: [], invalidRows: [], totalRows: 0 };
 
@@ -1219,7 +1322,7 @@
             const bp = RAILING_BLUEPRINTS[`${wing}_${floor}`];
             if (!bp) return '';
 
-            const { projId, targetSet, statusFilter } = contextObj;
+            const { projId, targetSet, statusFilter, compactView = false } = contextObj;
 
             // Color & border styling: Yellow highlight default (matching sketch) -> Green/Orange/Red when updated
             const getRailingSegmentStyle = (seg) => {
@@ -1261,14 +1364,28 @@
                 }
             };
 
+            const getCompactLineColor = (seg) => {
+                if (!targetSet || !targetSet.has(seg.id)) return '#CBD5E1';
+                const task = state.tasks[`${projId}_${seg.id}`];
+                const status = task ? task.status : 'Pending';
+                if (statusFilter !== 'ALL' && status !== statusFilter) return '#CBD5E1';
+                return status === 'Done' ? '#34C759'
+                    : status === 'In_Progress' ? '#FF9500'
+                    : status === 'Issue' ? '#FF3B30'
+                    : '#F1EA00';
+            };
+
             const renderYellowBar = (seg, extraCls = '', customLabel = null) => {
                 if (!seg) return '';
                 const st = getRailingSegmentStyle(seg);
                 const text = customLabel !== null ? customLabel : seg.shortCode;
+                const lineOrientation = (extraCls.includes('h-[68px]') || extraCls.includes('h-[34px]'))
+                    ? 'railing-line-vertical' : 'railing-line-horizontal';
+                const compactStyle = compactView ? `style="--railing-line-color:${getCompactLineColor(seg)}"` : '';
                 return `
-                    <button type="button" ${st.click} title="${seg.label}"
-                        class="railing-seg-btn rounded px-1 py-0.5 text-[9.5px] font-extrabold leading-tight flex items-center justify-center text-center transition ${st.cls} ${extraCls}">
-                        <span class="truncate">${text}</span>
+                    <button type="button" ${st.click} data-railing-id="${seg.id}" title="${seg.label}" aria-label="${seg.label}" ${compactStyle}
+                        class="railing-seg-btn rounded px-1 py-0.5 text-[9.5px] font-extrabold leading-tight flex items-center justify-center text-center transition ${st.cls} ${extraCls} ${compactView ? `railing-sketch-segment ${lineOrientation}` : ''}">
+                        <span class="railing-segment-name truncate ${compactView ? 'hidden' : ''}">${text}</span>
                     </button>
                 `;
             };
@@ -1296,10 +1413,11 @@
                     const bracketBorder = side === 'LEFT'
                         ? 'border-l-[6px] border-y-[4px] border-r-0 rounded-l-md'
                         : 'border-r-[6px] border-y-[4px] border-l-0 rounded-r-md';
+                    const compactStyle = compactView ? `style="--railing-line-color:${getCompactLineColor(bSeg)}"` : '';
                     return `
-                        <button type="button" ${st.click} title="${bSeg.label}"
-                            class="railing-seg-btn w-16 h-10 ${bracketBorder} text-[9.5px] font-extrabold flex items-center justify-center transition ${st.cls}">
-                            <span>${bSeg.shortCode}</span>
+                        <button type="button" ${st.click} data-railing-id="${bSeg.id}" title="${bSeg.label}" aria-label="${bSeg.label}" ${compactStyle}
+                            class="railing-seg-btn w-20 h-10 ${bracketBorder} text-[9.5px] font-extrabold flex items-center justify-center transition ${st.cls} ${compactView ? 'railing-balcony-line' : ''}">
+                            <span class="railing-segment-name ${compactView ? 'hidden' : ''}">${bSeg.shortCode}</span>
                         </button>
                     `;
                 }).join('<div class="h-0.5 bg-slate-600 w-12 mx-auto"></div>');
@@ -1310,7 +1428,7 @@
                         ? `<span class="w-2.5 h-3 border-t-2 border-l-2 border-slate-500 rounded-tl-full inline-block shrink-0" title="Cửa phòng ${rId}"></span>`
                         : `<span class="w-2.5 h-3 border-t-2 border-r-2 border-slate-500 rounded-tr-full inline-block shrink-0" title="Cửa phòng ${rId}"></span>`;
                     return `
-                        <div class="h-10 px-2.5 bg-white border-2 border-slate-700 flex items-center justify-between gap-1 font-extrabold text-xs text-slate-900 shadow-2xs ${idx > 0 ? '-mt-0.5' : ''}">
+                        <div data-room-id="${rId}" class="railing-room-box h-10 px-2.5 bg-white border-2 border-slate-700 flex items-center justify-between gap-1 font-extrabold text-xs text-slate-900 shadow-2xs ${idx > 0 ? '-mt-0.5' : ''}">
                             ${side === 'LEFT' ? `<span>${rId}</span>${doorArc}` : `${doorArc}<span>${rId}</span>`}
                         </div>
                     `;
@@ -1336,27 +1454,34 @@
             // Render a 3-segment U-shape connector bridging consecutive room clusters:
             // Top horizontal arm ("Trước + phòng trên") + Middle vertical spine ("Giữa Phòng-Phòng") + Bottom horizontal arm ("Trước + phòng dưới")
             const renderThreeSegmentUShape = (topArmSeg, midVertSeg, botArmSeg, side) => {
-                if (!topArmSeg && !midVertSeg && !botArmSeg) return `<div class="h-[68px]"></div>`;
+                const armWidth = compactView ? 'w-16' : 'w-24';
+                const armHeight = compactView ? 'h-3.5' : 'h-5';
+                const spineWidth = compactView ? 'w-2' : 'w-24';
+                const spineHeight = compactView ? 'h-[34px]' : 'h-[68px]';
+                const rowHeight = compactView ? 'h-[34px]' : 'h-[68px]';
+                const descriptorClass = compactView ? 'hidden' : 'text-[8px] font-bold text-slate-400';
+                if (!topArmSeg && !midVertSeg && !botArmSeg) return `<div class="${rowHeight}"></div>`;
 
                 const topHtml = topArmSeg
-                    ? renderYellowBar(topArmSeg, `w-24 h-5 ${side === 'LEFT' ? 'rounded-r-none border-r-0' : 'rounded-l-none border-l-0'}`, topArmSeg.shortCode)
-                    : `<div class="w-24 h-5"></div>`;
+                    ? renderYellowBar(topArmSeg, `${armWidth} ${armHeight} ${side === 'LEFT' ? 'rounded-r-none border-r-0' : 'rounded-l-none border-l-0'}`, topArmSeg.shortCode)
+                    : `<div class="${armWidth} ${armHeight}"></div>`;
 
                 const botHtml = botArmSeg
-                    ? renderYellowBar(botArmSeg, `w-24 h-5 ${side === 'LEFT' ? 'rounded-r-none border-r-0' : 'rounded-l-none border-l-0'}`, botArmSeg.shortCode)
-                    : `<div class="w-24 h-5"></div>`;
+                    ? renderYellowBar(botArmSeg, `${armWidth} ${armHeight} ${side === 'LEFT' ? 'rounded-r-none border-r-0' : 'rounded-l-none border-l-0'}`, botArmSeg.shortCode)
+                    : `<div class="${armWidth} ${armHeight}"></div>`;
 
+                const spineEdge = side === 'LEFT' ? 'railing-line-edge-start' : 'railing-line-edge-end';
                 const midHtml = midVertSeg
-                    ? renderYellowBar(midVertSeg, `w-24 h-[68px] ${side === 'LEFT' ? 'rounded-l-none' : 'rounded-r-none'}`, midVertSeg.shortCode)
-                    : `<div class="w-24 h-[68px]"></div>`;
+                    ? renderYellowBar(midVertSeg, `${spineWidth} ${spineHeight} ${compactView ? spineEdge : ''} ${side === 'LEFT' ? 'rounded-l-none' : 'rounded-r-none'}`, midVertSeg.shortCode)
+                    : `<div class="${spineWidth} ${spineHeight}"></div>`;
 
                 if (side === 'LEFT') {
                     // Left side of corridor: U opens to the left towards the room doors ( ] shape )
                     return `
-                        <div class="flex items-stretch justify-end h-[68px]">
+                        <div class="flex items-stretch justify-end ${rowHeight}">
                             <div class="flex flex-col justify-between items-end -mr-0.5 z-10">
                                 ${topHtml}
-                                <span class="text-[8px] font-bold text-slate-400 pr-1">Chữ U 3 đoạn</span>
+                                <span class="${descriptorClass} pr-1">Chữ U 3 đoạn</span>
                                 ${botHtml}
                             </div>
                             <div class="flex items-center">${midHtml}</div>
@@ -1365,11 +1490,11 @@
                 } else {
                     // Right side of corridor: U opens to the right towards the room doors ( [ shape )
                     return `
-                        <div class="flex items-stretch justify-start h-[68px]">
+                        <div class="flex items-stretch justify-start ${rowHeight}">
                             <div class="flex items-center">${midHtml}</div>
                             <div class="flex flex-col justify-between items-start -ml-0.5 z-10">
                                 ${topHtml}
-                                <span class="text-[8px] font-bold text-slate-400 pl-1">Chữ U 3 đoạn</span>
+                                <span class="${descriptorClass} pl-1">Chữ U 3 đoạn</span>
                                 ${botHtml}
                             </div>
                         </div>
@@ -1396,7 +1521,7 @@
 
                 unifiedPlanHtml += `
                     <div class="grid grid-cols-12 items-center">
-                        <div class="col-span-5 flex items-center justify-end gap-2 pr-1">
+                        <div class="col-span-5 flex items-center justify-end gap-2 pr-1 ${compactView ? '-translate-x-24' : ''}">
                             ${i === 0 && bp.isOcean ? renderStairUShape('Thang Bắc') : ''}
                             ${renderThreeSegmentUShape(leftTopArm, leftMidBay, leftBotArm, 'LEFT')}
                         </div>
@@ -1409,7 +1534,7 @@
                                 : `<div class="w-1 h-12 border-l-2 border-dashed border-slate-300"></div>`
                             }
                         </div>
-                        <div class="col-span-5 flex items-center justify-start gap-2 pl-1">
+                        <div class="col-span-5 flex items-center justify-start gap-2 pl-1 ${compactView ? 'translate-x-24' : ''}">
                             ${renderThreeSegmentUShape(rightTopArm, rightMidBay, rightBotArm, 'RIGHT')}
                             ${i === 0 && !bp.isOcean ? renderStairUShape('Thang Bắc') : ''}
                         </div>
@@ -1434,7 +1559,7 @@
 
             return `
                 <div class="railing-layout-shell pb-1">
-                    <div class="railing-layout-canvas bg-[#FAF9F5] rounded-2xl p-3.5 border-2 border-slate-300 space-y-2.5 shadow-inner">
+                    <div class="railing-layout-canvas ${compactView ? 'railing-layout-compact' : ''} bg-[#FAF9F5] rounded-2xl ${compactView ? 'p-2 space-y-1.5' : 'p-3.5 space-y-2.5'} border-2 border-slate-300 shadow-inner" data-project-id="${projId || ''}" data-wing="${wing}" data-floor="${floor}">
                         <!-- Sketch Legend Header -->
                         <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200 text-[10px] text-slate-600">
                             <span class="font-bold text-slate-700">${leftAxisDesc}</span>
@@ -1726,18 +1851,885 @@
             }
         }
 
+        function canEditRailingLayout() {
+            const userRole = state.authenticatedUser?.role;
+            return !!state.adminAuthenticated || userRole === 'admin' || userRole === 'deputy_admin';
+        }
+
+        function getRailingLayoutStorageKey(projectId, wing, floor) {
+            return `roomops_railing_layout_${projectId}_${wing.replace(/\s+/g, '_')}_T${floor}`;
+        }
+
+        function getRailingEditorOptionsStorageKey(projectId, wing, floor) {
+            return `${getRailingLayoutStorageKey(projectId, wing, floor)}_editor_options`;
+        }
+
+        function loadRailingEditorOptions(projectId, wing, floor) {
+            try {
+                const options = JSON.parse(localStorage.getItem(getRailingEditorOptionsStorageKey(projectId, wing, floor)) || 'null');
+                return { snapEnabled: !!options?.snapEnabled, gridEnabled: !!options?.gridEnabled };
+            } catch (err) {
+                console.warn('Không đọc được tùy chọn editor lan can:', err);
+                return { snapEnabled: false, gridEnabled: false };
+            }
+        }
+
+        function saveRailingEditorOptions(editor) {
+            try {
+                localStorage.setItem(getRailingEditorOptionsStorageKey(editor.projectId, editor.wing, editor.floor), JSON.stringify({
+                    snapEnabled: editor.snapEnabled,
+                    gridEnabled: editor.gridEnabled
+                }));
+            } catch (err) { console.warn('Không thể lưu tùy chọn editor lan can:', err); }
+        }
+
+        function getRailingEditorCanvas(projectId, wing, floor) {
+            return Array.from(document.querySelectorAll('.railing-layout-canvas[data-project-id]')).find(el =>
+                el.dataset.projectId === String(projectId) && el.dataset.wing === wing && el.dataset.floor === String(floor)
+            ) || null;
+        }
+
+        function getRailingEditorToolbar(projectId, wing, floor) {
+            return Array.from(document.querySelectorAll('[data-railing-toolbar]')).find(el =>
+                el.dataset.projectId === String(projectId) && el.dataset.wing === wing && el.dataset.floor === String(floor)
+            ) || null;
+        }
+
+        function captureDefaultRailingSegments(canvas) {
+            const bounds = canvas.getBoundingClientRect();
+            if (!bounds.width || !bounds.height) return [];
+            return Array.from(canvas.querySelectorAll('[data-railing-id]')).map((el, index) => {
+                const rect = el.getBoundingClientRect();
+                const vertical = el.classList.contains('railing-line-vertical');
+                const id = el.dataset.railingId;
+                return {
+                    id: `base_${id}_${index}`,
+                    sourceId: id,
+                    label: el.getAttribute('title') || `Đoạn lan can ${index + 1}`,
+                    orientation: vertical ? 'V' : 'H',
+                    x1: vertical ? ((rect.left + rect.width / 2 - bounds.left) / bounds.width) * 1000 : ((rect.left - bounds.left) / bounds.width) * 1000,
+                    y1: vertical ? ((rect.top - bounds.top) / bounds.height) * 1000 : ((rect.top + rect.height / 2 - bounds.top) / bounds.height) * 1000,
+                    x2: vertical ? ((rect.left + rect.width / 2 - bounds.left) / bounds.width) * 1000 : ((rect.right - bounds.left) / bounds.width) * 1000,
+                    y2: vertical ? ((rect.bottom - bounds.top) / bounds.height) * 1000 : ((rect.top + rect.height / 2 - bounds.top) / bounds.height) * 1000
+                };
+            });
+        }
+
+        function getSavedRailingLayoutPayload(proj, wing, floor) {
+            const layoutKey = `${wing.replace(/\s+/g, '_')}_T${floor}`;
+            const saved = proj.railingLayouts?.[layoutKey];
+            if (saved && Array.isArray(saved.segments)) return saved;
+            try {
+                const local = JSON.parse(localStorage.getItem(getRailingLayoutStorageKey(proj.id, wing, floor)) || 'null');
+                if (local && Array.isArray(local.segments)) return local;
+            } catch (err) { console.warn('Không đọc được layout lan can lưu cục bộ:', err); }
+            return null;
+        }
+
+        function loadRailingEditorSegments(canvas, proj) {
+            const saved = getSavedRailingLayoutPayload(proj, canvas.dataset.wing, canvas.dataset.floor);
+            return saved ? saved.segments.map(seg => ({ ...seg })) : captureDefaultRailingSegments(canvas);
+        }
+
+        function getRailingEditorStroke(projectId, segment) {
+            if (!segment.sourceId) return '#F1EA00';
+            const status = state.tasks[`${projectId}_${segment.sourceId}`]?.status || 'Pending';
+            return status === 'Done' ? '#34C759'
+                : status === 'In_Progress' ? '#FF9500'
+                : status === 'Issue' ? '#FF3B30'
+                : '#F1EA00';
+        }
+
+        function renderRailingEditorSvg(editor) {
+            const selectedId = editor.selectedId;
+            const gridId = `railingGrid_${String(editor.projectId).replace(/[^a-zA-Z0-9_-]/g, '')}_${editor.wing.startsWith('Ocean') ? 'O' : 'G'}_${editor.floor}`;
+            const showGrid = editor.gridEnabled && editor.canvas.classList.contains('railing-editor-active');
+            const gridMarkup = showGrid ? `<defs><pattern id="${gridId}" width="50" height="50" patternUnits="userSpaceOnUse"><path d="M 50 0 L 0 0 0 50" fill="none" stroke="#4F46E5" stroke-width="1" opacity="0.18" vector-effect="non-scaling-stroke"></path></pattern></defs><rect x="0" y="0" width="1000" height="1000" fill="url(#${gridId})" pointer-events="none"></rect>` : '';
+            const segmentMarkup = editor.segments.map(seg => {
+                const color = getRailingEditorStroke(editor.projectId, seg);
+                const id = escapeListHTML(seg.id);
+                const title = escapeListHTML(seg.label || 'Đoạn lan can mới');
+                const isSelected = selectedId === seg.id;
+                return `<g>
+                    <title>${title}</title>
+                    <line x1="${seg.x1}" y1="${seg.y1}" x2="${seg.x2}" y2="${seg.y2}" stroke="${color}" stroke-width="10" stroke-linecap="round" vector-effect="non-scaling-stroke" pointer-events="none"></line>
+                    <line x1="${seg.x1}" y1="${seg.y1}" x2="${seg.x2}" y2="${seg.y2}" stroke="#263238" stroke-width="2" stroke-dasharray="4 7" vector-effect="non-scaling-stroke" pointer-events="none"></line>
+                    <line x1="${seg.x1}" y1="${seg.y1}" x2="${seg.x2}" y2="${seg.y2}" stroke="transparent" stroke-width="24" vector-effect="non-scaling-stroke" data-role="segment-hit" data-id="${id}" pointer-events="stroke"></line>
+                    ${isSelected ? `<circle cx="${seg.x1}" cy="${seg.y1}" r="9" fill="#fff" stroke="#2563EB" stroke-width="3" vector-effect="non-scaling-stroke" data-role="handle" data-id="${id}" data-end="0"></circle><circle cx="${seg.x2}" cy="${seg.y2}" r="9" fill="#fff" stroke="#2563EB" stroke-width="3" vector-effect="non-scaling-stroke" data-role="handle" data-id="${id}" data-end="1"></circle>` : ''}
+                </g>`;
+            }).join('');
+            const preview = (editor.preview || []).map(line => `<line x1="${line.x1}" y1="${line.y1}" x2="${line.x2}" y2="${line.y2}" stroke="#7C3AED" stroke-width="9" stroke-dasharray="6 5" vector-effect="non-scaling-stroke" pointer-events="none"></line>`).join('');
+            const pendingEndpoint = editor.joinPending ? editor.segments.find(seg => seg.id === editor.joinPending.id) : null;
+            const pendingPoint = pendingEndpoint ? getRailingEndpointPoint(pendingEndpoint, editor.joinPending.end) : null;
+            const pendingMarkup = pendingPoint
+                ? `<circle cx="${pendingPoint.x}" cy="${pendingPoint.y}" r="18" fill="#fff" stroke="#7C3AED" stroke-width="5" vector-effect="non-scaling-stroke" pointer-events="none"></circle>`
+                : '';
+            editor.svg.innerHTML = `${gridMarkup}${segmentMarkup}${pendingMarkup}${preview}`;
+            editor.svg.style.cursor = ['draw', 'shape-u', 'shape-l', 'shape-i', 'break', 'join'].includes(editor.tool) ? 'crosshair' : 'grab';
+            updateRailingEditorToolbar(editor);
+        }
+
+        function updateRailingEditorToolbar(editor) {
+            const toolbar = getRailingEditorToolbar(editor.projectId, editor.wing, editor.floor);
+            if (!toolbar) return;
+            toolbar.querySelectorAll('[data-editor-tool]').forEach(button => {
+                button.classList.toggle('active', button.dataset.editorTool === editor.tool);
+            });
+            const deleteButton = toolbar.querySelector('[data-editor-delete]');
+            if (deleteButton) deleteButton.disabled = !editor.selectedId;
+            const snapButton = toolbar.querySelector('[data-editor-option="snap"]');
+            if (snapButton) {
+                snapButton.textContent = `Bắt điểm: ${editor.snapEnabled ? 'Bật' : 'Tắt'}`;
+                snapButton.classList.toggle('active', editor.snapEnabled);
+                snapButton.setAttribute('aria-pressed', String(editor.snapEnabled));
+            }
+            const gridButton = toolbar.querySelector('[data-editor-option="grid"]');
+            if (gridButton) {
+                gridButton.textContent = `Lưới: ${editor.gridEnabled ? 'Bật' : 'Tắt'}`;
+                gridButton.classList.toggle('active', editor.gridEnabled);
+                gridButton.setAttribute('aria-pressed', String(editor.gridEnabled));
+            }
+            const hint = toolbar.querySelector('[data-editor-hint]');
+            const hints = {
+                draw: 'Kéo theo chiều ngang hoặc dọc để vẽ một đoạn thẳng tự do.',
+                'shape-u': 'Kéo chéo để vẽ chữ U; ba cạnh gặp nhau liền mạch tại các góc.',
+                'shape-l': 'Kéo chéo để vẽ chữ L; hai cạnh gặp nhau liền mạch tại góc.',
+                'shape-i': 'Kéo ngang hoặc dọc để vẽ một đoạn chữ I.',
+                break: 'Bấm gần đầu mối nối cần tách; công cụ tạo khe nhỏ giữa hai cạnh.',
+                join: editor.joinPending ? 'Đã chọn đầu thứ nhất; bấm gần đầu đoạn thứ hai để nối.' : 'Bấm lần lượt hai đầu đoạn cần nối với nhau.',
+                select: 'Chọn/kéo để di chuyển; kéo một đầu mút để đổi chiều dài. Chọn đoạn rồi bấm “Xóa đoạn chọn”.'
+            };
+            if (hint) hint.textContent = `${hints[editor.tool] || hints.select} ${editor.snapEnabled ? 'Bắt điểm ưu tiên góc phòng/đầu mút lan can gần; nếu không gần thì theo lưới 50/1000.' : 'Bắt điểm đang tắt.'} Lưới ${editor.gridEnabled ? 'đang hiển thị' : 'đang ẩn'}. Tự lưu sau mỗi thay đổi.`;
+        }
+
+        function editorPointFromEvent(event, editor) {
+            const rect = editor.svg.getBoundingClientRect();
+            return {
+                x: Math.max(0, Math.min(1000, ((event.clientX - rect.left) / rect.width) * 1000)),
+                y: Math.max(0, Math.min(1000, ((event.clientY - rect.top) / rect.height) * 1000))
+            };
+        }
+
+        function snapRailingPoint(editor, point, excludeSegmentId = null) {
+            const raw = { x: Math.max(0, Math.min(1000, point.x)), y: Math.max(0, Math.min(1000, point.y)) };
+            if (!editor.snapEnabled) return raw;
+            const step = 50;
+            const gridPoint = {
+                x: Math.max(0, Math.min(1000, Math.round(raw.x / step) * step)),
+                y: Math.max(0, Math.min(1000, Math.round(raw.y / step) * step))
+            };
+            const anchors = [];
+            editor.segments.forEach(segment => {
+                if (segment.id === excludeSegmentId) return;
+                anchors.push({ x: segment.x1, y: segment.y1 }, { x: segment.x2, y: segment.y2 });
+            });
+            const bounds = editor.svg.getBoundingClientRect();
+            if (bounds.width && bounds.height) {
+                editor.canvas.querySelectorAll('.railing-room-box').forEach(room => {
+                    const rect = room.getBoundingClientRect();
+                    anchors.push(
+                        { x: ((rect.left - bounds.left) / bounds.width) * 1000, y: ((rect.top - bounds.top) / bounds.height) * 1000 },
+                        { x: ((rect.right - bounds.left) / bounds.width) * 1000, y: ((rect.top - bounds.top) / bounds.height) * 1000 },
+                        { x: ((rect.left - bounds.left) / bounds.width) * 1000, y: ((rect.bottom - bounds.top) / bounds.height) * 1000 },
+                        { x: ((rect.right - bounds.left) / bounds.width) * 1000, y: ((rect.bottom - bounds.top) / bounds.height) * 1000 }
+                    );
+                });
+            }
+            let closest = null;
+            let closestDistance = 42;
+            anchors.forEach(anchor => {
+                const distance = Math.hypot(raw.x - anchor.x, raw.y - anchor.y);
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    closest = anchor;
+                }
+            });
+            return closest || gridPoint;
+        }
+
+        function snapRailingEndpoint(segment, point, endIndex) {
+            if (segment.orientation === 'V') {
+                if (endIndex === 0) segment.y1 = point.y;
+                else segment.y2 = point.y;
+            } else {
+                if (endIndex === 0) segment.x1 = point.x;
+                else segment.x2 = point.x;
+            }
+        }
+
+        function getRailingEndpointPoint(segment, endIndex) {
+            return endIndex === 0 ? { x: segment.x1, y: segment.y1 } : { x: segment.x2, y: segment.y2 };
+        }
+
+        function setRailingEndpointPoint(segment, endIndex, point) {
+            if (endIndex === 0) { segment.x1 = point.x; segment.y1 = point.y; }
+            else { segment.x2 = point.x; segment.y2 = point.y; }
+        }
+
+        function findNearestRailingEndpoint(editor, point, preferredSegmentId = null) {
+            const endpoints = [];
+            editor.segments.forEach(segment => [0, 1].forEach(end => {
+                const endpoint = getRailingEndpointPoint(segment, end);
+                endpoints.push({ id: segment.id, end, point: endpoint, distance: Math.hypot(point.x - endpoint.x, point.y - endpoint.y), preferred: segment.id === preferredSegmentId });
+            }));
+            endpoints.sort((a, b) => Number(b.preferred) - Number(a.preferred) || a.distance - b.distance);
+            return endpoints[0]?.distance <= 48 ? endpoints[0] : null;
+        }
+
+        function breakRailingJoint(editor, endpoint) {
+            const segment = editor.segments.find(item => item.id === endpoint.id);
+            if (!segment) return false;
+            const joint = getRailingEndpointPoint(segment, endpoint.end);
+            const connected = editor.segments.some(other => other.id !== segment.id && [0, 1].some(end => {
+                const point = getRailingEndpointPoint(other, end);
+                return Math.hypot(point.x - joint.x, point.y - joint.y) < 1.5;
+            }));
+            if (!connected) return false;
+            const otherEnd = getRailingEndpointPoint(segment, endpoint.end === 0 ? 1 : 0);
+            const length = Math.hypot(otherEnd.x - joint.x, otherEnd.y - joint.y);
+            if (length < 5) return false;
+            const gap = Math.min(20, length * 0.3);
+            setRailingEndpointPoint(segment, endpoint.end, {
+                x: joint.x + ((otherEnd.x - joint.x) / length) * gap,
+                y: joint.y + ((otherEnd.y - joint.y) / length) * gap
+            });
+            editor.selectedId = segment.id;
+            return true;
+        }
+
+        function joinRailingEndpoints(editor, first, second) {
+            if (!first || !second || first.id === second.id) return false;
+            const a = editor.segments.find(item => item.id === first.id);
+            const b = editor.segments.find(item => item.id === second.id);
+            if (!a || !b) return false;
+            const p = getRailingEndpointPoint(a, first.end);
+            const q = getRailingEndpointPoint(b, second.end);
+            if (Math.hypot(p.x - q.x, p.y - q.y) < 1.5) return false;
+            if (a.orientation === b.orientation) {
+                const joint = { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 };
+                setRailingEndpointPoint(a, first.end, joint);
+                setRailingEndpointPoint(b, second.end, joint);
+            } else {
+                const horizontalPoint = a.orientation === 'H' ? p : q;
+                const verticalPoint = a.orientation === 'V' ? p : q;
+                const joint = { x: verticalPoint.x, y: horizontalPoint.y };
+                setRailingEndpointPoint(a, first.end, joint);
+                setRailingEndpointPoint(b, second.end, joint);
+            }
+            editor.selectedId = a.id;
+            return true;
+        }
+
+        function buildRailingShapeGeometry(tool, start, end) {
+            const dx = end.x - start.x;
+            const dy = end.y - start.y;
+            if (tool === 'draw' || tool === 'shape-i') {
+                return [Math.abs(dx) >= Math.abs(dy)
+                    ? { x1: start.x, y1: start.y, x2: end.x, y2: start.y }
+                    : { x1: start.x, y1: start.y, x2: start.x, y2: end.y }];
+            }
+            if (Math.abs(dx) < 18 || Math.abs(dy) < 18) return [];
+            if (tool === 'shape-l') {
+                const elbow = { x: start.x, y: end.y };
+                return [
+                    { x1: start.x, y1: start.y, x2: elbow.x, y2: elbow.y },
+                    { x1: elbow.x, y1: elbow.y, x2: end.x, y2: end.y }
+                ];
+            }
+            if (tool === 'shape-u') {
+                if (Math.abs(dx) >= Math.abs(dy)) {
+                    return dx >= 0
+                        ? [
+                            { x1: Math.min(start.x, end.x), y1: Math.min(start.y, end.y), x2: Math.max(start.x, end.x), y2: Math.min(start.y, end.y) },
+                            { x1: Math.min(start.x, end.x), y1: Math.min(start.y, end.y), x2: Math.min(start.x, end.x), y2: Math.max(start.y, end.y) },
+                            { x1: Math.min(start.x, end.x), y1: Math.max(start.y, end.y), x2: Math.max(start.x, end.x), y2: Math.max(start.y, end.y) }
+                        ]
+                        : [
+                            { x1: Math.min(start.x, end.x), y1: Math.min(start.y, end.y), x2: Math.max(start.x, end.x), y2: Math.min(start.y, end.y) },
+                            { x1: Math.max(start.x, end.x), y1: Math.min(start.y, end.y), x2: Math.max(start.x, end.x), y2: Math.max(start.y, end.y) },
+                            { x1: Math.min(start.x, end.x), y1: Math.max(start.y, end.y), x2: Math.max(start.x, end.x), y2: Math.max(start.y, end.y) }
+                        ];
+                }
+                return dy >= 0
+                    ? [
+                        { x1: Math.min(start.x, end.x), y1: Math.min(start.y, end.y), x2: Math.min(start.x, end.x), y2: Math.max(start.y, end.y) },
+                        { x1: Math.min(start.x, end.x), y1: Math.min(start.y, end.y), x2: Math.max(start.x, end.x), y2: Math.min(start.y, end.y) },
+                        { x1: Math.max(start.x, end.x), y1: Math.min(start.y, end.y), x2: Math.max(start.x, end.x), y2: Math.max(start.y, end.y) }
+                    ]
+                    : [
+                        { x1: Math.min(start.x, end.x), y1: Math.min(start.y, end.y), x2: Math.min(start.x, end.x), y2: Math.max(start.y, end.y) },
+                        { x1: Math.min(start.x, end.x), y1: Math.max(start.y, end.y), x2: Math.max(start.x, end.x), y2: Math.max(start.y, end.y) },
+                        { x1: Math.max(start.x, end.x), y1: Math.min(start.y, end.y), x2: Math.max(start.x, end.x), y2: Math.max(start.y, end.y) }
+                    ];
+            }
+            return [];
+        }
+
+        function getRailingShapeLabel(tool) {
+            return ({ 'shape-u': 'Đoạn chữ U', 'shape-l': 'Đoạn chữ L', 'shape-i': 'Đoạn chữ I', draw: 'Đoạn lan can mới' })[tool] || 'Đoạn lan can mới';
+        }
+
+        function saveRailingEditorModel(editor) {
+            const proj = getProjectById(editor.projectId);
+            if (!proj) return;
+            const layoutKey = `${editor.wing.replace(/\s+/g, '_')}_T${editor.floor}`;
+            const payload = {
+                segments: editor.segments.map(seg => ({ ...seg })),
+                updatedAt: new Date().toISOString(),
+                updatedBy: state.authenticatedUser?.name || 'Quản trị viên'
+            };
+            proj.railingLayouts = { ...(proj.railingLayouts || {}), [layoutKey]: payload };
+            editor.hasEdits = true;
+            editor.canvas.classList.add('railing-layout-has-edits');
+            try {
+                localStorage.setItem(getRailingLayoutStorageKey(editor.projectId, editor.wing, editor.floor), JSON.stringify(payload));
+            } catch (err) { console.warn('Không thể lưu layout lan can cục bộ:', err); }
+            if (db) {
+                setDoc(doc(db, 'projects', editor.projectId), proj).catch(err => {
+                    console.warn('Không thể đồng bộ layout lan can lên Firestore:', err);
+                    showToast('Đã lưu trên thiết bị, nhưng chưa đồng bộ được Firestore.', 'error');
+                });
+            }
+        }
+
+        function ensureRailingEditor(canvas, proj) {
+            if (canvas.__railingEditor) return canvas.__railingEditor;
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('viewBox', '0 0 1000 1000');
+            svg.setAttribute('preserveAspectRatio', 'none');
+            svg.setAttribute('class', 'railing-editor-svg');
+            svg.setAttribute('tabindex', '0');
+            svg.setAttribute('aria-label', 'Bản vẽ chỉnh sửa các đoạn lan can');
+            canvas.appendChild(svg);
+            const options = loadRailingEditorOptions(canvas.dataset.projectId, canvas.dataset.wing, canvas.dataset.floor);
+            const editor = {
+                projectId: canvas.dataset.projectId,
+                wing: canvas.dataset.wing,
+                floor: Number(canvas.dataset.floor),
+                canvas,
+                svg,
+                segments: loadRailingEditorSegments(canvas, proj),
+                snapEnabled: options.snapEnabled,
+                gridEnabled: options.gridEnabled,
+                hasEdits: !!getSavedRailingLayoutPayload(proj, canvas.dataset.wing, canvas.dataset.floor),
+                selectedId: activeRailingEditorContext?.selectedId || null,
+                tool: activeRailingEditorContext?.tool || 'select',
+                dragging: null,
+                joinPending: activeRailingEditorContext?.joinPending || null,
+                preview: null
+            };
+            canvas.__railingEditor = editor;
+            svg.addEventListener('pointerdown', event => {
+                if (!canvas.classList.contains('railing-editor-active')) return;
+                event.preventDefault();
+                const point = editorPointFromEvent(event, editor);
+                const target = event.target.closest?.('[data-role]');
+                const role = target?.dataset.role;
+                const targetId = target?.dataset.id;
+                if (editor.tool === 'break') {
+                    const endpoint = findNearestRailingEndpoint(editor, point, targetId);
+                    if (!endpoint) { showToast('Hãy bấm sát một đầu mút cần ngắt.', 'error'); return; }
+                    if (!breakRailingJoint(editor, endpoint)) { showToast('Đầu mút này chưa nối với đoạn khác.'); return; }
+                    editor.joinPending = null;
+                    activeRailingEditorContext = { projectId: String(editor.projectId), wing: editor.wing, floor: editor.floor, tool: editor.tool, selectedId: editor.selectedId, joinPending: null };
+                    renderRailingEditorSvg(editor);
+                    saveRailingEditorModel(editor);
+                    showToast('Đã ngắt mối nối tại đầu đoạn.');
+                    return;
+                }
+                if (editor.tool === 'join') {
+                    const endpoint = findNearestRailingEndpoint(editor, point, targetId);
+                    if (!endpoint) { showToast('Hãy bấm sát đầu mút của đoạn cần nối.', 'error'); return; }
+                    if (!editor.joinPending) {
+                        editor.joinPending = { id: endpoint.id, end: endpoint.end };
+                        editor.selectedId = endpoint.id;
+                        activeRailingEditorContext = { projectId: String(editor.projectId), wing: editor.wing, floor: editor.floor, tool: editor.tool, selectedId: editor.selectedId, joinPending: editor.joinPending };
+                        renderRailingEditorSvg(editor);
+                        return;
+                    }
+                    if (editor.joinPending.id === endpoint.id) { showToast('Hãy chọn đầu mút của một đoạn khác.'); return; }
+                    const first = editor.joinPending;
+                    editor.joinPending = null;
+                    if (!joinRailingEndpoints(editor, first, endpoint)) { activeRailingEditorContext = { projectId: String(editor.projectId), wing: editor.wing, floor: editor.floor, tool: editor.tool, selectedId: editor.selectedId, joinPending: null }; showToast('Hai đầu mút này đã nối với nhau hoặc không thể ghép.', 'error'); renderRailingEditorSvg(editor); return; }
+                    activeRailingEditorContext = { projectId: String(editor.projectId), wing: editor.wing, floor: editor.floor, tool: editor.tool, selectedId: editor.selectedId, joinPending: null };
+                    renderRailingEditorSvg(editor);
+                    saveRailingEditorModel(editor);
+                    showToast('Đã nối hai đầu đoạn.');
+                    return;
+                }
+                if (role === 'handle' && editor.tool === 'select') {
+                    editor.selectedId = targetId;
+                    editor.dragging = { type: 'resize', id: targetId, end: Number(target.dataset.end), start: point };
+                } else if (role === 'segment-hit') {
+                    editor.selectedId = targetId;
+                    if (editor.tool === 'select') editor.dragging = { type: 'move', id: targetId, start: point };
+                } else if (['draw', 'shape-u', 'shape-l', 'shape-i'].includes(editor.tool)) {
+                    editor.selectedId = null;
+                    const snappedStart = snapRailingPoint(editor, point);
+                    editor.dragging = { type: 'draw', start: snappedStart, tool: editor.tool };
+                    editor.preview = buildRailingShapeGeometry(editor.tool, snappedStart, snappedStart);
+                } else {
+                    editor.selectedId = null;
+                }
+                try { svg.setPointerCapture(event.pointerId); } catch (_) {}
+                renderRailingEditorSvg(editor);
+            });
+            svg.addEventListener('pointermove', event => {
+                if (!editor.dragging) return;
+                event.preventDefault();
+                const point = editorPointFromEvent(event, editor);
+                const drag = editor.dragging;
+                if (drag.type === 'draw') {
+                    editor.preview = buildRailingShapeGeometry(drag.tool, drag.start, snapRailingPoint(editor, point));
+                } else {
+                    const segment = editor.segments.find(item => item.id === drag.id);
+                    if (segment) {
+                        if (drag.type === 'move') {
+                            const dx = point.x - drag.start.x;
+                            const dy = point.y - drag.start.y;
+                            const snappedAnchor = snapRailingPoint(editor, { x: segment.x1 + dx, y: segment.y1 + dy }, segment.id);
+                            const moveX = snappedAnchor.x - segment.x1;
+                            const moveY = snappedAnchor.y - segment.y1;
+                            segment.x1 += moveX;
+                            segment.x2 = Math.max(0, Math.min(1000, segment.x2 + moveX));
+                            segment.y1 += moveY;
+                            segment.y2 = Math.max(0, Math.min(1000, segment.y2 + moveY));
+                            drag.start = point;
+                        } else snapRailingEndpoint(segment, snapRailingPoint(editor, point, segment.id), drag.end);
+                    }
+                }
+                renderRailingEditorSvg(editor);
+            });
+            const finishPointer = event => {
+                if (!editor.dragging) return;
+                const drag = editor.dragging;
+                if (drag.type === 'draw') {
+                    const geometry = buildRailingShapeGeometry(drag.tool, drag.start, snapRailingPoint(editor, editorPointFromEvent(event, editor)));
+                    const isShape = drag.tool === 'shape-u' || drag.tool === 'shape-l';
+                    const valid = isShape
+                        ? geometry.length > 0
+                        : geometry.length === 1 && Math.hypot(geometry[0].x2 - geometry[0].x1, geometry[0].y2 - geometry[0].y1) >= 18;
+                    if (valid) {
+                        const stamp = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+                        const label = getRailingShapeLabel(drag.tool);
+                        geometry.forEach((line, index) => {
+                            const id = `custom_${stamp}_${index + 1}`;
+                            const vertical = Math.abs(line.y2 - line.y1) > Math.abs(line.x2 - line.x1);
+                            editor.segments.push({
+                                id,
+                                sourceId: null,
+                                label: isShape ? `${label} • cạnh ${index + 1}` : label,
+                                orientation: vertical ? 'V' : 'H',
+                                x1: line.x1,
+                                y1: line.y1,
+                                x2: line.x2,
+                                y2: line.y2
+                            });
+                            if (index === 0) editor.selectedId = id;
+                        });
+                    }
+                }
+                editor.dragging = null;
+                editor.preview = null;
+                renderRailingEditorSvg(editor);
+                if (drag.type !== 'draw' || editor.selectedId) {
+                    activeRailingEditorContext = { projectId: editor.projectId, wing: editor.wing, floor: editor.floor, tool: editor.tool, selectedId: editor.selectedId };
+                    saveRailingEditorModel(editor);
+                }
+            };
+            svg.addEventListener('pointerup', finishPointer);
+            svg.addEventListener('pointercancel', () => {
+                editor.dragging = null;
+                editor.preview = null;
+                renderRailingEditorSvg(editor);
+            });
+            svg.addEventListener('click', event => {
+                if (canvas.classList.contains('railing-editor-active')) return;
+                const hit = event.target.closest?.('[data-role="segment-hit"]');
+                if (!hit) return;
+                const segment = editor.segments.find(item => item.id === hit.dataset.id);
+                if (segment?.sourceId) openRoomModal(segment.sourceId);
+            });
+            svg.addEventListener('keydown', event => {
+                if ((event.key === 'Delete' || event.key === 'Backspace') && editor.selectedId) {
+                    event.preventDefault();
+                    deleteSelectedRailingSegment(editor.projectId, editor.wing, editor.floor);
+                }
+            });
+            renderRailingEditorSvg(editor);
+            return editor;
+        }
+
+        function initializeRailingLayoutEditors(proj) {
+            const canvases = Array.from(document.querySelectorAll('.railing-layout-canvas[data-project-id]'))
+                .filter(canvas => canvas.dataset.projectId === String(proj.id));
+            canvases.forEach(canvas => {
+                const isActive = activeRailingEditorContext
+                    && activeRailingEditorContext.projectId === String(proj.id)
+                    && activeRailingEditorContext.wing === canvas.dataset.wing
+                    && activeRailingEditorContext.floor === Number(canvas.dataset.floor);
+                const hasSavedLayout = !!getSavedRailingLayoutPayload(proj, canvas.dataset.wing, canvas.dataset.floor);
+                if (!isActive && !hasSavedLayout) return;
+                const editor = ensureRailingEditor(canvas, proj);
+                if (editor.hasEdits || hasSavedLayout) canvas.classList.add('railing-layout-has-edits');
+                if (!isActive) {
+                    editor.selectedId = null;
+                    editor.tool = 'select';
+                    renderRailingEditorSvg(editor);
+                    return;
+                }
+                canvas.classList.add('railing-editor-active');
+                editor.tool = activeRailingEditorContext.tool || 'select';
+                editor.selectedId = activeRailingEditorContext.selectedId || null;
+                editor.joinPending = activeRailingEditorContext.joinPending || null;
+                const toolbar = getRailingEditorToolbar(editor.projectId, editor.wing, editor.floor);
+                toolbar?.classList.remove('hidden');
+                renderRailingEditorSvg(editor);
+            });
+        }
+
+        function toggleRailingLayoutEditor(projectId, wing, floor) {
+            if (!canEditRailingLayout()) {
+                showToast('Chỉ Admin hoặc Phó admin mới được chỉnh sửa layout lan can.', 'error');
+                return;
+            }
+            const canvas = getRailingEditorCanvas(projectId, wing, floor);
+            const toolbar = getRailingEditorToolbar(projectId, wing, floor);
+            if (!canvas || !toolbar) return;
+            const isSameActive = activeRailingEditorContext
+                && activeRailingEditorContext.projectId === String(projectId)
+                && activeRailingEditorContext.wing === wing
+                && activeRailingEditorContext.floor === Number(floor);
+            if (isSameActive && canvas.classList.contains('railing-editor-active')) {
+                closeRailingLayoutEditor(projectId, wing, floor);
+                return;
+            }
+            document.querySelectorAll('.railing-editor-active').forEach(el => el.classList.remove('railing-editor-active'));
+            document.querySelectorAll('[data-railing-toolbar]').forEach(el => el.classList.add('hidden'));
+            activeRailingEditorContext = { projectId: String(projectId), wing, floor: Number(floor), tool: 'select', selectedId: null };
+            const proj = getProjectById(projectId);
+            const editor = ensureRailingEditor(canvas, proj);
+            editor.tool = 'select';
+            editor.selectedId = null;
+            editor.joinPending = null;
+            canvas.classList.add('railing-editor-active');
+            toolbar.classList.remove('hidden');
+            renderRailingEditorSvg(editor);
+            showToast('Đã bật chỉnh sửa. Kéo đầu mút để đổi chiều dài đoạn.');
+        }
+
+        function setRailingEditorTool(projectId, wing, floor, tool) {
+            const canvas = getRailingEditorCanvas(projectId, wing, floor);
+            if (!canvas || !canvas.__railingEditor) return;
+            const editor = canvas.__railingEditor;
+            editor.tool = ['draw', 'shape-u', 'shape-l', 'shape-i', 'break', 'join'].includes(tool) ? tool : 'select';
+            editor.selectedId = null;
+            editor.joinPending = null;
+            activeRailingEditorContext = { projectId: String(projectId), wing, floor, tool: editor.tool, selectedId: null, joinPending: null };
+            renderRailingEditorSvg(editor);
+        }
+
+        function toggleRailingEditorOption(projectId, wing, floor, option) {
+            const canvas = getRailingEditorCanvas(projectId, wing, floor);
+            const editor = canvas?.__railingEditor;
+            if (!editor) return;
+            if (option === 'snap') editor.snapEnabled = !editor.snapEnabled;
+            else if (option === 'grid') editor.gridEnabled = !editor.gridEnabled;
+            else return;
+            saveRailingEditorOptions(editor);
+            renderRailingEditorSvg(editor);
+        }
+
+        function deleteSelectedRailingSegment(projectId, wing, floor) {
+            const canvas = getRailingEditorCanvas(projectId, wing, floor);
+            const editor = canvas?.__railingEditor;
+            if (!editor?.selectedId) return;
+            editor.segments = editor.segments.filter(seg => seg.id !== editor.selectedId);
+            editor.selectedId = null;
+            if (editor.joinPending && !editor.segments.some(seg => seg.id === editor.joinPending.id)) editor.joinPending = null;
+            activeRailingEditorContext = { projectId: String(projectId), wing, floor: Number(floor), tool: editor.tool, selectedId: null };
+            renderRailingEditorSvg(editor);
+            saveRailingEditorModel(editor);
+            showToast('Đã xóa đoạn lan can khỏi layout.');
+        }
+
+        function closeRailingLayoutEditor(projectId, wing, floor) {
+            const canvas = getRailingEditorCanvas(projectId, wing, floor);
+            const toolbar = getRailingEditorToolbar(projectId, wing, floor);
+            canvas?.classList.remove('railing-editor-active');
+            const editor = canvas?.__railingEditor;
+            if (editor?.hasEdits) canvas?.classList.add('railing-layout-has-edits');
+            if (editor) {
+                editor.selectedId = null;
+                editor.joinPending = null;
+                renderRailingEditorSvg(editor);
+            }
+            toolbar?.classList.add('hidden');
+            if (activeRailingEditorContext
+                && activeRailingEditorContext.projectId === String(projectId)
+                && activeRailingEditorContext.wing === wing
+                && activeRailingEditorContext.floor === Number(floor)) {
+                activeRailingEditorContext = null;
+            }
+        }
+
+        function setProjectViewMode(mode) {
+            state.projectViewMode = mode === 'LIST' ? 'LIST' : 'LAYOUT';
+            const layoutBtn = document.getElementById('btnProjectViewLayout');
+            const listBtn = document.getElementById('btnProjectViewList');
+            if (layoutBtn && listBtn) {
+                layoutBtn.className = state.projectViewMode === 'LAYOUT'
+                    ? 'px-2.5 py-1 rounded-lg text-xs font-semibold bg-white text-gray-900 shadow-2xs'
+                    : 'px-2.5 py-1 rounded-lg text-xs font-medium text-gray-600';
+                listBtn.className = state.projectViewMode === 'LIST'
+                    ? 'px-2.5 py-1 rounded-lg text-xs font-semibold bg-white text-gray-900 shadow-2xs'
+                    : 'px-2.5 py-1 rounded-lg text-xs font-medium text-gray-600';
+                layoutBtn.setAttribute('aria-pressed', String(state.projectViewMode === 'LAYOUT'));
+                listBtn.setAttribute('aria-pressed', String(state.projectViewMode === 'LIST'));
+            }
+            renderStaffView();
+        }
+
+        function escapeListHTML(value) {
+            return String(value ?? '').replace(/[&<>"']/g, char => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[char]));
+        }
+
+        function renderProjectTaskList(proj) {
+            const projectUnits = (proj.targetRooms || []).map(unitId => ({
+                unitId,
+                meta: getUnitMeta(unitId),
+                task: state.tasks[`${proj.id}_${unitId}`] || {}
+            })).filter(item => item.meta);
+
+            const visibleUnits = projectUnits.filter(({ meta, task }) => {
+                if (state.staffWingFilter !== 'ALL' && meta.wing !== state.staffWingFilter) return false;
+                if (state.staffFloorFilter !== 'ALL' && String(meta.floor) !== String(state.staffFloorFilter)) return false;
+                if (state.staffStatusFilter !== 'ALL' && (task.status || 'Pending') !== state.staffStatusFilter) return false;
+                return true;
+            });
+
+            const statusInfo = {
+                Done: { label: 'Hoàn thành', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', bar: 'bg-emerald-500', pct: 100 },
+                In_Progress: { label: 'Đang làm / Hoãn', cls: 'bg-amber-50 text-amber-700 border-amber-200', bar: 'bg-amber-500', pct: 50 },
+                Issue: { label: 'Sự cố', cls: 'bg-red-50 text-red-700 border-red-200', bar: 'bg-red-500', pct: 0 },
+                Pending: { label: 'Chưa làm', cls: 'bg-gray-100 text-gray-600 border-gray-200', bar: 'bg-gray-300', pct: 0 }
+            };
+            const summary = calculateStats(proj.id);
+            const overallPct = summary.totalTasks ? Math.round(summary.done * 100 / summary.totalTasks) : 0;
+            const wings = ['Ocean Wing', 'Garden Wing'];
+            const groupHTML = wings.map(wing => {
+                if (state.staffWingFilter !== 'ALL' && state.staffWingFilter !== wing) return '';
+                const wingUnits = visibleUnits.filter(item => item.meta.wing === wing);
+                if (!wingUnits.length) return '';
+                const floorGroups = [1, 2, 3, 4].map(floor => {
+                    if (state.staffFloorFilter !== 'ALL' && String(floor) !== String(state.staffFloorFilter)) return '';
+                    const items = wingUnits.filter(item => item.meta.floor === floor);
+                    if (!items.length) return '';
+                    const rows = items.map(({ unitId, meta, task }) => {
+                        const status = statusInfo[task.status] || statusInfo.Pending;
+                        const isDone = (task.status || 'Pending') === 'Done';
+                        const detail = task.note
+                            ? escapeListHTML(task.note)
+                            : (isDone ? 'Đã hoàn thành — chưa có ghi chú nghiệm thu.' : 'Chưa có ghi chú cập nhật.');
+                        const updatedBy = task.updatedBy ? escapeListHTML(task.updatedBy) : '—';
+                        const updatedAt = task.updatedAt ? escapeListHTML(task.updatedAt) : '—';
+                        return `
+                            <tr class="border-t border-gray-100 align-top hover:bg-blue-50/40">
+                                <td class="px-3 py-3">
+                                    <button type="button" onclick="openRoomModal('${escapeListHTML(unitId)}')" class="text-left font-bold text-blue-700 hover:underline">
+                                        ${escapeListHTML(meta.shortCode || unitId)}
+                                    </button>
+                                    <div class="mt-0.5 text-[11px] text-gray-500">${escapeListHTML(meta.label || unitId)}${meta.category ? ` • ${escapeListHTML(meta.category)}` : ''}</div>
+                                </td>
+                                <td class="px-3 py-3 min-w-[140px]">
+                                    <span class="inline-flex px-2 py-1 rounded-lg border text-[11px] font-bold ${status.cls}">${status.label}</span>
+                                    <div class="mt-2 h-1.5 w-24 max-w-full rounded-full bg-gray-100 overflow-hidden"><div class="h-full ${status.bar}" style="width:${status.pct}%"></div></div>
+                                </td>
+                                <td class="px-3 py-3 min-w-[220px]">
+                                    <div class="text-xs ${isDone ? 'text-emerald-800' : 'text-gray-700'} ${task.note ? '' : 'italic text-gray-400'}">${detail}</div>
+                                    <div class="mt-1.5 text-[11px] text-gray-500">${isDone ? 'Hoàn thành bởi' : 'Cập nhật bởi'}: <span class="font-semibold text-gray-700">${updatedBy}</span></div>
+                                    <div class="text-[11px] text-gray-400">Thời điểm: ${updatedAt}</div>
+                                </td>
+                            </tr>`;
+                    }).join('');
+                    const doneCount = items.filter(item => (item.task.status || 'Pending') === 'Done').length;
+                    return `
+                        <section class="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+                            <div class="flex items-center justify-between gap-2 bg-gray-50 px-3 py-2.5">
+                                <h4 class="text-xs font-extrabold text-gray-900">Tầng ${floor}</h4>
+                                <span class="text-[11px] font-semibold text-gray-500">${doneCount}/${items.length} hoàn thành</span>
+                            </div>
+                            <div class="overflow-x-auto"><table class="w-full min-w-[620px] text-left">
+                                <thead><tr class="text-[10px] uppercase tracking-wide text-gray-400"><th class="px-3 py-2 font-bold">Đầu mục công việc</th><th class="px-3 py-2 font-bold">Tiến độ</th><th class="px-3 py-2 font-bold">Chi tiết hoàn thành / cập nhật</th></tr></thead>
+                                <tbody>${rows}</tbody>
+                            </table></div>
+                        </section>`;
+                }).join('');
+                const wingDone = wingUnits.filter(item => (item.task.status || 'Pending') === 'Done').length;
+                return `
+                    <section class="glass rounded-3xl p-4 sm:p-5 shadow-ios space-y-3 ${wing === 'Ocean Wing' ? 'border-t-4 border-t-sky-500' : 'border-t-4 border-t-emerald-500'}">
+                        <div class="flex items-center justify-between gap-3">
+                            <h3 class="font-extrabold text-sm text-gray-900">${wing}</h3>
+                            <span class="text-xs font-bold text-emerald-700">${wingDone}/${wingUnits.length} hoàn thành</span>
+                        </div>
+                        ${floorGroups}
+                    </section>`;
+            }).join('');
+
+            return `
+                <div class="col-span-full space-y-4">
+                    <section class="glass rounded-2xl p-4 shadow-ios">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div class="min-w-0"><h3 class="font-extrabold text-base text-gray-900">Danh sách chi tiết công việc</h3><p class="mt-0.5 text-xs text-gray-500">${escapeListHTML(proj.name)} • Đang hiển thị ${visibleUnits.length}/${projectUnits.length} đầu mục theo bộ lọc</p></div>
+                            <div class="flex items-center gap-2 shrink-0"><span class="text-xs font-extrabold text-blue-700">${summary.done}/${summary.totalTasks} (${overallPct}%)</span><div class="h-2 w-24 rounded-full bg-gray-200 overflow-hidden"><div class="h-full bg-gradient-to-r from-blue-500 to-emerald-500" style="width:${overallPct}%"></div></div></div>
+                        </div>
+                        <div class="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                            <div class="rounded-xl bg-emerald-50 px-3 py-2 text-emerald-800"><strong>${summary.done}</strong> hoàn thành</div>
+                            <div class="rounded-xl bg-amber-50 px-3 py-2 text-amber-800"><strong>${summary.inProgress}</strong> đang làm / hoãn</div>
+                            <div class="rounded-xl bg-red-50 px-3 py-2 text-red-800"><strong>${summary.issue}</strong> sự cố</div>
+                            <div class="rounded-xl bg-gray-100 px-3 py-2 text-gray-700"><strong>${summary.pending}</strong> chưa làm</div>
+                        </div>
+                    </section>
+                    ${groupHTML || '<div class="glass rounded-2xl p-8 text-center text-sm text-gray-500">Không có hạng mục khớp bộ lọc.</div>'}
+                </div>`;
+        }
+
+        function getProjectRoomLayouts(project) {
+            if (!project) return {};
+            if (project.roomLayouts && typeof project.roomLayouts === 'object') return project.roomLayouts;
+            try { return JSON.parse(localStorage.getItem(`roomops_room_layout_${project.id}`) || '{}'); }
+            catch (err) { return {}; }
+        }
+
+        function getRoomLayoutOrderKey(wing, floor, mode, group) {
+            return `${String(wing).replace(/\s+/g, '_')}_T${floor}_${mode}_${group}`;
+        }
+
+        function applyRoomLayoutOrder(project, wing, floor, mode, group, roomIds) {
+            const layouts = getProjectRoomLayouts(project);
+            const saved = layouts[getRoomLayoutOrderKey(wing, floor, mode, group)];
+            if (!Array.isArray(saved) || !saved.length) return roomIds;
+            const rank = new Map(saved.map((id, index) => [String(id), index]));
+            return roomIds.map((id, index) => ({ id, index, rank: rank.has(String(id)) ? rank.get(String(id)) : Number.MAX_SAFE_INTEGER }))
+                .sort((a, b) => a.rank - b.rank || a.index - b.index).map(item => item.id);
+        }
+
+        function saveRoomLayoutOrder(groupElement) {
+            const project = getProjectById(state.staffSelectedProjectId);
+            if (!project || !canEditRailingLayout()) return;
+            const key = getRoomLayoutOrderKey(groupElement.dataset.roomWing, groupElement.dataset.roomFloor, groupElement.dataset.roomMode, groupElement.dataset.roomSortGroup);
+            const layouts = { ...getProjectRoomLayouts(project) };
+            layouts[key] = Array.from(groupElement.querySelectorAll('[data-room-layout-tile]')).map(tile => tile.dataset.roomLayoutTile);
+            project.roomLayouts = layouts;
+            try { localStorage.setItem(`roomops_room_layout_${project.id}`, JSON.stringify(layouts)); } catch (err) { console.warn('Không lưu được layout phòng trên thiết bị:', err); }
+            document.getElementById('btnRoomLayoutReset')?.classList.toggle('hidden', !Object.keys(layouts).length);
+            if (db) setDoc(doc(db, 'projects', project.id), { roomLayouts: layouts }, { merge: true })
+                .catch(err => { console.warn('Không đồng bộ được layout phòng lên Firestore:', err); showToast('Đã lưu thứ tự trên thiết bị, nhưng chưa đồng bộ được lên máy chủ.'); });
+        }
+
+        function initializeRoomLayoutSorter(container) {
+            if (!container || container.dataset.roomSorterReady === 'true') return;
+            container.dataset.roomSorterReady = 'true';
+            let drag = null;
+            let suppressClick = false;
+            container.addEventListener('pointerdown', event => {
+                if (!state.roomLayoutArrangeMode || !canEditRailingLayout() || event.button !== 0) return;
+                const tile = event.target.closest('[data-room-layout-tile]');
+                const group = tile?.closest('.room-layout-sort-group');
+                if (!tile || !group) return;
+                drag = { tile, group, startX: event.clientX, startY: event.clientY, pointerId: event.pointerId, moved: false };
+            });
+            document.addEventListener('pointermove', event => {
+                if (!drag || event.pointerId !== drag.pointerId) return;
+                if (!drag.moved && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 6) return;
+                drag.moved = true;
+                event.preventDefault();
+                drag.tile.classList.add('room-layout-dragging');
+                const under = document.elementFromPoint(event.clientX, event.clientY)?.closest('[data-room-layout-tile]');
+                if (!under || under === drag.tile || under.parentElement !== drag.group) return;
+                under.classList.add('room-layout-drop-target');
+                const rect = under.getBoundingClientRect();
+                const sameRow = Math.abs(event.clientY - (rect.top + rect.height / 2)) < rect.height * 0.55;
+                const after = sameRow ? event.clientX > rect.left + rect.width / 2 : event.clientY > rect.top + rect.height / 2;
+                if (after) under.after(drag.tile); else under.before(drag.tile);
+                drag.group.querySelectorAll('.room-layout-drop-target').forEach(el => el.classList.remove('room-layout-drop-target'));
+            }, { passive: false });
+            const finishDrag = event => {
+                if (!drag || (event.pointerId !== undefined && event.pointerId !== drag.pointerId)) return;
+                const current = drag;
+                drag = null;
+                current.tile.classList.remove('room-layout-dragging');
+                current.group.querySelectorAll('.room-layout-drop-target').forEach(el => el.classList.remove('room-layout-drop-target'));
+                if (current.moved) {
+                    suppressClick = true;
+                    saveRoomLayoutOrder(current.group);
+                    setTimeout(() => { suppressClick = false; }, 250);
+                }
+            };
+            document.addEventListener('pointerup', finishDrag);
+            document.addEventListener('pointercancel', finishDrag);
+            container.addEventListener('click', event => {
+                if (!suppressClick) return;
+                if (event.target.closest('[data-room-layout-tile]')) { event.preventDefault(); event.stopImmediatePropagation(); }
+            }, true);
+        }
+
+        function toggleRoomLayoutArrangeMode() {
+            if (!canEditRailingLayout()) { showToast('Chỉ Admin hoặc Phó admin mới có thể sắp xếp layout phòng.'); return; }
+            state.roomLayoutArrangeMode = !state.roomLayoutArrangeMode;
+            const btn = document.getElementById('btnRoomLayoutArrange');
+            if (btn) {
+                btn.setAttribute('aria-pressed', String(state.roomLayoutArrangeMode));
+                btn.className = state.roomLayoutArrangeMode
+                    ? 'ml-1 inline-flex items-center gap-1 rounded-lg bg-amber-500 px-2.5 py-1 text-xs font-bold text-white hover:bg-amber-600'
+                    : 'ml-1 inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-blue-700';
+                btn.innerHTML = `<i data-lucide="move" class="w-3.5 h-3.5"></i> ${state.roomLayoutArrangeMode ? 'Đang sắp xếp' : 'Sắp xếp phòng'}`;
+            }
+            renderStaffView();
+            if (state.roomLayoutArrangeMode) showToast('Kéo-thả phòng trong cùng dãy để đổi vị trí; thay đổi được lưu tự động.');
+        }
+
+        function resetRoomLayoutOrder() {
+            const project = getProjectById(state.staffSelectedProjectId);
+            if (!project || !canEditRailingLayout()) return;
+            if (!confirm('Khôi phục thứ tự mặc định cho toàn bộ sơ đồ phòng của dự án này? Dữ liệu tiến độ và ghi chú không bị ảnh hưởng.')) return;
+            project.roomLayouts = {};
+            try { localStorage.removeItem(`roomops_room_layout_${project.id}`); } catch (err) { console.warn(err); }
+            if (db) setDoc(doc(db, 'projects', project.id), { roomLayouts: {} }, { merge: true })
+                .catch(err => { console.warn('Không thể đồng bộ layout mặc định:', err); showToast('Đã khôi phục trên thiết bị nhưng chưa đồng bộ được lên máy chủ.'); });
+            state.roomLayoutArrangeMode = false;
+            renderStaffView();
+            showToast('Đã khôi phục thứ tự phòng mặc định cho dự án.');
+        }
+
         function renderStaffView() {
             populateStaffDropdowns();
             const proj = getProjectById(state.staffSelectedProjectId);
             const container = document.getElementById('roomMatrixContainer');
 
             if (!proj) {
+                state.roomLayoutArrangeMode = false;
+                document.getElementById('roomLayoutModeToggle')?.classList.add('hidden');
                 container.innerHTML = `<div class="col-span-2 glass rounded-2xl p-8 text-center text-sm text-gray-500">Chưa có dự án nào được chọn.</div>`;
                 return;
             }
 
             const isRailingProject = proj.targetType === 'RAILING';
-            document.getElementById('roomLayoutModeToggle').classList.toggle('hidden', isRailingProject);
+            document.getElementById('roomLayoutModeToggle').classList.toggle('hidden', isRailingProject || state.projectViewMode === 'LIST');
+            const canArrangeRooms = !isRailingProject && state.projectViewMode !== 'LIST' && canEditRailingLayout();
+            if (!canArrangeRooms) state.roomLayoutArrangeMode = false;
+            const arrangeButton = document.getElementById('btnRoomLayoutArrange');
+            arrangeButton?.classList.toggle('hidden', !canArrangeRooms);
+            if (arrangeButton) {
+                arrangeButton.setAttribute('aria-pressed', String(state.roomLayoutArrangeMode));
+                arrangeButton.className = state.roomLayoutArrangeMode
+                    ? 'ml-1 inline-flex items-center gap-1 rounded-lg bg-amber-500 px-2.5 py-1 text-xs font-bold text-white hover:bg-amber-600'
+                    : 'ml-1 inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-blue-700';
+                arrangeButton.innerHTML = `<i data-lucide="move" class="w-3.5 h-3.5"></i> ${state.roomLayoutArrangeMode ? 'Đang sắp xếp' : 'Sắp xếp phòng'}`;
+            }
+            document.getElementById('btnRoomLayoutReset')?.classList.toggle('hidden', !canArrangeRooms || !Object.keys(getProjectRoomLayouts(proj)).length);
             document.getElementById('staffFloorBtn1').classList.toggle('hidden', isRailingProject);
             if (isRailingProject && String(state.staffFloorFilter) === '1') {
                 state.staffFloorFilter = 'ALL';
@@ -1750,6 +2742,12 @@
             document.getElementById('staffProjectProgressBar').style.width = `${pct}%`;
 
             const targetSet = new Set(proj.targetRooms || []);
+            if (state.projectViewMode === 'LIST') {
+                container.className = 'grid grid-cols-1 gap-4';
+                container.innerHTML = renderProjectTaskList(proj);
+                lucide.createIcons();
+                return;
+            }
             const wingsToRender = state.staffWingFilter === 'ALL' ? ['Ocean Wing', 'Garden Wing'] : [state.staffWingFilter];
             container.className = isRailingProject
                 ? 'grid grid-cols-1 max-w-6xl mx-auto gap-6'
@@ -1768,7 +2766,7 @@
                 else if (st === 'Issue') cls = 'bg-[#FF3B30] border-[#d63026] text-white animate-pulse shadow-xs';
 
                 return `
-                    <button type="button" onclick="openRoomModal('${roomId}')" class="room-tile h-11 rounded-xl border font-bold text-xs flex items-center justify-center ${cls}">
+                    <button type="button" data-room-layout-tile="${roomId}" onclick="openRoomModal('${roomId}')" class="room-tile h-11 rounded-xl border font-bold text-xs flex items-center justify-center transition ${cls}">
                         ${roomId}
                     </button>
                 `;
@@ -1791,21 +2789,41 @@
                                         <h3 class="font-extrabold text-base text-gray-900">${wing} • Tầng ${floor}</h3>
                                         <p class="text-xs text-gray-500">Sơ đồ lan can kiến trúc — hiển thị riêng từng layout</p>
                                     </div>
-                                    <div class="flex items-center gap-2 shrink-0">
+                                    <div class="flex items-center gap-2 flex-wrap justify-end shrink-0">
                                         <span class="px-2.5 py-1 rounded-xl text-xs font-bold ${badgeCls}">${wing}</span>
                                         <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg">${doneCount}/${floorRailings.length} đoạn</span>
+                                        ${canEditRailingLayout() ? `<button type="button" onclick="toggleRailingLayoutEditor('${proj.id}','${wing}',${floor})" class="inline-flex items-center gap-1 rounded-lg bg-violet-600 hover:bg-violet-700 px-2.5 py-1.5 text-[11px] font-bold text-white"><i data-lucide="pencil-ruler" class="w-3.5 h-3.5"></i> Chỉnh sơ đồ</button>` : ''}
                                     </div>
                                 </div>
+                                ${canEditRailingLayout() ? `
+                                    <div class="railing-editor-toolbar hidden mb-3 rounded-2xl border border-violet-200 bg-violet-50 p-3" data-railing-toolbar data-project-id="${proj.id}" data-wing="${wing}" data-floor="${floor}">
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <button type="button" data-editor-tool="select" onclick="setRailingEditorTool('${proj.id}','${wing}',${floor},'select')" class="rounded-lg border border-violet-200 bg-white px-3 py-2 text-[11px] font-bold text-violet-800">Chọn / kéo</button>
+                                            <button type="button" data-editor-tool="draw" onclick="setRailingEditorTool('${proj.id}','${wing}',${floor},'draw')" class="rounded-lg border border-violet-200 bg-white px-3 py-2 text-[11px] font-bold text-violet-800">Vẽ tự do</button>
+                                            <button type="button" data-editor-tool="shape-u" onclick="setRailingEditorTool('${proj.id}','${wing}',${floor},'shape-u')" class="rounded-lg border border-violet-200 bg-white px-3 py-2 text-[11px] font-bold text-violet-800">Vẽ U</button>
+                                            <button type="button" data-editor-tool="shape-l" onclick="setRailingEditorTool('${proj.id}','${wing}',${floor},'shape-l')" class="rounded-lg border border-violet-200 bg-white px-3 py-2 text-[11px] font-bold text-violet-800">Vẽ L</button>
+                                            <button type="button" data-editor-tool="shape-i" onclick="setRailingEditorTool('${proj.id}','${wing}',${floor},'shape-i')" class="rounded-lg border border-violet-200 bg-white px-3 py-2 text-[11px] font-bold text-violet-800">Vẽ I</button>
+                                            <button type="button" data-editor-option="snap" onclick="toggleRailingEditorOption('${proj.id}','${wing}',${floor},'snap')" class="rounded-lg border border-violet-200 bg-white px-3 py-2 text-[11px] font-bold text-violet-800" aria-pressed="false">Bắt điểm: Tắt</button>
+                                            <button type="button" data-editor-option="grid" onclick="toggleRailingEditorOption('${proj.id}','${wing}',${floor},'grid')" class="rounded-lg border border-violet-200 bg-white px-3 py-2 text-[11px] font-bold text-violet-800" aria-pressed="false">Lưới: Tắt</button>
+                                            <button type="button" data-editor-delete onclick="deleteSelectedRailingSegment('${proj.id}','${wing}',${floor})" disabled class="rounded-lg border border-red-200 bg-white px-3 py-2 text-[11px] font-bold text-red-700">Xóa đoạn chọn</button>
+                                            <button type="button" data-editor-tool="break" onclick="setRailingEditorTool('${proj.id}','${wing}',${floor},'break')" title="Bấm vào đầu mối để tách hai cạnh" class="rounded-lg border border-violet-200 bg-white px-3 py-2 text-[11px] font-bold text-violet-800">Ngắt mối</button>
+                                            <button type="button" data-editor-tool="join" onclick="setRailingEditorTool('${proj.id}','${wing}',${floor},'join')" title="Bấm lần lượt hai đầu đoạn để nối" class="rounded-lg border border-violet-200 bg-white px-3 py-2 text-[11px] font-bold text-violet-800">Nối đoạn</button>
+                                            <button type="button" onclick="closeRailingLayoutEditor('${proj.id}','${wing}',${floor})" class="ml-auto rounded-lg border border-gray-200 bg-white px-3 py-2 text-[11px] font-bold text-gray-600">Đóng</button>
+                                        </div>
+                                        <p data-editor-hint class="mt-2 text-[11px] leading-relaxed text-violet-900">Chọn/kéo để di chuyển hoặc kéo đầu mút để đổi chiều dài. Bật bắt điểm để hút vào góc phòng/đầu mút lan can (rồi mới tới lưới); bật lưới để hiện đường căn chỉnh.</p>
+                                    </div>` : ''}
                                 ${buildArchitecturalRailingFloorHTML(wing, floor, 'STAFF', {
                                     projId: proj.id,
                                     targetSet,
-                                    statusFilter: state.staffStatusFilter
+                                    statusFilter: state.staffStatusFilter,
+                                    compactView: true
                                 })}
                             </div>
                         `);
                     });
                 });
                 container.innerHTML = railingPages.join('') || '<div class="glass rounded-2xl p-8 text-center text-sm text-gray-500">Không có hạng mục khớp bộ lọc</div>';
+                initializeRailingLayoutEditors(proj);
             } else {
                 container.innerHTML = wingsToRender.map(wing => {
                 const isOcean = wing === 'Ocean Wing';
@@ -1824,8 +2842,8 @@
                         if (floorRooms.length === 0) return;
 
                         if (state.roomLayoutMode === 'CORRIDOR') {
-                            const oddLeft = floorRooms.filter(r => parseInt(r) % 2 === 1);
-                            const evenRight = floorRooms.filter(r => parseInt(r) % 2 === 0);
+                            const oddLeft = applyRoomLayoutOrder(proj, wing, floor, 'CORRIDOR', 'left', floorRooms.filter(r => parseInt(r) % 2 === 1));
+                            const evenRight = applyRoomLayoutOrder(proj, wing, floor, 'CORRIDOR', 'right', floorRooms.filter(r => parseInt(r) % 2 === 0));
                             floorsHtml += `
                                 <div class="bg-gray-50/80 rounded-2xl p-3.5 border border-gray-200/70 space-y-2.5">
                                     <div class="flex items-center justify-between">
@@ -1835,14 +2853,14 @@
                                     <div class="grid grid-cols-11 gap-2 items-start">
                                         <div class="col-span-5 space-y-1.5">
                                             <div class="text-[10px] font-bold text-gray-400 uppercase text-center">Dãy Trái (Lẻ)</div>
-                                            <div class="grid grid-cols-2 gap-1.5">${oddLeft.map(renderRoomTile).join('')}</div>
+                                            <div class="room-layout-sort-group grid grid-cols-2 gap-1.5" data-room-sort-group="left" data-room-wing="${wing}" data-room-floor="${floor}" data-room-mode="CORRIDOR">${oddLeft.map(renderRoomTile).join('')}</div>
                                         </div>
                                         <div class="col-span-1 self-stretch bg-gray-200/70 rounded-xl flex items-center justify-center py-4">
                                             <span class="text-[9px] font-bold text-gray-500 [writing-mode:vertical-rl] rotate-180 tracking-widest uppercase">Hành Lang</span>
                                         </div>
                                         <div class="col-span-5 space-y-1.5">
                                             <div class="text-[10px] font-bold text-gray-400 uppercase text-center">Dãy Phải (Chẵn)</div>
-                                            <div class="grid grid-cols-2 gap-1.5">${evenRight.map(renderRoomTile).join('')}</div>
+                                            <div class="room-layout-sort-group grid grid-cols-2 gap-1.5" data-room-sort-group="right" data-room-wing="${wing}" data-room-floor="${floor}" data-room-mode="CORRIDOR">${evenRight.map(renderRoomTile).join('')}</div>
                                         </div>
                                     </div>
                                 </div>
@@ -1854,7 +2872,7 @@
                                         <span class="font-bold text-xs text-gray-900">Tầng ${floor}</span>
                                         <span class="text-[11px] text-gray-500">${floorRooms.length} phòng</span>
                                     </div>
-                                    <div class="grid grid-cols-5 sm:grid-cols-6 gap-2">${floorRooms.map(renderRoomTile).join('')}</div>
+                                    <div class="room-layout-sort-group grid grid-cols-5 sm:grid-cols-6 gap-2" data-room-sort-group="grid" data-room-wing="${wing}" data-room-floor="${floor}" data-room-mode="GRID">${applyRoomLayoutOrder(proj, wing, floor, 'GRID', 'grid', floorRooms).map(renderRoomTile).join('')}</div>
                                 </div>
                             `;
                         }
@@ -1876,6 +2894,8 @@
                 }).join('');
             }
 
+            container.classList.toggle('room-layout-arrange-mode', !!state.roomLayoutArrangeMode && canArrangeRooms);
+            initializeRoomLayoutSorter(container);
             lucide.createIcons();
         }
 
@@ -3685,6 +4705,14 @@ body { font-family: Inter, Arial, sans-serif; color: #1C1C1E; }
             setStaffFloorFilter,
             setStaffStatusFilter,
             setRoomLayoutMode,
+            toggleRoomLayoutArrangeMode,
+            resetRoomLayoutOrder,
+            setProjectViewMode,
+            toggleRailingLayoutEditor,
+            setRailingEditorTool,
+            toggleRailingEditorOption,
+            deleteSelectedRailingSegment,
+            closeRailingLayoutEditor,
             openRoomModal,
             closeRoomModal,
             selectModalStatus,
