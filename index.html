@@ -128,7 +128,50 @@
         .railing-editor-active .railing-seg-btn { cursor: default; }
         .railing-editor-toolbar button[data-editor-tool].active,
         .railing-editor-toolbar button[data-editor-option].active { background: #1D4ED8; color: #fff; border-color: #1D4ED8; }
+        .railing-editor-toolbar button[data-editor-tool="delete"].active { background: #DC2626; color: #fff; border-color: #B91C1C; box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2); }
+        .railing-editor-toolbar button[data-editor-tool="arrange-room"].active { background: #D97706; color: #fff; border-color: #B45309; box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.2); }
+        .railing-delete-mode-active [data-role="segment-hit"] { cursor: pointer; }
+        .railing-delete-mode-active g:hover line:first-of-type { stroke: #EF4444 !important; filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.65)); }
+        .railing-join-mode-active [data-role="join-endpoint"] { cursor: pointer; transition: r 0.12s ease, fill 0.12s ease; }
+        .railing-join-mode-active [data-role="join-endpoint"]:hover { fill: #7C3AED !important; stroke: #FFFFFF !important; }
+        .railing-join-mode-active g:hover line:first-of-type { filter: drop-shadow(0 0 4px rgba(124, 58, 237, 0.45)); }
         .railing-editor-toolbar button:disabled { opacity: .45; cursor: not-allowed; }
+        .railing-editor-toolbar {
+            position: sticky;
+            top: calc(var(--app-header-height, 64px) + 8px);
+            z-index: 35;
+            background: rgba(245, 243, 255, 0.94);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            box-shadow: 0 10px 25px -5px rgba(124, 58, 237, 0.18), 0 4px 10px -2px rgba(0, 0, 0, 0.06);
+            transition: top 0.2s ease, box-shadow 0.2s ease;
+        }
+        .sticky-filter-bar {
+            position: sticky;
+            top: calc(var(--app-header-height, 64px) + 6px);
+            z-index: 34;
+        }
+        .railing-room-arrange-active .railing-editor-svg { pointer-events: none !important; }
+        .railing-room-arrange-active [data-railing-id] { pointer-events: none !important; }
+        .railing-room-arrange-active .railing-room-box {
+            cursor: grab !important;
+            touch-action: none !important;
+            user-select: none !important;
+            outline: 2px dashed #2563EB;
+            background: #EFF6FF !important;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.18);
+            position: relative;
+            z-index: 25;
+        }
+        .railing-room-arrange-active .railing-room-box:active {
+            cursor: grabbing !important;
+        }
+        .railing-room-arrange-active .railing-room-box.room-dragging-active {
+            outline: 2.5px solid #D97706;
+            background: #FEF3C7 !important;
+            box-shadow: 0 10px 25px rgba(217, 119, 6, 0.32);
+            z-index: 32;
+        }
         /* Sketch-style railing: narrow highlighted segments with a dashed center line. */
         .railing-layout-compact .railing-sketch-segment,
         .railing-layout-compact .railing-balcony-line {
@@ -501,7 +544,7 @@
             </div>
 
             <!-- Filter Bar -->
-            <div class="glass rounded-2xl p-3.5 shadow-ios space-y-3">
+            <div id="staffFilterBar" class="glass rounded-2xl p-3.5 shadow-ios space-y-3 transition-all">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div class="grid grid-cols-3 gap-1.5 bg-gray-100/90 p-1 rounded-xl flex-1">
                         <button onclick="setStaffWingFilter('ALL')" data-wing="ALL" class="wing-pill py-1.5 px-2 rounded-lg text-xs font-bold transition bg-white text-gray-900 shadow-2xs">
@@ -533,7 +576,7 @@
                         <button onclick="setRoomLayoutMode('GRID')" id="btnLayoutGrid" class="px-2.5 py-1 rounded-lg text-xs font-medium text-gray-600">
                             Dạng lưới gọn
                         </button>
-                        <button type="button" id="btnRoomLayoutArrange" onclick="toggleRoomLayoutArrangeMode()" class="ml-1 inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-blue-700 hidden" aria-pressed="false">
+                        <button type="button" id="btnRoomLayoutArrange" onclick="toggleRoomLayoutArrangeMode()" class="ml-1 inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-blue-700 shadow-xs" aria-pressed="false">
                             <i data-lucide="move" class="w-3.5 h-3.5"></i> Sắp xếp phòng
                         </button>
                         <button type="button" id="btnRoomLayoutReset" onclick="resetRoomLayoutOrder()" class="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 hidden">
@@ -1115,9 +1158,9 @@
                     const oddRooms = floorRooms.filter(r => parseInt(r, 10) % 2 === 1);
                     const evenRooms = floorRooms.filter(r => parseInt(r, 10) % 2 === 0);
 
-                    // Per user's sketch:
-                    // - Ocean Wing: Left side = Even pairs (02|04, 06|08...), Right side = Odd (2-double-1-single: 01|03, 05, 07|09...)
-                    // - Garden Wing (Mirrored): Left outer side = Odd (2-double-1-single: 33|35, 37, 39|41...), Right side = Even pairs (32|34, 36|38...)
+                    // Bố cục kiến trúc đối xứng gương (Mirrored) giữa Ocean Wing và Garden Wing:
+                    // - Ocean Wing: Dãy Trái = Cặp phòng đôi Chẵn (02|04, 06|08...), Dãy Phải = 2 đôi 1 đơn Lẻ (01|03, 05, 07|09...)
+                    // - Garden Wing (Đối xứng): Dãy Trái (Ngoài) = 2 đôi 1 đơn Lẻ (33|35, 37, 39|41...), Dãy Phải = Cặp phòng đôi Chẵn (32|34, 36|38...)
                     const rawLeftClusters = isOcean
                         ? groupRoomsPureDouble(evenRooms)
                         : groupRoomsTwoDoubleOneSingle(oddRooms);
@@ -1270,6 +1313,46 @@
 
         function getUnitMeta(unitId) {
             return ROOM_META_MAP[unitId] || RAILING_META_MAP[unitId] || null;
+        }
+
+        function registerDynamicRailingMeta(segMeta) {
+            if (!segMeta || !segMeta.id) return null;
+            const existingIdx = ALL_RAILINGS.findIndex(r => r.id === segMeta.id);
+            if (existingIdx !== -1) {
+                ALL_RAILINGS[existingIdx] = { ...ALL_RAILINGS[existingIdx], ...segMeta };
+            } else {
+                ALL_RAILINGS.push(segMeta);
+            }
+            RAILING_META_MAP[segMeta.id] = segMeta;
+            return segMeta;
+        }
+
+        function syncProjectCustomRailingMeta(proj) {
+            if (!proj || !proj.railingLayouts) return;
+            Object.entries(proj.railingLayouts).forEach(([layoutKey, layoutPayload]) => {
+                if (!layoutPayload || !Array.isArray(layoutPayload.segments)) return;
+                const isOcean = layoutKey.startsWith('Ocean');
+                const wing = isOcean ? 'Ocean Wing' : 'Garden Wing';
+                const floorMatch = layoutKey.match(/_T(\d+)$/);
+                const floor = floorMatch ? Number(floorMatch[1]) : 2;
+                layoutPayload.segments.forEach(seg => {
+                    if (seg.unitMeta && seg.unitMeta.id) {
+                        registerDynamicRailingMeta(seg.unitMeta);
+                    } else if (seg.sourceId && !RAILING_META_MAP[seg.sourceId]) {
+                        registerDynamicRailingMeta({
+                            id: seg.sourceId,
+                            wing,
+                            floor,
+                            side: seg.side || 'LEFT',
+                            category: seg.category || 'CUSTOM_RAILING',
+                            roomRef: seg.roomRef || '',
+                            shortCode: seg.shortCode || seg.label || 'LC Mới',
+                            label: seg.label || `Lan can vẽ mới (${wing} - T${floor})`,
+                            unitType: 'RAILING'
+                        });
+                    }
+                });
+            });
         }
 
         const DEFAULT_STAFF_MEMBERS = [
@@ -1503,8 +1586,14 @@
             };
 
             const maxClusters = Math.max(bp.leftClusters.length, bp.rightClusters.length);
-            const leftAxisDesc = bp.isOcean ? 'Dãy Trái: Cặp phòng đôi (02|04, 06|08...)' : 'Dãy Trái (Ngoài): 2 đôi 1 đơn (33|35, 37...)';
-            const rightAxisDesc = bp.isOcean ? 'Dãy Phải (Ngoài): 2 đôi 1 đơn (01|03, 05...)' : 'Dãy Phải: Cặp phòng đôi (32|34, 36|38...)';
+            const leftSample = bp.leftClusters.slice(0, 2).map(c => c.rooms.join('|')).join(', ');
+            const rightSample = bp.rightClusters.slice(0, 2).map(c => c.rooms.join('|')).join(', ');
+            const leftAxisDesc = bp.isOcean
+                ? `Dãy Trái (Chẵn): Cặp phòng đôi (${leftSample}...)`
+                : `Dãy Trái - Ngoài (Lẻ): 2 đôi 1 đơn (${leftSample}...)`;
+            const rightAxisDesc = bp.isOcean
+                ? `Dãy Phải - Ngoài (Lẻ): 2 đôi 1 đơn (${rightSample}...)`
+                : `Dãy Phải (Chẵn): Cặp phòng đôi (${rightSample}...)`;
 
             // Interleaved layout rows so each 3-segment U-shape physically bridges the bottom door of Cluster i and the top door of Cluster i+1
             let unifiedPlanHtml = '';
@@ -1615,6 +1704,7 @@
                 : state.projects.filter(p => p.id === filterProjectId);
 
             targetProjects.forEach(proj => {
+                syncProjectCustomRailingMeta(proj);
                 (proj.targetRooms || []).forEach(unitId => {
                     const meta = getUnitMeta(unitId);
                     if (!meta) return;
@@ -1916,19 +2006,160 @@
         }
 
         function getSavedRailingLayoutPayload(proj, wing, floor) {
+            if (!proj) return null;
             const layoutKey = `${wing.replace(/\s+/g, '_')}_T${floor}`;
             const saved = proj.railingLayouts?.[layoutKey];
-            if (saved && Array.isArray(saved.segments)) return saved;
+            if (saved && (Array.isArray(saved.segments) || (saved.roomOffsets && Object.keys(saved.roomOffsets).length))) return saved;
             try {
                 const local = JSON.parse(localStorage.getItem(getRailingLayoutStorageKey(proj.id, wing, floor)) || 'null');
-                if (local && Array.isArray(local.segments)) return local;
+                if (local && (Array.isArray(local.segments) || (local.roomOffsets && Object.keys(local.roomOffsets).length))) return local;
             } catch (err) { console.warn('Không đọc được layout lan can lưu cục bộ:', err); }
             return null;
         }
 
         function loadRailingEditorSegments(canvas, proj) {
-            const saved = getSavedRailingLayoutPayload(proj, canvas.dataset.wing, canvas.dataset.floor);
-            return saved ? saved.segments.map(seg => ({ ...seg })) : captureDefaultRailingSegments(canvas);
+            let saved = getSavedRailingLayoutPayload(proj, canvas.dataset.wing, canvas.dataset.floor);
+            if (saved && canvas.dataset.wing === 'Garden Wing' && !saved.isGardenMirrored && Array.isArray(saved.segments) && saved.segments.length) {
+                // Detect if this Garden Wing payload was previously synced unmirrored from Ocean Wing T2
+                // In Garden Wing, odd rooms (e.g. 233, 235, 333, 433) belong on the LEFT (x < 500) and even rooms (232, 234, 332, 436) belong on the RIGHT (x > 500).
+                const evenOnLeft = saved.segments.some(s => {
+                    const m = String(s.roomRef || s.shortCode || s.sourceId || '').match(/\b(232|234|236|332|334|336|436|438)\b/);
+                    return m && ((Number(s.x1) + Number(s.x2)) / 2 < 500);
+                });
+                if (evenOnLeft) {
+                    const floorNum = Number(canvas.dataset.floor);
+                    const mirroredOffsets = {};
+                    Object.entries(saved.roomOffsets || {}).forEach(([rId, off]) => {
+                        mirroredOffsets[rId] = { dx: -(Number(off.dx) || 0), dy: Number(off.dy) || 0 };
+                    });
+                    const mirroredSegments = saved.segments.map(seg => {
+                        const nx1 = Math.max(0, Math.min(1000, 1000 - Number(seg.x1)));
+                        const nx2 = Math.max(0, Math.min(1000, 1000 - Number(seg.x2)));
+                        const x1 = seg.orientation === 'H' ? Math.min(nx1, nx2) : nx1;
+                        const x2 = seg.orientation === 'H' ? Math.max(nx1, nx2) : nx2;
+                        let nextSourceId = seg.sourceId;
+                        if (nextSourceId) {
+                            const swapped = nextSourceId.includes('_LEFT_')
+                                ? nextSourceId.replace('_LEFT_', '_RIGHT_')
+                                : (nextSourceId.includes('_RIGHT_') ? nextSourceId.replace('_RIGHT_', '_LEFT_') : nextSourceId);
+                            if (RAILING_META_MAP[swapped]) nextSourceId = swapped;
+                        }
+                        const existingMeta = nextSourceId ? RAILING_META_MAP[nextSourceId] : null;
+                        return {
+                            ...seg,
+                            x1,
+                            x2,
+                            side: (x1 + x2) / 2 < 500 ? 'LEFT' : 'RIGHT',
+                            sourceId: nextSourceId,
+                            shortCode: existingMeta?.shortCode || seg.shortCode,
+                            label: existingMeta?.label || seg.label
+                        };
+                    });
+                    saved = {
+                        ...saved,
+                        segments: mirroredSegments,
+                        roomOffsets: mirroredOffsets,
+                        isGardenMirrored: true
+                    };
+                    const layoutKey = `Garden_Wing_T${floorNum}`;
+                    if (proj) {
+                        proj.railingLayouts = { ...(proj.railingLayouts || {}), [layoutKey]: saved };
+                        try {
+                            localStorage.setItem(getRailingLayoutStorageKey(proj.id, 'Garden Wing', floorNum), JSON.stringify(saved));
+                        } catch (e) {}
+                        if (db) {
+                            setDoc(doc(db, 'projects', proj.id), proj).catch(() => {});
+                        }
+                    }
+                    applySavedRailingRoomOffsets(canvas, proj);
+                }
+            }
+            const rawList = (saved && Array.isArray(saved.segments) && saved.segments.length)
+                ? saved.segments.map(seg => ({ ...seg }))
+                : captureDefaultRailingSegments(canvas);
+
+            const wing = canvas.dataset.wing;
+            const floor = Number(canvas.dataset.floor);
+            const wingCode = wing === 'Ocean Wing' ? 'OW' : 'GW';
+            let needsSave = false;
+
+            rawList.forEach((seg, idx) => {
+                if (!seg.sourceId) {
+                    const unitId = `LC_${wingCode}_T${floor}_C_${String(seg.id).replace(/[^a-zA-Z0-9]/g, '_')}_${idx + 1}`;
+                    seg.sourceId = unitId;
+                    needsSave = true;
+                }
+                if (seg.unitMeta && seg.unitMeta.id) {
+                    registerDynamicRailingMeta(seg.unitMeta);
+                } else if (!RAILING_META_MAP[seg.sourceId]) {
+                    const meta = {
+                        id: seg.sourceId,
+                        wing,
+                        floor,
+                        side: seg.side || ((Number(seg.x1) + Number(seg.x2)) / 2 < 500 ? 'LEFT' : 'RIGHT'),
+                        category: seg.category || 'ENTRANCE_SIDE',
+                        roomRef: seg.roomRef || '',
+                        shortCode: seg.shortCode || seg.label || `LC T${floor} #${idx + 1}`,
+                        label: seg.label || `Lan can (${wing} - T${floor})`,
+                        unitType: 'RAILING',
+                        isCustom: true
+                    };
+                    seg.unitMeta = meta;
+                    registerDynamicRailingMeta(meta);
+                }
+                if (proj && seg.sourceId) {
+                    if (!Array.isArray(proj.targetRooms)) proj.targetRooms = [];
+                    if (!proj.targetRooms.includes(seg.sourceId)) {
+                        proj.targetRooms.push(seg.sourceId);
+                        needsSave = true;
+                    }
+                    const taskKey = `${proj.id}_${seg.sourceId}`;
+                    if (!state.tasks[taskKey]) {
+                        state.tasks[taskKey] = {
+                            projectId: proj.id,
+                            roomId: seg.sourceId,
+                            status: 'Pending',
+                            note: '',
+                            updatedBy: '',
+                            updatedAt: ''
+                        };
+                    }
+                }
+            });
+
+            if (needsSave && proj) {
+                setTimeout(() => {
+                    if (canvas.__railingEditor) {
+                        canvas.__railingEditor.segments.forEach(seg => {
+                            if (String(seg.id).startsWith('custom_') && (!seg.roomRef || seg.shortCode === 'Đoạn lan can mới')) {
+                                const inferred = inferRoomLinkForRailingLine(canvas.__railingEditor, seg, 'draw', 0, 1);
+                                seg.roomRef = inferred.roomRef;
+                                seg.shortCode = inferred.shortCode;
+                                seg.label = inferred.label;
+                                seg.category = inferred.category;
+                                seg.side = inferred.side;
+                                seg.unitMeta = {
+                                    id: seg.sourceId,
+                                    wing,
+                                    floor,
+                                    side: inferred.side,
+                                    category: inferred.category,
+                                    roomRef: inferred.roomRef,
+                                    shortCode: inferred.shortCode,
+                                    label: inferred.label,
+                                    unitType: 'RAILING',
+                                    isCustom: true
+                                };
+                                registerDynamicRailingMeta(seg.unitMeta);
+                            }
+                        });
+                        saveRailingEditorModel(canvas.__railingEditor);
+                        renderRailingEditorSvg(canvas.__railingEditor);
+                    }
+                }, 60);
+            }
+
+            return rawList;
         }
 
         function getRailingEditorStroke(projectId, segment) {
@@ -1945,38 +2176,72 @@
             const gridId = `railingGrid_${String(editor.projectId).replace(/[^a-zA-Z0-9_-]/g, '')}_${editor.wing.startsWith('Ocean') ? 'O' : 'G'}_${editor.floor}`;
             const showGrid = editor.gridEnabled && editor.canvas.classList.contains('railing-editor-active');
             const gridMarkup = showGrid ? `<defs><pattern id="${gridId}" width="50" height="50" patternUnits="userSpaceOnUse"><path d="M 50 0 L 0 0 0 50" fill="none" stroke="#4F46E5" stroke-width="1" opacity="0.18" vector-effect="non-scaling-stroke"></path></pattern></defs><rect x="0" y="0" width="1000" height="1000" fill="url(#${gridId})" pointer-events="none"></rect>` : '';
+            const showEndpointDots = editor.tool === 'join' || editor.tool === 'break';
             const segmentMarkup = editor.segments.map(seg => {
                 const color = getRailingEditorStroke(editor.projectId, seg);
                 const id = escapeListHTML(seg.id);
                 const title = escapeListHTML(seg.label || 'Đoạn lan can mới');
                 const isSelected = selectedId === seg.id;
+                const isPendingSeg = editor.joinPending && editor.joinPending.id === seg.id;
+                const endpointDots = showEndpointDots
+                    ? `<circle cx="${seg.x1}" cy="${seg.y1}" r="${isPendingSeg && editor.joinPending.end === 0 ? 11 : 7}" fill="${isPendingSeg && editor.joinPending.end === 0 ? '#7C3AED' : '#FFFFFF'}" stroke="${editor.tool === 'break' ? '#DC2626' : '#7C3AED'}" stroke-width="2.5" vector-effect="non-scaling-stroke" data-role="join-endpoint" data-id="${id}" data-end="0"></circle>
+                       <circle cx="${seg.x2}" cy="${seg.y2}" r="${isPendingSeg && editor.joinPending.end === 1 ? 11 : 7}" fill="${isPendingSeg && editor.joinPending.end === 1 ? '#7C3AED' : '#FFFFFF'}" stroke="${editor.tool === 'break' ? '#DC2626' : '#7C3AED'}" stroke-width="2.5" vector-effect="non-scaling-stroke" data-role="join-endpoint" data-id="${id}" data-end="1"></circle>`
+                    : '';
                 return `<g>
                     <title>${title}</title>
-                    <line x1="${seg.x1}" y1="${seg.y1}" x2="${seg.x2}" y2="${seg.y2}" stroke="${color}" stroke-width="10" stroke-linecap="round" vector-effect="non-scaling-stroke" pointer-events="none"></line>
-                    <line x1="${seg.x1}" y1="${seg.y1}" x2="${seg.x2}" y2="${seg.y2}" stroke="#263238" stroke-width="2" stroke-dasharray="4 7" vector-effect="non-scaling-stroke" pointer-events="none"></line>
-                    <line x1="${seg.x1}" y1="${seg.y1}" x2="${seg.x2}" y2="${seg.y2}" stroke="transparent" stroke-width="24" vector-effect="non-scaling-stroke" data-role="segment-hit" data-id="${id}" pointer-events="stroke"></line>
-                    ${isSelected ? `<circle cx="${seg.x1}" cy="${seg.y1}" r="9" fill="#fff" stroke="#2563EB" stroke-width="3" vector-effect="non-scaling-stroke" data-role="handle" data-id="${id}" data-end="0"></circle><circle cx="${seg.x2}" cy="${seg.y2}" r="9" fill="#fff" stroke="#2563EB" stroke-width="3" vector-effect="non-scaling-stroke" data-role="handle" data-id="${id}" data-end="1"></circle>` : ''}
+                    <line x1="${seg.x1}" y1="${seg.y1}" x2="${seg.x2}" y2="${seg.y2}" stroke="${color}" stroke-width="${isPendingSeg ? 12 : 10}" stroke-linecap="round" vector-effect="non-scaling-stroke" pointer-events="none"></line>
+                    <line x1="${seg.x1}" y1="${seg.y1}" x2="${seg.x2}" y2="${seg.y2}" stroke="${isPendingSeg ? '#7C3AED' : '#263238'}" stroke-width="2" stroke-dasharray="4 7" vector-effect="non-scaling-stroke" pointer-events="none"></line>
+                    <line x1="${seg.x1}" y1="${seg.y1}" x2="${seg.x2}" y2="${seg.y2}" stroke="transparent" stroke-width="26" vector-effect="non-scaling-stroke" data-role="segment-hit" data-id="${id}" pointer-events="stroke"></line>
+                    ${isSelected && !showEndpointDots ? `<circle cx="${seg.x1}" cy="${seg.y1}" r="9" fill="#fff" stroke="#2563EB" stroke-width="3" vector-effect="non-scaling-stroke" data-role="handle" data-id="${id}" data-end="0"></circle><circle cx="${seg.x2}" cy="${seg.y2}" r="9" fill="#fff" stroke="#2563EB" stroke-width="3" vector-effect="non-scaling-stroke" data-role="handle" data-id="${id}" data-end="1"></circle>` : ''}
+                    ${endpointDots}
                 </g>`;
             }).join('');
             const preview = (editor.preview || []).map(line => `<line x1="${line.x1}" y1="${line.y1}" x2="${line.x2}" y2="${line.y2}" stroke="#7C3AED" stroke-width="9" stroke-dasharray="6 5" vector-effect="non-scaling-stroke" pointer-events="none"></line>`).join('');
             const pendingEndpoint = editor.joinPending ? editor.segments.find(seg => seg.id === editor.joinPending.id) : null;
             const pendingPoint = pendingEndpoint ? getRailingEndpointPoint(pendingEndpoint, editor.joinPending.end) : null;
-            const pendingMarkup = pendingPoint
-                ? `<circle cx="${pendingPoint.x}" cy="${pendingPoint.y}" r="18" fill="#fff" stroke="#7C3AED" stroke-width="5" vector-effect="non-scaling-stroke" pointer-events="none"></circle>`
+            const pendingHoverLine = (pendingPoint && editor.joinHoverPoint && editor.tool === 'join')
+                ? `<line x1="${pendingPoint.x}" y1="${pendingPoint.y}" x2="${editor.joinHoverPoint.x}" y2="${editor.joinHoverPoint.y}" stroke="#7C3AED" stroke-width="3.5" stroke-dasharray="6 5" vector-effect="non-scaling-stroke" pointer-events="none"></line>`
                 : '';
-            editor.svg.innerHTML = `${gridMarkup}${segmentMarkup}${pendingMarkup}${preview}`;
-            editor.svg.style.cursor = ['draw', 'shape-u', 'shape-l', 'shape-i', 'break', 'join'].includes(editor.tool) ? 'crosshair' : 'grab';
+            const pendingMarkup = pendingPoint
+                ? `${pendingHoverLine}<circle cx="${pendingPoint.x}" cy="${pendingPoint.y}" r="14" fill="#7C3AED" fill-opacity="0.22" stroke="#7C3AED" stroke-width="3.5" vector-effect="non-scaling-stroke" pointer-events="none"></circle>`
+                : '';
+            const chainPoint = editor.continuousChainEnd;
+            const chainMarkup = (chainPoint && ['draw', 'shape-i'].includes(editor.tool) && !editor.dragging)
+                ? `<circle cx="${chainPoint.x}" cy="${chainPoint.y}" r="11" fill="#10B981" fill-opacity="0.25" stroke="#059669" stroke-width="3" vector-effect="non-scaling-stroke" pointer-events="none"></circle>`
+                : '';
+            editor.svg.innerHTML = `${gridMarkup}${segmentMarkup}${pendingMarkup}${chainMarkup}${preview}`;
+            editor.svg.classList.toggle('railing-delete-mode-active', editor.tool === 'delete');
+            editor.svg.classList.toggle('railing-join-mode-active', showEndpointDots);
+            editor.svg.style.cursor = editor.tool === 'delete'
+                ? 'pointer'
+                : (['draw', 'shape-u', 'shape-l', 'shape-i', 'break', 'join'].includes(editor.tool) ? 'crosshair' : 'grab');
             updateRailingEditorToolbar(editor);
         }
 
         function updateRailingEditorToolbar(editor) {
             const toolbar = getRailingEditorToolbar(editor.projectId, editor.wing, editor.floor);
             if (!toolbar) return;
+            const isRoomArranging = !!editor.roomArrangeActive;
             toolbar.querySelectorAll('[data-editor-tool]').forEach(button => {
-                button.classList.toggle('active', button.dataset.editorTool === editor.tool);
+                const t = button.dataset.editorTool;
+                if (t === 'arrange-room') {
+                    button.classList.toggle('active', isRoomArranging);
+                } else {
+                    button.classList.toggle('active', !isRoomArranging && t === editor.tool);
+                }
             });
-            const deleteButton = toolbar.querySelector('[data-editor-delete]');
-            if (deleteButton) deleteButton.disabled = !editor.selectedId;
+            const resetRoomBtn = toolbar.querySelector('[data-editor-reset-rooms]');
+            if (resetRoomBtn) resetRoomBtn.classList.toggle('hidden', !isRoomArranging);
+            const relinkButton = toolbar.querySelector('[data-editor-relink]');
+            if (relinkButton) {
+                relinkButton.disabled = !editor.selectedId || isRoomArranging;
+                const selSeg = editor.segments.find(s => s.id === editor.selectedId);
+                const linkedMeta = selSeg?.sourceId ? getUnitMeta(selSeg.sourceId) : null;
+                const linkedText = selSeg?.shortCode || linkedMeta?.shortCode || (selSeg?.roomRef ? `P.${selSeg.roomRef}` : '');
+                relinkButton.innerHTML = linkedText
+                    ? `<i data-lucide="link-2" class="w-3.5 h-3.5"></i> Liên kết: ${escapeListHTML(linkedText)}`
+                    : `<i data-lucide="link-2" class="w-3.5 h-3.5"></i> Gán phòng`;
+            }
             const snapButton = toolbar.querySelector('[data-editor-option="snap"]');
             if (snapButton) {
                 snapButton.textContent = `Bắt điểm: ${editor.snapEnabled ? 'Bật' : 'Tắt'}`;
@@ -1990,16 +2255,23 @@
                 gridButton.setAttribute('aria-pressed', String(editor.gridEnabled));
             }
             const hint = toolbar.querySelector('[data-editor-hint]');
+            if (isRoomArranging) {
+                if (hint) {
+                    hint.textContent = 'Chế độ Kéo-thả Phòng (Đang giữ cố định): Nhấn giữ và kéo liên tục từng ô phòng tới vị trí mong muốn để thu gọn sơ đồ (Giữ Shift khi kéo để di chuyển cả cặp phòng đôi). Bấm lại nút “Kéo-thả phòng” khi muốn tắt.';
+                }
+                return;
+            }
             const hints = {
-                draw: 'Kéo theo chiều ngang hoặc dọc để vẽ một đoạn thẳng tự do.',
-                'shape-u': 'Kéo chéo để vẽ chữ U; ba cạnh gặp nhau liền mạch tại các góc.',
-                'shape-l': 'Kéo chéo để vẽ chữ L; hai cạnh gặp nhau liền mạch tại góc.',
-                'shape-i': 'Kéo ngang hoặc dọc để vẽ một đoạn chữ I.',
-                break: 'Bấm gần đầu mối nối cần tách; công cụ tạo khe nhỏ giữa hai cạnh.',
-                join: editor.joinPending ? 'Đã chọn đầu thứ nhất; bấm gần đầu đoạn thứ hai để nối.' : 'Bấm lần lượt hai đầu đoạn cần nối với nhau.',
-                select: 'Chọn/kéo để di chuyển; kéo một đầu mút để đổi chiều dài. Chọn đoạn rồi bấm “Xóa đoạn chọn”.'
+                draw: 'Chế độ Vẽ tự do liên tục (Đang giữ): Kéo liên tiếp trên bản vẽ để tạo nhiều đoạn lan can; tự động bắt nối từ điểm cuối đoạn vừa vẽ nếu bấm gần.',
+                'shape-u': 'Chế độ Vẽ chữ U liên tục (Đang giữ): Kéo chéo liên tiếp để vẽ nhiều cụm lan can chữ U mà không bị thoát công cụ.',
+                'shape-l': 'Chế độ Vẽ chữ L liên tục (Đang giữ): Kéo chéo liên tiếp để vẽ nhiều cụm lan can chữ L mà không bị thoát công cụ.',
+                'shape-i': 'Chế độ Vẽ chữ I liên tục (Đang giữ): Kéo ngang hoặc dọc liên tiếp để vẽ nhiều đoạn chữ I; tự động nối tiếp điểm cuối nếu bấm gần.',
+                delete: 'Chế độ Xóa liên tục (Đang giữ): Bấm/tick chọn trực tiếp vào bất kỳ đoạn lan can nào trên sơ đồ để xóa ngay lập tức. Bấm lại nút “Chế độ Xóa” để tắt.',
+                break: 'Chế độ Ngắt mối liên tục (Đang giữ): Bấm gần đầu mối nối cần tách để tạo khe hở.',
+                join: editor.joinPending ? 'Đã chọn đoạn thứ 1 (chấm tím): Bấm vào bất kỳ vị trí nào trên đoạn thứ 2 (hoặc chấm tròn đầu mút) để tự động nối khít với nhau.' : 'Chế độ Nối đoạn dễ dàng (Đang giữ): Chỉ cần bấm chọn đoạn thứ 1, sau đó bấm vào đoạn thứ 2 (hoặc kéo từ đầu đoạn 1 thả sang đoạn 2) — hệ thống tự tìm 2 đầu gần nhất để nối vuông góc hoặc gộp thẳng hàng.',
+                select: 'Chọn/kéo để di chuyển đoạn lan can; kéo một đầu mút tròn để đổi chiều dài.'
             };
-            if (hint) hint.textContent = `${hints[editor.tool] || hints.select} ${editor.snapEnabled ? 'Bắt điểm ưu tiên góc phòng/đầu mút lan can gần; nếu không gần thì theo lưới 50/1000.' : 'Bắt điểm đang tắt.'} Lưới ${editor.gridEnabled ? 'đang hiển thị' : 'đang ẩn'}. Tự lưu sau mỗi thay đổi.`;
+            if (hint) hint.textContent = `${hints[editor.tool] || hints.select} ${editor.snapEnabled ? 'Bắt điểm đang Bật.' : 'Bắt điểm đang Tắt.'} Lưới ${editor.gridEnabled ? 'đang hiển thị' : 'đang ẩn'}. Tự lưu sau mỗi thay đổi.`;
         }
 
         function editorPointFromEvent(event, editor) {
@@ -2066,30 +2338,113 @@
             else { segment.x2 = point.x; segment.y2 = point.y; }
         }
 
-        function findNearestRailingEndpoint(editor, point, preferredSegmentId = null) {
+        function distancePointToSegment(pt, seg) {
+            const x1 = Number(seg.x1), y1 = Number(seg.y1), x2 = Number(seg.x2), y2 = Number(seg.y2);
+            const dx = x2 - x1, dy = y2 - y1;
+            const lenSq = dx * dx + dy * dy;
+            if (lenSq === 0) return Math.hypot(pt.x - x1, pt.y - y1);
+            const t = Math.max(0, Math.min(1, ((pt.x - x1) * dx + (pt.y - y1) * dy) / lenSq));
+            const projX = x1 + t * dx;
+            const projY = y1 + t * dy;
+            return Math.hypot(pt.x - projX, pt.y - projY);
+        }
+
+        function findNearestRailingEndpoint(editor, point, preferredSegmentId = null, maxRadius = 140) {
+            // 1. If a specific segment was clicked (preferredSegmentId), always pick the closer endpoint of that segment!
+            if (preferredSegmentId) {
+                const seg = editor.segments.find(s => s.id === preferredSegmentId);
+                if (seg) {
+                    const p0 = getRailingEndpointPoint(seg, 0);
+                    const p1 = getRailingEndpointPoint(seg, 1);
+                    const d0 = Math.hypot(point.x - p0.x, point.y - p0.y);
+                    const d1 = Math.hypot(point.x - p1.x, point.y - p1.y);
+                    return d0 <= d1
+                        ? { id: seg.id, end: 0, point: p0, distance: d0, preferred: true }
+                        : { id: seg.id, end: 1, point: p1, distance: d1, preferred: true };
+                }
+            }
+
+            // 2. Otherwise search all endpoints, and also check if click is near any segment body
             const endpoints = [];
             editor.segments.forEach(segment => [0, 1].forEach(end => {
                 const endpoint = getRailingEndpointPoint(segment, end);
-                endpoints.push({ id: segment.id, end, point: endpoint, distance: Math.hypot(point.x - endpoint.x, point.y - endpoint.y), preferred: segment.id === preferredSegmentId });
+                const distEnd = Math.hypot(point.x - endpoint.x, point.y - endpoint.y);
+                const distBody = distancePointToSegment(point, segment);
+                endpoints.push({
+                    id: segment.id,
+                    end,
+                    point: endpoint,
+                    distance: distEnd,
+                    bodyDistance: distBody
+                });
             }));
-            endpoints.sort((a, b) => Number(b.preferred) - Number(a.preferred) || a.distance - b.distance);
-            return endpoints[0]?.distance <= 48 ? endpoints[0] : null;
+
+            // Prioritize endpoints within maxRadius, or segments whose body was clicked within 36 units
+            endpoints.sort((a, b) => a.distance - b.distance);
+            if (endpoints[0] && endpoints[0].distance <= maxRadius) {
+                return endpoints[0];
+            }
+            const byBody = [...endpoints].sort((a, b) => a.bodyDistance - b.bodyDistance || a.distance - b.distance);
+            if (byBody[0] && byBody[0].bodyDistance <= 42) {
+                return byBody[0];
+            }
+            return null;
+        }
+
+        function pickBestEndpointPairToJoin(segA, segB, preferredEndA = null, preferredEndB = null, clickPointB = null) {
+            // Evaluate all 4 combinations of (endA in [0,1], endB in [0,1]) and pick the closest pair,
+            // while respecting explicit endpoint clicks if the user clicked directly on a specific endpoint dot.
+            const endsA = (preferredEndA !== null && preferredEndA !== undefined && preferredEndA !== 'auto') ? [preferredEndA] : [0, 1];
+            const endsB = (preferredEndB !== null && preferredEndB !== undefined && preferredEndB !== 'auto') ? [preferredEndB] : [0, 1];
+
+            let bestPair = null;
+            let bestScore = Infinity;
+            endsA.forEach(eA => {
+                const pA = getRailingEndpointPoint(segA, eA);
+                endsB.forEach(eB => {
+                    const pB = getRailingEndpointPoint(segB, eB);
+                    let score = Math.hypot(pA.x - pB.x, pA.y - pB.y);
+                    if (clickPointB) {
+                        score += Math.hypot(clickPointB.x - pB.x, clickPointB.y - pB.y) * 0.35;
+                    }
+                    if (score < bestScore) {
+                        bestScore = score;
+                        bestPair = { endA: eA, endB: eB, pA, pB };
+                    }
+                });
+            });
+            return bestPair;
         }
 
         function breakRailingJoint(editor, endpoint) {
             const segment = editor.segments.find(item => item.id === endpoint.id);
             if (!segment) return false;
-            const joint = getRailingEndpointPoint(segment, endpoint.end);
-            const connected = editor.segments.some(other => other.id !== segment.id && [0, 1].some(end => {
+            // Check both ends of the clicked segment if the clicked end isn't connected
+            let targetEnd = endpoint.end;
+            let joint = getRailingEndpointPoint(segment, targetEnd);
+            let connected = editor.segments.some(other => other.id !== segment.id && [0, 1].some(end => {
                 const point = getRailingEndpointPoint(other, end);
-                return Math.hypot(point.x - joint.x, point.y - joint.y) < 1.5;
+                return Math.hypot(point.x - joint.x, point.y - joint.y) < 3.5;
             }));
+            if (!connected) {
+                const altEnd = targetEnd === 0 ? 1 : 0;
+                const altJoint = getRailingEndpointPoint(segment, altEnd);
+                const altConnected = editor.segments.some(other => other.id !== segment.id && [0, 1].some(end => {
+                    const point = getRailingEndpointPoint(other, end);
+                    return Math.hypot(point.x - altJoint.x, point.y - altJoint.y) < 3.5;
+                }));
+                if (altConnected) {
+                    targetEnd = altEnd;
+                    joint = altJoint;
+                    connected = true;
+                }
+            }
             if (!connected) return false;
-            const otherEnd = getRailingEndpointPoint(segment, endpoint.end === 0 ? 1 : 0);
+            const otherEnd = getRailingEndpointPoint(segment, targetEnd === 0 ? 1 : 0);
             const length = Math.hypot(otherEnd.x - joint.x, otherEnd.y - joint.y);
             if (length < 5) return false;
-            const gap = Math.min(20, length * 0.3);
-            setRailingEndpointPoint(segment, endpoint.end, {
+            const gap = Math.min(22, length * 0.3);
+            setRailingEndpointPoint(segment, targetEnd, {
                 x: joint.x + ((otherEnd.x - joint.x) / length) * gap,
                 y: joint.y + ((otherEnd.y - joint.y) / length) * gap
             });
@@ -2097,26 +2452,55 @@
             return true;
         }
 
-        function joinRailingEndpoints(editor, first, second) {
+        function joinRailingEndpoints(editor, first, second, clickPointB = null) {
             if (!first || !second || first.id === second.id) return false;
             const a = editor.segments.find(item => item.id === first.id);
             const b = editor.segments.find(item => item.id === second.id);
             if (!a || !b) return false;
-            const p = getRailingEndpointPoint(a, first.end);
-            const q = getRailingEndpointPoint(b, second.end);
-            if (Math.hypot(p.x - q.x, p.y - q.y) < 1.5) return false;
+
+            const pair = pickBestEndpointPairToJoin(
+                a,
+                b,
+                first.explicitDot ? first.end : 'auto',
+                second.explicitDot ? second.end : 'auto',
+                clickPointB
+            );
+            if (!pair) return false;
+
+            const { endA, endB, pA: p, pB: q } = pair;
+            const otherA = getRailingEndpointPoint(a, endA === 0 ? 1 : 0);
+            const otherB = getRailingEndpointPoint(b, endB === 0 ? 1 : 0);
+
             if (a.orientation === b.orientation) {
-                const joint = { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 };
-                setRailingEndpointPoint(a, first.end, joint);
-                setRailingEndpointPoint(b, second.end, joint);
+                // Parallel / same orientation: align along common axis & bridge or merge seamlessly
+                if (a.orientation === 'H') {
+                    const alignedY = Math.abs(p.y - q.y) <= 28 ? Math.round((otherA.y + otherB.y) / 2) : Math.round((p.y + q.y) / 2);
+                    const midX = (p.x + q.x) / 2;
+                    a.y1 = alignedY; a.y2 = alignedY;
+                    b.y1 = alignedY; b.y2 = alignedY;
+                    setRailingEndpointPoint(a, endA, { x: midX, y: alignedY });
+                    setRailingEndpointPoint(b, endB, { x: midX, y: alignedY });
+                } else {
+                    const alignedX = Math.abs(p.x - q.x) <= 28 ? Math.round((otherA.x + otherB.x) / 2) : Math.round((p.x + q.x) / 2);
+                    const midY = (p.y + q.y) / 2;
+                    a.x1 = alignedX; a.x2 = alignedX;
+                    b.x1 = alignedX; b.x2 = alignedX;
+                    setRailingEndpointPoint(a, endA, { x: alignedX, y: midY });
+                    setRailingEndpointPoint(b, endB, { x: alignedX, y: midY });
+                }
             } else {
-                const horizontalPoint = a.orientation === 'H' ? p : q;
-                const verticalPoint = a.orientation === 'V' ? p : q;
-                const joint = { x: verticalPoint.x, y: horizontalPoint.y };
-                setRailingEndpointPoint(a, first.end, joint);
-                setRailingEndpointPoint(b, second.end, joint);
+                // Perpendicular (1 Horizontal + 1 Vertical): extend both to their exact L-corner intersection!
+                const hSeg = a.orientation === 'H' ? a : b;
+                const vSeg = a.orientation === 'V' ? a : b;
+                const hEnd = a.orientation === 'H' ? endA : endB;
+                const vEnd = a.orientation === 'V' ? endA : endB;
+                const hPt = getRailingEndpointPoint(hSeg, hEnd);
+                const vPt = getRailingEndpointPoint(vSeg, vEnd);
+                const joint = { x: vPt.x, y: hPt.y };
+                setRailingEndpointPoint(hSeg, hEnd, joint);
+                setRailingEndpointPoint(vSeg, vEnd, joint);
             }
-            editor.selectedId = a.id;
+            editor.selectedId = b.id;
             return true;
         }
 
@@ -2169,12 +2553,110 @@
             return ({ 'shape-u': 'Đoạn chữ U', 'shape-l': 'Đoạn chữ L', 'shape-i': 'Đoạn chữ I', draw: 'Đoạn lan can mới' })[tool] || 'Đoạn lan can mới';
         }
 
+        function inferRoomLinkForRailingLine(editor, line, tool = 'draw', partIndex = 0, totalParts = 1) {
+            const wing = editor.wing;
+            const floor = Number(editor.floor);
+            const wingCode = wing === 'Ocean Wing' ? 'OW' : 'GW';
+            const midX = (Number(line.x1) + Number(line.x2)) / 2;
+            const midY = (Number(line.y1) + Number(line.y2)) / 2;
+            const vertical = Math.abs(line.y2 - line.y1) > Math.abs(line.x2 - line.x1);
+            const sideKey = midX < 500 ? 'LEFT' : 'RIGHT';
+            const sideLabel = sideKey === 'LEFT' ? 'Dãy Trái' : 'Dãy Phải';
+
+            const bounds = editor.svg.getBoundingClientRect();
+            const roomBoxes = [];
+            if (bounds.width && bounds.height) {
+                editor.canvas.querySelectorAll('.railing-room-box').forEach(roomEl => {
+                    const rId = roomEl.dataset.roomId;
+                    if (!rId) return;
+                    const rect = roomEl.getBoundingClientRect();
+                    const left = ((rect.left - bounds.left) / bounds.width) * 1000;
+                    const right = ((rect.right - bounds.left) / bounds.width) * 1000;
+                    const top = ((rect.top - bounds.top) / bounds.height) * 1000;
+                    const bottom = ((rect.bottom - bounds.top) / bounds.height) * 1000;
+                    const cx = (left + right) / 2;
+                    const cy = (top + bottom) / 2;
+                    const roomSide = cx < 500 ? 'LEFT' : 'RIGHT';
+                    roomBoxes.push({ roomId: rId, left, right, top, bottom, cx, cy, side: roomSide });
+                });
+            }
+
+            const sameSideRooms = roomBoxes
+                .filter(r => r.side === sideKey)
+                .sort((a, b) => a.cy - b.cy);
+            const pool = sameSideRooms.length ? sameSideRooms : roomBoxes;
+
+            let nearest = null;
+            let nearestDist = Infinity;
+            pool.forEach(r => {
+                const dist = Math.hypot(midX - r.cx, midY - r.cy);
+                if (dist < nearestDist) {
+                    nearestDist = dist;
+                    nearest = r;
+                }
+            });
+
+            if (!nearest) {
+                const fallbackCode = `LC T${floor}`;
+                return {
+                    roomRef: '',
+                    side: sideKey,
+                    category: 'CUSTOM_RAILING',
+                    shortCode: fallbackCode,
+                    label: `${getRailingShapeLabel(tool)} (${wing} - T${floor})`
+                };
+            }
+
+            // Determine position relative to nearest room:
+            // On LEFT side: outer balcony is to the left of the room (midX < nearest.cx), corridor is to the right (midX >= nearest.cx)
+            // On RIGHT side: outer balcony is to the right of the room (midX > nearest.cx), corridor is to the left (midX <= nearest.cx)
+            const isRearBalconySide = sideKey === 'LEFT' ? (midX < nearest.cx - 8) : (midX > nearest.cx + 8);
+
+            if (isRearBalconySide) {
+                return {
+                    roomRef: nearest.roomId,
+                    side: sideKey,
+                    category: 'BALCONY',
+                    shortCode: `Sau ${nearest.roomId}`,
+                    label: `Lan can Sau P.${nearest.roomId} (${sideLabel} • ${wing} - T${floor})`
+                };
+            }
+
+            // If vertical segment on corridor side, check if it bridges two rooms (Giữa Phòng - Phòng)
+            if (vertical && sameSideRooms.length >= 2) {
+                const aboveRooms = sameSideRooms.filter(r => r.cy <= midY);
+                const belowRooms = sameSideRooms.filter(r => r.cy > midY);
+                const roomAbove = aboveRooms[aboveRooms.length - 1];
+                const roomBelow = belowRooms[0];
+                if (roomAbove && roomBelow && roomAbove.roomId !== roomBelow.roomId) {
+                    return {
+                        roomRef: `${roomAbove.roomId}-${roomBelow.roomId}`,
+                        side: sideKey,
+                        category: 'CORRIDOR_BAY',
+                        shortCode: `Giữa ${roomAbove.roomId}-${roomBelow.roomId}`,
+                        label: `Lan can Giữa P.${roomAbove.roomId} và P.${roomBelow.roomId} (${sideLabel} • ${wing} - T${floor})`
+                    };
+                }
+            }
+
+            return {
+                roomRef: nearest.roomId,
+                side: sideKey,
+                category: 'ENTRANCE_SIDE',
+                shortCode: `Trước ${nearest.roomId}`,
+                label: `Lan can Trước P.${nearest.roomId} (${sideLabel} • ${wing} - T${floor})`
+            };
+        }
+
         function saveRailingEditorModel(editor) {
             const proj = getProjectById(editor.projectId);
             if (!proj) return;
             const layoutKey = `${editor.wing.replace(/\s+/g, '_')}_T${editor.floor}`;
+            const existingPayload = getSavedRailingLayoutPayload(proj, editor.wing, editor.floor) || {};
             const payload = {
+                ...existingPayload,
                 segments: editor.segments.map(seg => ({ ...seg })),
+                roomOffsets: editor.roomOffsets || existingPayload.roomOffsets || {},
                 updatedAt: new Date().toISOString(),
                 updatedBy: state.authenticatedUser?.name || 'Quản trị viên'
             };
@@ -2214,22 +2696,39 @@
                 hasEdits: !!getSavedRailingLayoutPayload(proj, canvas.dataset.wing, canvas.dataset.floor),
                 selectedId: activeRailingEditorContext?.selectedId || null,
                 tool: activeRailingEditorContext?.tool || 'select',
+                roomArrangeActive: !!activeRailingEditorContext?.roomArrangeActive,
+                continuousChainEnd: activeRailingEditorContext?.continuousChainEnd || null,
                 dragging: null,
                 joinPending: activeRailingEditorContext?.joinPending || null,
                 preview: null
             };
             canvas.__railingEditor = editor;
             svg.addEventListener('pointerdown', event => {
-                if (!canvas.classList.contains('railing-editor-active')) return;
+                if (!canvas.classList.contains('railing-editor-active') || editor.roomArrangeActive) return;
                 event.preventDefault();
                 const point = editorPointFromEvent(event, editor);
                 const target = event.target.closest?.('[data-role]');
                 const role = target?.dataset.role;
                 const targetId = target?.dataset.id;
+                if (editor.tool === 'delete') {
+                    let hitSegId = (role === 'segment-hit' || role === 'handle') ? targetId : null;
+                    if (!hitSegId) {
+                        const nearEnd = findNearestRailingEndpoint(editor, point);
+                        if (nearEnd) hitSegId = nearEnd.id;
+                    }
+                    if (!hitSegId) {
+                        showToast('Hãy bấm trực tiếp vào đoạn lan can cần xóa.', 'error');
+                        return;
+                    }
+                    deleteRailingSegmentById(editor.projectId, editor.wing, editor.floor, hitSegId);
+                    return;
+                }
                 if (editor.tool === 'break') {
-                    const endpoint = findNearestRailingEndpoint(editor, point, targetId);
-                    if (!endpoint) { showToast('Hãy bấm sát một đầu mút cần ngắt.', 'error'); return; }
-                    if (!breakRailingJoint(editor, endpoint)) { showToast('Đầu mút này chưa nối với đoạn khác.'); return; }
+                    const endpoint = (role === 'join-endpoint')
+                        ? { id: targetId, end: Number(target.dataset.end) }
+                        : findNearestRailingEndpoint(editor, point, targetId);
+                    if (!endpoint) { showToast('Hãy bấm vào chấm tròn đầu mối hoặc đoạn lan can cần ngắt.', 'error'); return; }
+                    if (!breakRailingJoint(editor, endpoint)) { showToast('Đoạn này chưa nối khít với đoạn khác.'); return; }
                     editor.joinPending = null;
                     activeRailingEditorContext = { projectId: String(editor.projectId), wing: editor.wing, floor: editor.floor, tool: editor.tool, selectedId: editor.selectedId, joinPending: null };
                     renderRailingEditorSvg(editor);
@@ -2238,36 +2737,69 @@
                     return;
                 }
                 if (editor.tool === 'join') {
-                    const endpoint = findNearestRailingEndpoint(editor, point, targetId);
-                    if (!endpoint) { showToast('Hãy bấm sát đầu mút của đoạn cần nối.', 'error'); return; }
+                    const explicitDot = role === 'join-endpoint';
+                    const endpoint = explicitDot
+                        ? { id: targetId, end: Number(target.dataset.end), explicitDot: true }
+                        : findNearestRailingEndpoint(editor, point, targetId);
+                    if (!endpoint) {
+                        editor.joinPending = null;
+                        editor.joinHoverPoint = null;
+                        renderRailingEditorSvg(editor);
+                        showToast('Hãy bấm vào đoạn lan can thứ nhất cần nối.', 'error');
+                        return;
+                    }
                     if (!editor.joinPending) {
-                        editor.joinPending = { id: endpoint.id, end: endpoint.end };
+                        editor.joinPending = { id: endpoint.id, end: endpoint.end, explicitDot: !!endpoint.explicitDot };
+                        editor.joinHoverPoint = point;
                         editor.selectedId = endpoint.id;
                         activeRailingEditorContext = { projectId: String(editor.projectId), wing: editor.wing, floor: editor.floor, tool: editor.tool, selectedId: editor.selectedId, joinPending: editor.joinPending };
                         renderRailingEditorSvg(editor);
+                        const seg1 = editor.segments.find(s => s.id === endpoint.id);
+                        showToast(`Đã chọn ${seg1?.shortCode || 'đoạn 1'} • Bấm tiếp vào đoạn thứ 2 để nối khít.`);
                         return;
                     }
-                    if (editor.joinPending.id === endpoint.id) { showToast('Hãy chọn đầu mút của một đoạn khác.'); return; }
+                    if (editor.joinPending.id === endpoint.id) {
+                        // Switching to the other end of the same segment if clicked
+                        editor.joinPending = { id: endpoint.id, end: endpoint.end, explicitDot: !!endpoint.explicitDot };
+                        editor.joinHoverPoint = point;
+                        renderRailingEditorSvg(editor);
+                        showToast('Đã đổi đầu nối trên đoạn thứ nhất. Hãy bấm vào đoạn thứ hai để nối.');
+                        return;
+                    }
                     const first = editor.joinPending;
                     editor.joinPending = null;
-                    if (!joinRailingEndpoints(editor, first, endpoint)) { activeRailingEditorContext = { projectId: String(editor.projectId), wing: editor.wing, floor: editor.floor, tool: editor.tool, selectedId: editor.selectedId, joinPending: null }; showToast('Hai đầu mút này đã nối với nhau hoặc không thể ghép.', 'error'); renderRailingEditorSvg(editor); return; }
+                    editor.joinHoverPoint = null;
+                    if (!joinRailingEndpoints(editor, first, endpoint, point)) {
+                        activeRailingEditorContext = { projectId: String(editor.projectId), wing: editor.wing, floor: editor.floor, tool: editor.tool, selectedId: editor.selectedId, joinPending: null };
+                        showToast('Không thể ghép hai đoạn này.', 'error');
+                        renderRailingEditorSvg(editor);
+                        return;
+                    }
                     activeRailingEditorContext = { projectId: String(editor.projectId), wing: editor.wing, floor: editor.floor, tool: editor.tool, selectedId: editor.selectedId, joinPending: null };
                     renderRailingEditorSvg(editor);
                     saveRailingEditorModel(editor);
-                    showToast('Đã nối hai đầu đoạn.');
+                    const segA = editor.segments.find(s => s.id === first.id);
+                    const segB = editor.segments.find(s => s.id === endpoint.id);
+                    showToast(`Đã nối khít: ${segA?.shortCode || 'Đoạn 1'} ↔ ${segB?.shortCode || 'Đoạn 2'}`);
                     return;
                 }
-                if (role === 'handle' && editor.tool === 'select') {
+                if (['draw', 'shape-u', 'shape-l', 'shape-i'].includes(editor.tool)) {
+                    editor.selectedId = null;
+                    let snappedStart = snapRailingPoint(editor, point);
+                    if (editor.continuousChainEnd && ['draw', 'shape-i'].includes(editor.tool)) {
+                        const distToChain = Math.hypot(point.x - editor.continuousChainEnd.x, point.y - editor.continuousChainEnd.y);
+                        if (distToChain <= 55) {
+                            snappedStart = { ...editor.continuousChainEnd };
+                        }
+                    }
+                    editor.dragging = { type: 'draw', start: snappedStart, tool: editor.tool };
+                    editor.preview = buildRailingShapeGeometry(editor.tool, snappedStart, snappedStart);
+                } else if (role === 'handle' && editor.tool === 'select') {
                     editor.selectedId = targetId;
                     editor.dragging = { type: 'resize', id: targetId, end: Number(target.dataset.end), start: point };
                 } else if (role === 'segment-hit') {
                     editor.selectedId = targetId;
                     if (editor.tool === 'select') editor.dragging = { type: 'move', id: targetId, start: point };
-                } else if (['draw', 'shape-u', 'shape-l', 'shape-i'].includes(editor.tool)) {
-                    editor.selectedId = null;
-                    const snappedStart = snapRailingPoint(editor, point);
-                    editor.dragging = { type: 'draw', start: snappedStart, tool: editor.tool };
-                    editor.preview = buildRailingShapeGeometry(editor.tool, snappedStart, snappedStart);
                 } else {
                     editor.selectedId = null;
                 }
@@ -2275,6 +2807,11 @@
                 renderRailingEditorSvg(editor);
             });
             svg.addEventListener('pointermove', event => {
+                if (editor.tool === 'join' && editor.joinPending && !editor.dragging) {
+                    editor.joinHoverPoint = editorPointFromEvent(event, editor);
+                    renderRailingEditorSvg(editor);
+                    return;
+                }
                 if (!editor.dragging) return;
                 event.preventDefault();
                 const point = editorPointFromEvent(event, editor);
@@ -2311,33 +2848,159 @@
                         : geometry.length === 1 && Math.hypot(geometry[0].x2 - geometry[0].x1, geometry[0].y2 - geometry[0].y1) >= 18;
                     if (valid) {
                         const stamp = `${Date.now()}_${Math.floor(Math.random() * 10000)}`;
-                        const label = getRailingShapeLabel(drag.tool);
+                        const proj = getProjectById(editor.projectId);
+                        const wingCode = editor.wing === 'Ocean Wing' ? 'OW' : 'GW';
+                        const linkedRoomsSummary = [];
+
                         geometry.forEach((line, index) => {
                             const id = `custom_${stamp}_${index + 1}`;
                             const vertical = Math.abs(line.y2 - line.y1) > Math.abs(line.x2 - line.x1);
+                            const inferred = inferRoomLinkForRailingLine(editor, line, drag.tool, index, geometry.length);
+                            const unitId = `LC_${wingCode}_T${editor.floor}_C_${stamp}_${index + 1}`;
+
+                            const existingSameShort = ALL_RAILINGS.filter(r =>
+                                r.wing === editor.wing &&
+                                r.floor === Number(editor.floor) &&
+                                r.shortCode &&
+                                (r.shortCode === inferred.shortCode || r.shortCode.startsWith(`${inferred.shortCode} (`))
+                            ).length;
+
+                            const finalShortCode = existingSameShort > 0
+                                ? `${inferred.shortCode} (#${existingSameShort + 1})`
+                                : inferred.shortCode;
+
+                            const unitMeta = {
+                                id: unitId,
+                                wing: editor.wing,
+                                floor: Number(editor.floor),
+                                side: inferred.side,
+                                category: inferred.category,
+                                roomRef: inferred.roomRef,
+                                shortCode: finalShortCode,
+                                label: inferred.label,
+                                unitType: 'RAILING',
+                                isCustom: true
+                            };
+                            registerDynamicRailingMeta(unitMeta);
+
+                            if (proj) {
+                                if (!Array.isArray(proj.targetRooms)) proj.targetRooms = [];
+                                if (!proj.targetRooms.includes(unitId)) {
+                                    proj.targetRooms.push(unitId);
+                                }
+                                const taskKey = `${proj.id}_${unitId}`;
+                                if (!state.tasks[taskKey]) {
+                                    const newTask = {
+                                        projectId: proj.id,
+                                        roomId: unitId,
+                                        status: 'Pending',
+                                        note: '',
+                                        updatedBy: state.authenticatedUser?.name || '',
+                                        updatedAt: ''
+                                    };
+                                    state.tasks[taskKey] = newTask;
+                                    if (db) {
+                                        setDoc(doc(db, 'tasks', taskKey), newTask).catch(err => console.warn(err));
+                                    }
+                                }
+                            }
+
                             editor.segments.push({
                                 id,
-                                sourceId: null,
-                                label: isShape ? `${label} • cạnh ${index + 1}` : label,
+                                sourceId: unitId,
+                                roomRef: inferred.roomRef,
+                                shortCode: finalShortCode,
+                                label: inferred.label,
+                                category: inferred.category,
+                                side: inferred.side,
+                                unitMeta,
                                 orientation: vertical ? 'V' : 'H',
                                 x1: line.x1,
                                 y1: line.y1,
                                 x2: line.x2,
                                 y2: line.y2
                             });
-                            if (index === 0) editor.selectedId = id;
+                            linkedRoomsSummary.push(finalShortCode);
+                            if (index === geometry.length - 1) {
+                                editor.selectedId = id;
+                                editor.continuousChainEnd = { x: line.x2, y: line.y2 };
+                            }
                         });
+
+                        if (linkedRoomsSummary.length) {
+                            showToast(`Đã vẽ (${editor.tool.toUpperCase()}): ${linkedRoomsSummary.join(', ')} • Tiếp tục kéo để vẽ đoạn kế tiếp`);
+                        }
                     }
                 }
                 editor.dragging = null;
                 editor.preview = null;
                 renderRailingEditorSvg(editor);
+                if (drag.type === 'move' || drag.type === 'resize') {
+                    const movedSeg = editor.segments.find(item => item.id === drag.id);
+                    if (movedSeg && String(movedSeg.id).startsWith('custom_') && movedSeg.sourceId && !movedSeg.manualRoomLocked) {
+                        const inferred = inferRoomLinkForRailingLine(editor, movedSeg, 'draw', 0, 1);
+                        movedSeg.roomRef = inferred.roomRef;
+                        movedSeg.shortCode = inferred.shortCode;
+                        movedSeg.label = inferred.label;
+                        movedSeg.category = inferred.category;
+                        movedSeg.side = inferred.side;
+                        const unitMeta = {
+                            id: movedSeg.sourceId,
+                            wing: editor.wing,
+                            floor: Number(editor.floor),
+                            side: inferred.side,
+                            category: inferred.category,
+                            roomRef: inferred.roomRef,
+                            shortCode: inferred.shortCode,
+                            label: inferred.label,
+                            unitType: 'RAILING',
+                            isCustom: true
+                        };
+                        movedSeg.unitMeta = unitMeta;
+                        registerDynamicRailingMeta(unitMeta);
+                    }
+                }
                 if (drag.type !== 'draw' || editor.selectedId) {
-                    activeRailingEditorContext = { projectId: editor.projectId, wing: editor.wing, floor: editor.floor, tool: editor.tool, selectedId: editor.selectedId };
+                    activeRailingEditorContext = {
+                        projectId: String(editor.projectId),
+                        wing: editor.wing,
+                        floor: Number(editor.floor),
+                        tool: editor.tool,
+                        roomArrangeActive: !!editor.roomArrangeActive,
+                        continuousChainEnd: editor.continuousChainEnd || null,
+                        selectedId: editor.selectedId,
+                        joinPending: editor.joinPending || null
+                    };
                     saveRailingEditorModel(editor);
+                    updateAdminDashboard();
                 }
             };
-            svg.addEventListener('pointerup', finishPointer);
+            svg.addEventListener('pointerup', event => {
+                if (editor.tool === 'join' && editor.joinPending && !editor.dragging) {
+                    const upPoint = editorPointFromEvent(event, editor);
+                    const upTarget = document.elementFromPoint(event.clientX, event.clientY)?.closest?.('[data-role]');
+                    const upRole = upTarget?.dataset.role;
+                    const upTargetId = upTarget?.dataset.id;
+                    const candidate = (upRole === 'join-endpoint')
+                        ? { id: upTargetId, end: Number(upTarget.dataset.end), explicitDot: true }
+                        : findNearestRailingEndpoint(editor, upPoint, upTargetId, 60);
+                    if (candidate && candidate.id !== editor.joinPending.id) {
+                        const first = editor.joinPending;
+                        editor.joinPending = null;
+                        editor.joinHoverPoint = null;
+                        if (joinRailingEndpoints(editor, first, candidate, upPoint)) {
+                            activeRailingEditorContext = { projectId: String(editor.projectId), wing: editor.wing, floor: editor.floor, tool: editor.tool, selectedId: editor.selectedId, joinPending: null };
+                            renderRailingEditorSvg(editor);
+                            saveRailingEditorModel(editor);
+                            const segA = editor.segments.find(s => s.id === first.id);
+                            const segB = editor.segments.find(s => s.id === candidate.id);
+                            showToast(`Đã nối khít: ${segA?.shortCode || 'Đoạn 1'} ↔ ${segB?.shortCode || 'Đoạn 2'}`);
+                            return;
+                        }
+                    }
+                }
+                finishPointer(event);
+            });
             svg.addEventListener('pointercancel', () => {
                 editor.dragging = null;
                 editor.preview = null;
@@ -2364,6 +3027,7 @@
             const canvases = Array.from(document.querySelectorAll('.railing-layout-canvas[data-project-id]'))
                 .filter(canvas => canvas.dataset.projectId === String(proj.id));
             canvases.forEach(canvas => {
+                applySavedRailingRoomOffsets(canvas, proj);
                 const isActive = activeRailingEditorContext
                     && activeRailingEditorContext.projectId === String(proj.id)
                     && activeRailingEditorContext.wing === canvas.dataset.wing
@@ -2380,8 +3044,16 @@
                 }
                 canvas.classList.add('railing-editor-active');
                 editor.tool = activeRailingEditorContext.tool || 'select';
+                editor.roomArrangeActive = !!activeRailingEditorContext.roomArrangeActive;
+                editor.continuousChainEnd = activeRailingEditorContext.continuousChainEnd || null;
                 editor.selectedId = activeRailingEditorContext.selectedId || null;
                 editor.joinPending = activeRailingEditorContext.joinPending || null;
+                if (editor.roomArrangeActive) {
+                    bindRailingRoomDragHandler(canvas, editor.projectId, editor.wing, editor.floor);
+                    canvas.classList.add('railing-room-arrange-active');
+                } else {
+                    canvas.classList.remove('railing-room-arrange-active');
+                }
                 const toolbar = getRailingEditorToolbar(editor.projectId, editor.wing, editor.floor);
                 toolbar?.classList.remove('hidden');
                 renderRailingEditorSvg(editor);
@@ -2390,7 +3062,8 @@
 
         function toggleRailingLayoutEditor(projectId, wing, floor) {
             if (!canEditRailingLayout()) {
-                showToast('Chỉ Admin hoặc Phó admin mới được chỉnh sửa layout lan can.', 'error');
+                showToast('Vui lòng đăng nhập tài khoản Admin hoặc Phó admin để chỉnh sửa sơ đồ.', 'error');
+                openStaffLoginModal();
                 return;
             }
             const canvas = getRailingEditorCanvas(projectId, wing, floor);
@@ -2420,13 +3093,65 @@
 
         function setRailingEditorTool(projectId, wing, floor, tool) {
             const canvas = getRailingEditorCanvas(projectId, wing, floor);
+            const toolbar = getRailingEditorToolbar(projectId, wing, floor);
             if (!canvas || !canvas.__railingEditor) return;
             const editor = canvas.__railingEditor;
-            editor.tool = ['draw', 'shape-u', 'shape-l', 'shape-i', 'break', 'join'].includes(tool) ? tool : 'select';
-            editor.selectedId = null;
+
+            // Turning on any drawing/select/delete tool turns off room arrange mode
+            canvas.classList.remove('railing-room-arrange-active');
+            editor.roomArrangeActive = false;
+            toolbar?.querySelector('[data-editor-tool="arrange-room"]')?.classList.remove('active');
+            toolbar?.querySelector('[data-editor-reset-rooms]')?.classList.add('hidden');
+
+            // If user clicks 'delete' while a segment is already selected and tool wasn't 'delete', delete that segment immediately AND keep 'delete' mode active!
+            if (tool === 'delete' && editor.tool === 'delete') {
+                // Clicking 'Chế độ Xóa' a second time toggles it OFF back to 'select'
+                editor.tool = 'select';
+                editor.continuousChainEnd = null;
+                activeRailingEditorContext = {
+                    projectId: String(projectId),
+                    wing,
+                    floor: Number(floor),
+                    tool: 'select',
+                    roomArrangeActive: false,
+                    continuousChainEnd: null,
+                    selectedId: null,
+                    joinPending: null
+                };
+                renderRailingEditorSvg(editor);
+                showToast('Đã tắt chế độ xóa liên tục.');
+                return;
+            }
+
+            const validTools = ['select', 'draw', 'shape-u', 'shape-l', 'shape-i', 'delete', 'break', 'join'];
+            const nextTool = validTools.includes(tool) ? tool : 'select';
+            const preSelectedId = editor.selectedId;
+
+            editor.tool = nextTool;
+            editor.continuousChainEnd = null;
             editor.joinPending = null;
-            activeRailingEditorContext = { projectId: String(projectId), wing, floor, tool: editor.tool, selectedId: null, joinPending: null };
+
+            if (nextTool === 'delete' && preSelectedId) {
+                deleteRailingSegmentById(projectId, wing, floor, preSelectedId);
+                showToast('Đã xóa đoạn đang chọn & bật Chế độ Xóa liên tục (bấm vào đoạn bất kỳ để xóa ngay).');
+                return;
+            }
+
+            editor.selectedId = null;
+            activeRailingEditorContext = {
+                projectId: String(projectId),
+                wing,
+                floor: Number(floor),
+                tool: editor.tool,
+                roomArrangeActive: false,
+                continuousChainEnd: null,
+                selectedId: null,
+                joinPending: null
+            };
             renderRailingEditorSvg(editor);
+            if (nextTool === 'delete') {
+                showToast('Đã bật Chế độ Xóa liên tục: Tick chọn vào đoạn lan can bất kỳ để xóa ngay.');
+            }
         }
 
         function toggleRailingEditorOption(projectId, wing, floor, option) {
@@ -2440,23 +3165,166 @@
             renderRailingEditorSvg(editor);
         }
 
+        function promptRelinkSelectedRailingSegment(projectId, wing, floor) {
+            const canvas = getRailingEditorCanvas(projectId, wing, floor);
+            const editor = canvas?.__railingEditor;
+            if (!editor?.selectedId) {
+                showToast('Hãy bấm chọn một đoạn lan can trước.', 'error');
+                return;
+            }
+            const seg = editor.segments.find(s => s.id === editor.selectedId);
+            if (!seg) return;
+
+            const floorRooms = REAL_HOTEL_DATA[wing]?.[Number(floor)] || [];
+            const currentRoom = seg.roomRef || '';
+            const input = prompt(
+                `Nhập mã phòng hoặc tên đoạn lan can liên kết cho đoạn đang chọn (Các phòng ${wing} Tầng ${floor}: ${floorRooms.join(', ')}):
+- Nhập số phòng (VD: ${floorRooms[0] || '201'}) để tự động đặt Trước/Sau phòng
+- Hoặc nhập tên tùy chỉnh (VD: Trước 201, Sau 201, Giữa 201-203)`,
+                seg.shortCode || currentRoom
+            );
+            if (input === null) return;
+            const trimmed = input.trim();
+            if (!trimmed) return;
+
+            const wingCode = wing === 'Ocean Wing' ? 'OW' : 'GW';
+            const sideKey = (Number(seg.x1) + Number(seg.x2)) / 2 < 500 ? 'LEFT' : 'RIGHT';
+            const sideLabel = sideKey === 'LEFT' ? 'Dãy Trái' : 'Dãy Phải';
+
+            let shortCode = trimmed;
+            let roomRef = trimmed;
+            let category = seg.category || 'ENTRANCE_SIDE';
+            let label = `Lan can ${trimmed} (${sideLabel} • ${wing} - T${floor})`;
+
+            if (/^\d{3}$/.test(trimmed)) {
+                const inferred = inferRoomLinkForRailingLine(editor, seg, 'draw', 0, 1);
+                roomRef = trimmed;
+                category = inferred.category;
+                shortCode = category === 'BALCONY' ? `Sau ${trimmed}` : `Trước ${trimmed}`;
+                label = `Lan can ${shortCode} (${sideLabel} • ${wing} - T${floor})`;
+            } else if (/^sau\s+(\d{3})/i.test(trimmed)) {
+                roomRef = trimmed.match(/(\d{3})/)[1];
+                category = 'BALCONY';
+                shortCode = `Sau ${roomRef}`;
+                label = `Lan can ${shortCode} (${sideLabel} • ${wing} - T${floor})`;
+            } else if (/^trước\s+(\d{3})/i.test(trimmed) || /^truoc\s+(\d{3})/i.test(trimmed)) {
+                roomRef = trimmed.match(/(\d{3})/)[1];
+                category = 'ENTRANCE_SIDE';
+                shortCode = `Trước ${roomRef}`;
+                label = `Lan can ${shortCode} (${sideLabel} • ${wing} - T${floor})`;
+            } else if (/^giữa\s+/i.test(trimmed) || /^giua\s+/i.test(trimmed)) {
+                category = 'CORRIDOR_BAY';
+                shortCode = trimmed;
+                label = `Lan can ${shortCode} (${sideLabel} • ${wing} - T${floor})`;
+            }
+
+            if (!seg.sourceId) {
+                seg.sourceId = `LC_${wingCode}_T${floor}_C_${Date.now()}`;
+            }
+            seg.roomRef = roomRef;
+            seg.shortCode = shortCode;
+            seg.label = label;
+            seg.category = category;
+            seg.side = sideKey;
+            seg.manualRoomLocked = true;
+
+            const unitMeta = {
+                id: seg.sourceId,
+                wing,
+                floor: Number(floor),
+                side: sideKey,
+                category,
+                roomRef,
+                shortCode,
+                label,
+                unitType: 'RAILING',
+                isCustom: true
+            };
+            seg.unitMeta = unitMeta;
+            registerDynamicRailingMeta(unitMeta);
+
+            const proj = getProjectById(projectId);
+            if (proj) {
+                if (!Array.isArray(proj.targetRooms)) proj.targetRooms = [];
+                if (!proj.targetRooms.includes(seg.sourceId)) proj.targetRooms.push(seg.sourceId);
+                const taskKey = `${proj.id}_${seg.sourceId}`;
+                if (!state.tasks[taskKey]) {
+                    state.tasks[taskKey] = {
+                        projectId: proj.id,
+                        roomId: seg.sourceId,
+                        status: 'Pending',
+                        note: '',
+                        updatedBy: '',
+                        updatedAt: ''
+                    };
+                }
+            }
+
+            renderRailingEditorSvg(editor);
+            saveRailingEditorModel(editor);
+            updateAdminDashboard();
+            lucide.createIcons();
+            showToast(`Đã liên kết đoạn lan can với: ${shortCode}`);
+        }
+
+        function deleteRailingSegmentById(projectId, wing, floor, segmentId) {
+            const canvas = getRailingEditorCanvas(projectId, wing, floor);
+            const editor = canvas?.__railingEditor;
+            if (!editor || !segmentId) return;
+            const targetSeg = editor.segments.find(seg => seg.id === segmentId);
+            if (!targetSeg) return;
+
+            editor.segments = editor.segments.filter(seg => seg.id !== segmentId);
+            if (editor.selectedId === segmentId) editor.selectedId = null;
+            if (editor.joinPending && !editor.segments.some(seg => seg.id === editor.joinPending.id)) editor.joinPending = null;
+
+            if (targetSeg?.sourceId && String(targetSeg.sourceId).includes('_C_')) {
+                const proj = getProjectById(projectId);
+                const stillUsed = editor.segments.some(seg => seg.sourceId === targetSeg.sourceId);
+                if (proj && !stillUsed && Array.isArray(proj.targetRooms)) {
+                    proj.targetRooms = proj.targetRooms.filter(id => id !== targetSeg.sourceId);
+                    const taskKey = `${proj.id}_${targetSeg.sourceId}`;
+                    delete state.tasks[taskKey];
+                    if (db) {
+                        deleteDoc(doc(db, 'tasks', taskKey)).catch(err => console.warn(err));
+                    }
+                }
+            }
+
+            activeRailingEditorContext = {
+                projectId: String(projectId),
+                wing,
+                floor: Number(floor),
+                tool: editor.tool,
+                roomArrangeActive: !!editor.roomArrangeActive,
+                continuousChainEnd: editor.continuousChainEnd || null,
+                selectedId: editor.selectedId,
+                joinPending: editor.joinPending || null
+            };
+            renderRailingEditorSvg(editor);
+            saveRailingEditorModel(editor);
+            updateAdminDashboard();
+            const label = targetSeg.shortCode || targetSeg.label || 'đoạn lan can';
+            showToast(`Đã xóa: ${label}`);
+        }
+
         function deleteSelectedRailingSegment(projectId, wing, floor) {
             const canvas = getRailingEditorCanvas(projectId, wing, floor);
             const editor = canvas?.__railingEditor;
-            if (!editor?.selectedId) return;
-            editor.segments = editor.segments.filter(seg => seg.id !== editor.selectedId);
-            editor.selectedId = null;
-            if (editor.joinPending && !editor.segments.some(seg => seg.id === editor.joinPending.id)) editor.joinPending = null;
-            activeRailingEditorContext = { projectId: String(projectId), wing, floor: Number(floor), tool: editor.tool, selectedId: null };
-            renderRailingEditorSvg(editor);
-            saveRailingEditorModel(editor);
-            showToast('Đã xóa đoạn lan can khỏi layout.');
+            if (!editor) return;
+            if (editor.selectedId && editor.tool !== 'delete') {
+                editor.tool = 'delete';
+                deleteRailingSegmentById(projectId, wing, floor, editor.selectedId);
+                showToast('Đã xóa đoạn chọn & giữ Chế độ Xóa liên tục (tick vào đoạn khác để xóa tiếp).');
+                return;
+            }
+            setRailingEditorTool(projectId, wing, floor, 'delete');
         }
 
         function closeRailingLayoutEditor(projectId, wing, floor) {
             const canvas = getRailingEditorCanvas(projectId, wing, floor);
             const toolbar = getRailingEditorToolbar(projectId, wing, floor);
-            canvas?.classList.remove('railing-editor-active');
+            canvas?.classList.remove('railing-editor-active', 'railing-room-arrange-active');
             const editor = canvas?.__railingEditor;
             if (editor?.hasEdits) canvas?.classList.add('railing-layout-has-edits');
             if (editor) {
@@ -2676,15 +3544,523 @@
             }, true);
         }
 
+        function applySavedRailingRoomOffsets(canvas, proj) {
+            if (!canvas || !proj) return;
+            const saved = getSavedRailingLayoutPayload(proj, canvas.dataset.wing, canvas.dataset.floor);
+            const roomOffsets = saved?.roomOffsets || {};
+            if (canvas.__railingEditor) {
+                canvas.__railingEditor.roomOffsets = { ...roomOffsets };
+            }
+            canvas.querySelectorAll('.railing-room-box').forEach(roomEl => {
+                const rId = roomEl.dataset.roomId;
+                const off = roomOffsets[rId];
+                if (off && (off.dx || off.dy)) {
+                    const dx = Number(off.dx) || 0;
+                    const dy = Number(off.dy) || 0;
+                    roomEl.dataset.offsetX = String(dx);
+                    roomEl.dataset.offsetY = String(dy);
+                    roomEl.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
+                } else {
+                    roomEl.dataset.offsetX = '0';
+                    roomEl.dataset.offsetY = '0';
+                    roomEl.style.transform = '';
+                }
+            });
+        }
+
+        function saveRailingRoomOffsets(canvas, projectId, wing, floor, roomOffsets) {
+            const proj = getProjectById(projectId);
+            if (!proj) return;
+            const editor = ensureRailingEditor(canvas, proj);
+            editor.roomOffsets = { ...(roomOffsets || {}) };
+            saveRailingEditorModel(editor);
+        }
+
+        function bindRailingRoomDragHandler(canvas, projectId, wing, floor) {
+            if (!canvas || canvas.dataset.roomDragBound === 'true') return;
+            canvas.dataset.roomDragBound = 'true';
+
+            let dragState = null;
+
+            canvas.addEventListener('pointerdown', (e) => {
+                if (!canvas.classList.contains('railing-room-arrange-active')) return;
+                if (e.button !== 0 && e.pointerType === 'mouse') return;
+                const roomBox = e.target.closest('.railing-room-box');
+                if (!roomBox) return;
+
+                e.preventDefault();
+                e.stopPropagation();
+
+                const proj = getProjectById(projectId);
+                const editor = ensureRailingEditor(canvas, proj);
+                const startDx = Number(roomBox.dataset.offsetX || 0);
+                const startDy = Number(roomBox.dataset.offsetY || 0);
+
+                // Collect rooms to move: if Shift is held, move all rooms in the same cluster together
+                const clusterContainer = roomBox.parentElement;
+                const targets = e.shiftKey && clusterContainer
+                    ? Array.from(clusterContainer.querySelectorAll('.railing-room-box'))
+                    : [roomBox];
+
+                const targetStarts = targets.map(el => ({
+                    el,
+                    roomId: el.dataset.roomId,
+                    startX: Number(el.dataset.offsetX || 0),
+                    startY: Number(el.dataset.offsetY || 0)
+                }));
+
+                roomBox.classList.add('room-dragging-active');
+                try { roomBox.setPointerCapture(e.pointerId); } catch (_) {}
+
+                dragState = {
+                    pointerId: e.pointerId,
+                    roomBox,
+                    editor,
+                    originClientX: e.clientX,
+                    originClientY: e.clientY,
+                    startDx,
+                    startDy,
+                    targetStarts,
+                    moved: false
+                };
+            });
+
+            canvas.addEventListener('pointermove', (e) => {
+                if (!dragState || e.pointerId !== dragState.pointerId) return;
+                e.preventDefault();
+
+                let deltaX = e.clientX - dragState.originClientX;
+                let deltaY = e.clientY - dragState.originClientY;
+                if (!dragState.moved && Math.hypot(deltaX, deltaY) < 2) return;
+                dragState.moved = true;
+
+                const snapStep = dragState.editor?.snapEnabled ? 8 : 1;
+                dragState.targetStarts.forEach(item => {
+                    const nextX = Math.round((item.startX + deltaX) / snapStep) * snapStep;
+                    const nextY = Math.round((item.startY + deltaY) / snapStep) * snapStep;
+                    item.el.dataset.offsetX = String(nextX);
+                    item.el.dataset.offsetY = String(nextY);
+                    item.el.style.transform = `translate3d(${nextX}px, ${nextY}px, 0)`;
+                });
+            });
+
+            const finishRoomDrag = (e) => {
+                if (!dragState || (e.pointerId !== undefined && e.pointerId !== dragState.pointerId)) return;
+                const current = dragState;
+                dragState = null;
+                current.roomBox.classList.remove('room-dragging-active');
+                try { current.roomBox.releasePointerCapture(current.pointerId); } catch (_) {}
+
+                if (current.moved) {
+                    const proj = getProjectById(projectId);
+                    const saved = getSavedRailingLayoutPayload(proj, wing, floor);
+                    const nextOffsets = { ...(saved?.roomOffsets || current.editor?.roomOffsets || {}) };
+                    current.targetStarts.forEach(item => {
+                        const fx = Number(item.el.dataset.offsetX || 0);
+                        const fy = Number(item.el.dataset.offsetY || 0);
+                        if (fx === 0 && fy === 0) delete nextOffsets[item.roomId];
+                        else nextOffsets[item.roomId] = { dx: fx, dy: fy };
+                    });
+                    if (current.editor) current.editor.roomArrangeActive = true;
+                    activeRailingEditorContext = {
+                        projectId: String(projectId),
+                        wing,
+                        floor: Number(floor),
+                        tool: current.editor?.tool || 'select',
+                        roomArrangeActive: true,
+                        continuousChainEnd: null,
+                        selectedId: null,
+                        joinPending: null
+                    };
+                    saveRailingRoomOffsets(canvas, projectId, wing, floor, nextOffsets);
+                }
+            };
+
+            canvas.addEventListener('pointerup', finishRoomDrag);
+            canvas.addEventListener('pointercancel', finishRoomDrag);
+        }
+
+        function toggleRailingRoomSwapMode(projectId, wing, floor) {
+            if (!canEditRailingLayout()) {
+                showToast('Vui lòng đăng nhập tài khoản Admin hoặc Phó admin để sắp xếp phòng.', 'error');
+                openStaffLoginModal();
+                return;
+            }
+            const canvas = getRailingEditorCanvas(projectId, wing, floor);
+            const toolbar = getRailingEditorToolbar(projectId, wing, floor);
+            if (!canvas || !toolbar) return;
+
+            const proj = getProjectById(projectId);
+            const editor = ensureRailingEditor(canvas, proj);
+            bindRailingRoomDragHandler(canvas, projectId, wing, floor);
+
+            const isArranging = !editor.roomArrangeActive;
+            editor.roomArrangeActive = isArranging;
+            canvas.classList.toggle('railing-room-arrange-active', isArranging);
+
+            activeRailingEditorContext = {
+                projectId: String(projectId),
+                wing,
+                floor: Number(floor),
+                tool: editor.tool || 'select',
+                roomArrangeActive: isArranging,
+                continuousChainEnd: null,
+                selectedId: null,
+                joinPending: null
+            };
+
+            updateRailingEditorToolbar(editor);
+            if (isArranging) {
+                showToast('Đã giữ chế độ Kéo-thả phòng: Kéo liên tục các phòng, bấm lại nút “Kéo-thả phòng” khi muốn tắt.');
+            } else {
+                showToast('Đã tắt chế độ Kéo-thả phòng.');
+            }
+        }
+
+        function mapRoomNumberToTargetArea(roomNumStr, srcWing, srcFloor, dstWing, dstFloor) {
+            if (!roomNumStr || !/^\d{3}$/.test(String(roomNumStr))) return roomNumStr;
+            const srcRooms = REAL_HOTEL_DATA[srcWing]?.[Number(srcFloor)] || [];
+            const dstRooms = REAL_HOTEL_DATA[dstWing]?.[Number(dstFloor)] || [];
+            const srcOdd = srcRooms.filter(r => parseInt(r, 10) % 2 === 1);
+            const srcEven = srcRooms.filter(r => parseInt(r, 10) % 2 === 0);
+            const dstOdd = dstRooms.filter(r => parseInt(r, 10) % 2 === 1);
+            const dstEven = dstRooms.filter(r => parseInt(r, 10) % 2 === 0);
+
+            const n = parseInt(roomNumStr, 10);
+            if (n % 2 === 0) {
+                const idx = srcEven.indexOf(String(roomNumStr));
+                if (idx !== -1 && idx < dstEven.length) return dstEven[idx];
+                return dstEven[dstEven.length - 1] || String(roomNumStr);
+            } else {
+                const idx = srcOdd.indexOf(String(roomNumStr));
+                if (idx !== -1 && idx < dstOdd.length) return dstOdd[idx];
+                return dstOdd[dstOdd.length - 1] || String(roomNumStr);
+            }
+        }
+
+        function mapRailingSourceIdToTargetArea(sourceId, srcWing, srcFloor, dstWing, dstFloor, segIndex = 0) {
+            if (!sourceId) return null;
+            const srcCode = srcWing === 'Ocean Wing' ? 'OW' : 'GW';
+            const dstCode = dstWing === 'Ocean Wing' ? 'OW' : 'GW';
+            const isCrossWing = srcWing !== dstWing;
+
+            let mapped = String(sourceId)
+                .replace(`LC_${srcCode}_T${srcFloor}_`, `LC_${dstCode}_T${dstFloor}_`);
+
+            // When syncing between Ocean Wing and Garden Wing, the layout is horizontally mirrored:
+            // LEFT (Even pairs in Ocean) <-> RIGHT (Even pairs in Garden)
+            // RIGHT (Odd 2-double-1-single in Ocean) <-> LEFT (Odd 2-double-1-single in Garden)
+            if (isCrossWing) {
+                if (mapped.includes('_LEFT_')) {
+                    mapped = mapped.replace('_LEFT_', '_RIGHT_');
+                } else if (mapped.includes('_RIGHT_')) {
+                    mapped = mapped.replace('_RIGHT_', '_LEFT_');
+                }
+            }
+
+            // If it's a balcony segment LC_OW_T2_BC_202 -> map room number 202 to target wing/floor room
+            const bcMatch = mapped.match(/^(LC_(?:OW|GW)_T\d+_BC_)(\d{3})$/);
+            if (bcMatch) {
+                const targetRoom = mapRoomNumberToTargetArea(bcMatch[2], srcWing, srcFloor, dstWing, dstFloor);
+                const candidate = `${bcMatch[1]}${targetRoom}`;
+                if (RAILING_META_MAP[candidate]) return candidate;
+            }
+
+            if (RAILING_META_MAP[mapped]) return mapped;
+
+            // For custom segments (_C_), create a dedicated segment ID for the target area
+            if (mapped.includes('_C_')) {
+                return `LC_${dstCode}_T${dstFloor}_C_STD_${Date.now()}_${segIndex + 1}`;
+            }
+            return mapped;
+        }
+
+        function mirrorGardenWingAreaLayout(projectId, wing, floor) {
+            if (!canEditRailingLayout()) {
+                showToast('Vui lòng đăng nhập tài khoản Admin hoặc Phó admin để chỉnh sửa sơ đồ.', 'error');
+                openStaffLoginModal();
+                return;
+            }
+            const proj = getProjectById(projectId);
+            if (!proj) return;
+            const canvas = getRailingEditorCanvas(projectId, wing, floor);
+            if (canvas) ensureRailingEditor(canvas, proj);
+            const payload = getSavedRailingLayoutPayload(proj, wing, floor)
+                || (canvas?.__railingEditor ? {
+                    segments: canvas.__railingEditor.segments.map(s => ({ ...s })),
+                    roomOffsets: { ...(canvas.__railingEditor.roomOffsets || {}) }
+                } : null);
+
+            if (!payload || !Array.isArray(payload.segments)) {
+                renderStaffView();
+                showToast(`Đã chuẩn hóa đối xứng bố cục ${wing} • Tầng ${floor}!`);
+                return;
+            }
+
+            const mirroredOffsets = {};
+            Object.entries(payload.roomOffsets || {}).forEach(([rId, off]) => {
+                mirroredOffsets[rId] = {
+                    dx: -(Number(off.dx) || 0),
+                    dy: Number(off.dy) || 0
+                };
+            });
+
+            const mirroredSegments = payload.segments.map(seg => {
+                const nx1 = Math.max(0, Math.min(1000, 1000 - Number(seg.x1)));
+                const nx2 = Math.max(0, Math.min(1000, 1000 - Number(seg.x2)));
+                const x1 = seg.orientation === 'H' ? Math.min(nx1, nx2) : nx1;
+                const x2 = seg.orientation === 'H' ? Math.max(nx1, nx2) : nx2;
+                let nextSourceId = seg.sourceId;
+                if (nextSourceId) {
+                    const swapped = nextSourceId.includes('_LEFT_')
+                        ? nextSourceId.replace('_LEFT_', '_RIGHT_')
+                        : (nextSourceId.includes('_RIGHT_') ? nextSourceId.replace('_RIGHT_', '_LEFT_') : nextSourceId);
+                    if (RAILING_META_MAP[swapped]) nextSourceId = swapped;
+                }
+                const existingMeta = nextSourceId ? RAILING_META_MAP[nextSourceId] : null;
+                const nextSide = (x1 + x2) / 2 < 500 ? 'LEFT' : 'RIGHT';
+                return {
+                    ...seg,
+                    x1,
+                    x2,
+                    side: nextSide,
+                    sourceId: nextSourceId,
+                    shortCode: existingMeta?.shortCode || seg.shortCode,
+                    label: existingMeta?.label || seg.label
+                };
+            });
+
+            const layoutKey = `${wing.replace(/\s+/g, '_')}_T${floor}`;
+            const updatedPayload = {
+                ...payload,
+                segments: mirroredSegments,
+                roomOffsets: mirroredOffsets,
+                isGardenMirrored: true,
+                updatedAt: new Date().toISOString(),
+                updatedBy: state.authenticatedUser?.name || 'Quản trị viên'
+            };
+
+            proj.railingLayouts = { ...(proj.railingLayouts || {}), [layoutKey]: updatedPayload };
+            try {
+                localStorage.setItem(getRailingLayoutStorageKey(proj.id, wing, floor), JSON.stringify(updatedPayload));
+            } catch (err) { console.warn(err); }
+
+            if (db) {
+                setDoc(doc(db, 'projects', proj.id), proj).catch(err => console.warn(err));
+            }
+
+            if (canvas) {
+                delete canvas.__railingEditor;
+                canvas.querySelector('.railing-editor-svg')?.remove();
+            }
+            updateAdminDashboard();
+            renderStaffView();
+            showToast(`Đã lật đối xứng chuẩn bố cục phòng góc cho ${wing} • Tầng ${floor}!`);
+        }
+
+        function applyOceanT2StandardToAllAreas(projectId, fromWing = 'Ocean Wing', fromFloor = 2) {
+            if (!canEditRailingLayout()) {
+                showToast('Vui lòng đăng nhập tài khoản Admin hoặc Phó admin để đồng bộ thiết kế chuẩn.', 'error');
+                openStaffLoginModal();
+                return;
+            }
+            const proj = getProjectById(projectId);
+            if (!proj) return;
+
+            const stdWing = 'Ocean Wing';
+            const stdFloor = 2;
+            const stdCanvas = getRailingEditorCanvas(projectId, stdWing, stdFloor);
+            if (stdCanvas) {
+                ensureRailingEditor(stdCanvas, proj);
+            }
+            const stdPayload = getSavedRailingLayoutPayload(proj, stdWing, stdFloor)
+                || (stdCanvas?.__railingEditor ? {
+                    segments: stdCanvas.__railingEditor.segments.map(s => ({ ...s })),
+                    roomOffsets: { ...(stdCanvas.__railingEditor.roomOffsets || {}) }
+                } : null);
+
+            const allAreas = [
+                { wing: 'Ocean Wing', floor: 2 },
+                { wing: 'Ocean Wing', floor: 3 },
+                { wing: 'Ocean Wing', floor: 4 },
+                { wing: 'Garden Wing', floor: 2 },
+                { wing: 'Garden Wing', floor: 3 },
+                { wing: 'Garden Wing', floor: 4 }
+            ];
+
+            if (!stdPayload || (!Array.isArray(stdPayload.segments) && !stdPayload.roomOffsets)) {
+                showToast('Đã đồng bộ cấu trúc chuẩn Ocean Wing Tầng 2 (Garden Wing tự động đối xứng gương) cho toàn bộ khu vực!');
+                renderStaffView();
+                return;
+            }
+
+            proj.railingLayouts = { ...(proj.railingLayouts || {}) };
+
+            allAreas.forEach(area => {
+                if (area.wing === stdWing && area.floor === stdFloor) return;
+                const isGardenTarget = area.wing === 'Garden Wing';
+                const layoutKey = `${area.wing.replace(/\s+/g, '_')}_T${area.floor}`;
+                const dstRooms = REAL_HOTEL_DATA[area.wing]?.[area.floor] || [];
+                const dstRoomSet = new Set(dstRooms);
+
+                // 1. Map roomOffsets from Ocean Wing T2 to target area
+                // For Garden Wing (mirrored), flip horizontal offset dx -> -dx so inward/outward compaction matches the mirrored side!
+                const mappedOffsets = {};
+                Object.entries(stdPayload.roomOffsets || {}).forEach(([srcRoomId, offsetObj]) => {
+                    const targetRoomId = mapRoomNumberToTargetArea(srcRoomId, stdWing, stdFloor, area.wing, area.floor);
+                    if (targetRoomId && dstRoomSet.has(targetRoomId)) {
+                        const rawDx = Number(offsetObj.dx) || 0;
+                        const rawDy = Number(offsetObj.dy) || 0;
+                        mappedOffsets[targetRoomId] = {
+                            dx: isGardenTarget ? -rawDx : rawDx,
+                            dy: rawDy
+                        };
+                    }
+                });
+
+                // 2. Map segments from Ocean Wing T2 to target area
+                // For Garden Wing (mirrored), mirror X coordinates across the corridor center (x -> 1000 - x)!
+                const mappedSegments = (stdPayload.segments || []).map((seg, idx) => {
+                    const newSourceId = mapRailingSourceIdToTargetArea(seg.sourceId, stdWing, stdFloor, area.wing, area.floor, idx);
+                    const existingMeta = newSourceId ? RAILING_META_MAP[newSourceId] : null;
+
+                    let x1 = Number(seg.x1);
+                    let x2 = Number(seg.x2);
+                    if (isGardenTarget) {
+                        const mx1 = Math.max(0, Math.min(1000, 1000 - x1));
+                        const mx2 = Math.max(0, Math.min(1000, 1000 - x2));
+                        x1 = seg.orientation === 'H' ? Math.min(mx1, mx2) : mx1;
+                        x2 = seg.orientation === 'H' ? Math.max(mx1, mx2) : mx2;
+                    }
+
+                    const replaceRoomTokens = (str) => {
+                        if (!str) return '';
+                        let out = String(str).replace(/\b(\d{3})\b/g, (m) =>
+                            mapRoomNumberToTargetArea(m, stdWing, stdFloor, area.wing, area.floor)
+                        ).replace(/Ocean Wing/g, area.wing).replace(/T2/g, `T${area.floor}`).replace(/Tầng 2/g, `Tầng ${area.floor}`);
+                        if (isGardenTarget) {
+                            if (out.includes('Dãy Trái')) out = out.replace(/Dãy Trái/g, 'Dãy Phải');
+                            else if (out.includes('Dãy Phải')) out = out.replace(/Dãy Phải/g, 'Dãy Trái');
+                        }
+                        return out;
+                    };
+
+                    const mappedRoomRef = replaceRoomTokens(seg.roomRef || existingMeta?.roomRef || '');
+                    const mappedShortCode = existingMeta?.shortCode || replaceRoomTokens(seg.shortCode || seg.label || `LC T${area.floor}`);
+                    const mappedLabel = existingMeta?.label || replaceRoomTokens(seg.label || `Lan can ${mappedShortCode} (${area.wing} - T${area.floor})`);
+                    const mappedCategory = existingMeta?.category || seg.category || 'ENTRANCE_SIDE';
+                    const mappedSide = existingMeta?.side || ((x1 + x2) / 2 < 500 ? 'LEFT' : 'RIGHT');
+
+                    let unitMeta = existingMeta;
+                    if (newSourceId && !unitMeta) {
+                        unitMeta = {
+                            id: newSourceId,
+                            wing: area.wing,
+                            floor: area.floor,
+                            side: mappedSide,
+                            category: mappedCategory,
+                            roomRef: mappedRoomRef,
+                            shortCode: mappedShortCode,
+                            label: mappedLabel,
+                            unitType: 'RAILING',
+                            isCustom: true
+                        };
+                        registerDynamicRailingMeta(unitMeta);
+                    }
+
+                    if (newSourceId) {
+                        if (!Array.isArray(proj.targetRooms)) proj.targetRooms = [];
+                        if (!proj.targetRooms.includes(newSourceId)) {
+                            proj.targetRooms.push(newSourceId);
+                        }
+                        const taskKey = `${proj.id}_${newSourceId}`;
+                        if (!state.tasks[taskKey]) {
+                            state.tasks[taskKey] = {
+                                projectId: proj.id,
+                                roomId: newSourceId,
+                                status: 'Pending',
+                                note: '',
+                                updatedBy: '',
+                                updatedAt: ''
+                            };
+                        }
+                    }
+
+                    return {
+                        ...seg,
+                        id: `${String(seg.id).replace(/_OW_T2_/g, `_${area.wing === 'Ocean Wing' ? 'OW' : 'GW'}_T${area.floor}_`)}_${area.wing === 'Ocean Wing' ? 'OW' : 'GW'}T${area.floor}_${idx}`,
+                        sourceId: newSourceId,
+                        roomRef: mappedRoomRef,
+                        shortCode: mappedShortCode,
+                        label: mappedLabel,
+                        category: mappedCategory,
+                        side: mappedSide,
+                        x1,
+                        x2,
+                        unitMeta: unitMeta || null
+                    };
+                });
+
+                const areaPayload = {
+                    segments: mappedSegments,
+                    roomOffsets: mappedOffsets,
+                    isGardenMirrored: isGardenTarget,
+                    updatedAt: new Date().toISOString(),
+                    updatedBy: state.authenticatedUser?.name || 'Quản trị viên'
+                };
+
+                proj.railingLayouts[layoutKey] = areaPayload;
+                try {
+                    localStorage.setItem(getRailingLayoutStorageKey(proj.id, area.wing, area.floor), JSON.stringify(areaPayload));
+                } catch (err) {
+                    console.warn('Không thể lưu bản sao layout chuẩn cục bộ:', err);
+                }
+            });
+
+            if (db) {
+                setDoc(doc(db, 'projects', proj.id), proj).catch(err => console.warn(err));
+            }
+
+            // Refresh all active canvas instances so they load the newly applied standard immediately
+            document.querySelectorAll('.railing-layout-canvas[data-project-id]').forEach(c => {
+                if (c.dataset.projectId === String(proj.id) && !(c.dataset.wing === stdWing && Number(c.dataset.floor) === stdFloor)) {
+                    delete c.__railingEditor;
+                    const oldSvg = c.querySelector('.railing-editor-svg');
+                    oldSvg?.remove();
+                }
+            });
+
+            updateAdminDashboard();
+            renderStaffView();
+            showToast('Đã đồng bộ chuẩn Ocean Wing T2 (Tự động lật đối xứng gương cho Garden Wing T2–T4)!');
+        }
+
+        function resetRailingRoomPositions(projectId, wing, floor) {
+            if (!canEditRailingLayout()) return;
+            const canvas = getRailingEditorCanvas(projectId, wing, floor);
+            if (!canvas) return;
+            canvas.querySelectorAll('.railing-room-box').forEach(roomEl => {
+                roomEl.dataset.offsetX = '0';
+                roomEl.dataset.offsetY = '0';
+                roomEl.style.transform = '';
+            });
+            saveRailingRoomOffsets(canvas, projectId, wing, floor, {});
+            showToast('Đã đặt lại vị trí các ô phòng về mặc định.');
+        }
+
         function toggleRoomLayoutArrangeMode() {
-            if (!canEditRailingLayout()) { showToast('Chỉ Admin hoặc Phó admin mới có thể sắp xếp layout phòng.'); return; }
+            if (!canEditRailingLayout()) {
+                showToast('Vui lòng đăng nhập tài khoản Admin hoặc Phó admin để sắp xếp layout phòng.', 'error');
+                openStaffLoginModal();
+                return;
+            }
             state.roomLayoutArrangeMode = !state.roomLayoutArrangeMode;
             const btn = document.getElementById('btnRoomLayoutArrange');
             if (btn) {
                 btn.setAttribute('aria-pressed', String(state.roomLayoutArrangeMode));
                 btn.className = state.roomLayoutArrangeMode
-                    ? 'ml-1 inline-flex items-center gap-1 rounded-lg bg-amber-500 px-2.5 py-1 text-xs font-bold text-white hover:bg-amber-600'
-                    : 'ml-1 inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-blue-700';
+                    ? 'ml-1 inline-flex items-center gap-1 rounded-lg bg-amber-500 px-2.5 py-1 text-xs font-bold text-white hover:bg-amber-600 shadow-xs'
+                    : 'ml-1 inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-blue-700 shadow-xs';
                 btn.innerHTML = `<i data-lucide="move" class="w-3.5 h-3.5"></i> ${state.roomLayoutArrangeMode ? 'Đang sắp xếp' : 'Sắp xếp phòng'}`;
             }
             renderStaffView();
@@ -2721,12 +4097,12 @@
             const canArrangeRooms = !isRailingProject && state.projectViewMode !== 'LIST' && canEditRailingLayout();
             if (!canArrangeRooms) state.roomLayoutArrangeMode = false;
             const arrangeButton = document.getElementById('btnRoomLayoutArrange');
-            arrangeButton?.classList.toggle('hidden', !canArrangeRooms);
+            arrangeButton?.classList.toggle('hidden', isRailingProject || state.projectViewMode === 'LIST');
             if (arrangeButton) {
                 arrangeButton.setAttribute('aria-pressed', String(state.roomLayoutArrangeMode));
                 arrangeButton.className = state.roomLayoutArrangeMode
-                    ? 'ml-1 inline-flex items-center gap-1 rounded-lg bg-amber-500 px-2.5 py-1 text-xs font-bold text-white hover:bg-amber-600'
-                    : 'ml-1 inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-blue-700';
+                    ? 'ml-1 inline-flex items-center gap-1 rounded-lg bg-amber-500 px-2.5 py-1 text-xs font-bold text-white hover:bg-amber-600 shadow-xs'
+                    : 'ml-1 inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-blue-700 shadow-xs';
                 arrangeButton.innerHTML = `<i data-lucide="move" class="w-3.5 h-3.5"></i> ${state.roomLayoutArrangeMode ? 'Đang sắp xếp' : 'Sắp xếp phòng'}`;
             }
             document.getElementById('btnRoomLayoutReset')?.classList.toggle('hidden', !canArrangeRooms || !Object.keys(getProjectRoomLayouts(proj)).length);
@@ -2792,10 +4168,9 @@
                                     <div class="flex items-center gap-2 flex-wrap justify-end shrink-0">
                                         <span class="px-2.5 py-1 rounded-xl text-xs font-bold ${badgeCls}">${wing}</span>
                                         <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg">${doneCount}/${floorRailings.length} đoạn</span>
-                                        ${canEditRailingLayout() ? `<button type="button" onclick="toggleRailingLayoutEditor('${proj.id}','${wing}',${floor})" class="inline-flex items-center gap-1 rounded-lg bg-violet-600 hover:bg-violet-700 px-2.5 py-1.5 text-[11px] font-bold text-white"><i data-lucide="pencil-ruler" class="w-3.5 h-3.5"></i> Chỉnh sơ đồ</button>` : ''}
+                                        <button type="button" onclick="toggleRailingLayoutEditor('${proj.id}','${wing}',${floor})" class="inline-flex items-center gap-1 rounded-lg bg-violet-600 hover:bg-violet-700 px-2.5 py-1.5 text-[11px] font-bold text-white shadow-xs"><i data-lucide="pencil-ruler" class="w-3.5 h-3.5"></i> Chỉnh sơ đồ</button>
                                     </div>
                                 </div>
-                                ${canEditRailingLayout() ? `
                                     <div class="railing-editor-toolbar hidden mb-3 rounded-2xl border border-violet-200 bg-violet-50 p-3" data-railing-toolbar data-project-id="${proj.id}" data-wing="${wing}" data-floor="${floor}">
                                         <div class="flex flex-wrap items-center gap-2">
                                             <button type="button" data-editor-tool="select" onclick="setRailingEditorTool('${proj.id}','${wing}',${floor},'select')" class="rounded-lg border border-violet-200 bg-white px-3 py-2 text-[11px] font-bold text-violet-800">Chọn / kéo</button>
@@ -2805,13 +4180,18 @@
                                             <button type="button" data-editor-tool="shape-i" onclick="setRailingEditorTool('${proj.id}','${wing}',${floor},'shape-i')" class="rounded-lg border border-violet-200 bg-white px-3 py-2 text-[11px] font-bold text-violet-800">Vẽ I</button>
                                             <button type="button" data-editor-option="snap" onclick="toggleRailingEditorOption('${proj.id}','${wing}',${floor},'snap')" class="rounded-lg border border-violet-200 bg-white px-3 py-2 text-[11px] font-bold text-violet-800" aria-pressed="false">Bắt điểm: Tắt</button>
                                             <button type="button" data-editor-option="grid" onclick="toggleRailingEditorOption('${proj.id}','${wing}',${floor},'grid')" class="rounded-lg border border-violet-200 bg-white px-3 py-2 text-[11px] font-bold text-violet-800" aria-pressed="false">Lưới: Tắt</button>
-                                            <button type="button" data-editor-delete onclick="deleteSelectedRailingSegment('${proj.id}','${wing}',${floor})" disabled class="rounded-lg border border-red-200 bg-white px-3 py-2 text-[11px] font-bold text-red-700">Xóa đoạn chọn</button>
+                                            <button type="button" data-editor-relink onclick="promptRelinkSelectedRailingSegment('${proj.id}','${wing}',${floor})" disabled title="Xem hoặc đổi phòng liên kết của đoạn đang chọn" class="rounded-lg border border-emerald-200 bg-emerald-50/80 hover:bg-emerald-100 px-3 py-2 text-[11px] font-bold text-emerald-800 inline-flex items-center gap-1"><i data-lucide="link-2" class="w-3.5 h-3.5"></i> Gán phòng</button>
+                                            <button type="button" data-editor-tool="delete" data-editor-delete onclick="deleteSelectedRailingSegment('${proj.id}','${wing}',${floor})" title="Bật chế độ xóa liên tục: tick chọn vào đoạn lan can nào sẽ tự động xóa đoạn đó" class="rounded-lg border border-red-200 bg-white hover:bg-red-50 px-3 py-2 text-[11px] font-bold text-red-700 inline-flex items-center gap-1"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Xóa đoạn</button>
                                             <button type="button" data-editor-tool="break" onclick="setRailingEditorTool('${proj.id}','${wing}',${floor},'break')" title="Bấm vào đầu mối để tách hai cạnh" class="rounded-lg border border-violet-200 bg-white px-3 py-2 text-[11px] font-bold text-violet-800">Ngắt mối</button>
                                             <button type="button" data-editor-tool="join" onclick="setRailingEditorTool('${proj.id}','${wing}',${floor},'join')" title="Bấm lần lượt hai đầu đoạn để nối" class="rounded-lg border border-violet-200 bg-white px-3 py-2 text-[11px] font-bold text-violet-800">Nối đoạn</button>
+                                            <button type="button" data-editor-tool="arrange-room" onclick="toggleRailingRoomSwapMode('${proj.id}','${wing}',${floor})" class="rounded-lg border border-violet-200 bg-white px-3 py-2 text-[11px] font-bold text-violet-800 inline-flex items-center gap-1"><i data-lucide="move" class="w-3.5 h-3.5"></i> Kéo-thả phòng</button>
+                                            <button type="button" data-editor-reset-rooms onclick="resetRailingRoomPositions('${proj.id}','${wing}',${floor})" class="hidden rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 px-2.5 py-2 text-[11px] font-bold text-amber-800 inline-flex items-center gap-1"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Đặt lại phòng</button>
+                                            <button type="button" onclick="applyOceanT2StandardToAllAreas('${proj.id}','${wing}',${floor})" title="Lấy thiết kế sơ đồ Ocean Wing Tầng 2 làm chuẩn và đồng bộ cho các tầng khác (Garden Wing tự động lật đối xứng gương)" class="rounded-lg border border-sky-300 bg-sky-50 hover:bg-sky-100 px-2.5 py-2 text-[11px] font-bold text-sky-800 inline-flex items-center gap-1"><i data-lucide="copy-check" class="w-3.5 h-3.5"></i> Đồng bộ chuẩn OW T2</button>
+                                            ${wing === 'Garden Wing' ? `<button type="button" onclick="mirrorGardenWingAreaLayout('${proj.id}','${wing}',${floor})" title="Lật đối xứng Trái ↔ Phải cho sơ đồ Garden Wing tầng này" class="rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-2 text-[11px] font-bold text-emerald-800 inline-flex items-center gap-1"><i data-lucide="flip-horizontal-2" class="w-3.5 h-3.5"></i> Lật đối xứng GW</button>` : ''}
                                             <button type="button" onclick="closeRailingLayoutEditor('${proj.id}','${wing}',${floor})" class="ml-auto rounded-lg border border-gray-200 bg-white px-3 py-2 text-[11px] font-bold text-gray-600">Đóng</button>
                                         </div>
                                         <p data-editor-hint class="mt-2 text-[11px] leading-relaxed text-violet-900">Chọn/kéo để di chuyển hoặc kéo đầu mút để đổi chiều dài. Bật bắt điểm để hút vào góc phòng/đầu mút lan can (rồi mới tới lưới); bật lưới để hiện đường căn chỉnh.</p>
-                                    </div>` : ''}
+                                    </div>
                                 ${buildArchitecturalRailingFloorHTML(wing, floor, 'STAFF', {
                                     projId: proj.id,
                                     targetSet,
@@ -2894,6 +4274,8 @@
                 }).join('');
             }
 
+            const filterBar = document.getElementById('staffFilterBar');
+            filterBar?.classList.toggle('sticky-filter-bar', !!state.roomLayoutArrangeMode && canArrangeRooms);
             container.classList.toggle('room-layout-arrange-mode', !!state.roomLayoutArrangeMode && canArrangeRooms);
             initializeRoomLayoutSorter(container);
             lucide.createIcons();
@@ -3485,6 +4867,7 @@
                 ? 'flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-white text-gray-900 shadow-sm'
                 : 'flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all text-gray-600';
 
+            syncStickyHeaderOffset();
             if (adminView) updateAdminDashboard();
             else renderStaffView();
         }
@@ -4706,11 +6089,16 @@ body { font-family: Inter, Arial, sans-serif; color: #1C1C1E; }
             setStaffStatusFilter,
             setRoomLayoutMode,
             toggleRoomLayoutArrangeMode,
+            toggleRailingRoomSwapMode,
+            applyOceanT2StandardToAllAreas,
+            mirrorGardenWingAreaLayout,
+            resetRailingRoomPositions,
             resetRoomLayoutOrder,
             setProjectViewMode,
             toggleRailingLayoutEditor,
             setRailingEditorTool,
             toggleRailingEditorOption,
+            promptRelinkSelectedRailingSegment,
             deleteSelectedRailingSegment,
             closeRailingLayoutEditor,
             openRoomModal,
@@ -4746,7 +6134,17 @@ body { font-family: Inter, Arial, sans-serif; color: #1C1C1E; }
             seedInitialFirestoreData
         });
 
+        function syncStickyHeaderOffset() {
+            const header = document.querySelector('header');
+            if (!header) return;
+            const headerHeight = Math.ceil(header.getBoundingClientRect().height);
+            document.documentElement.style.setProperty('--app-header-height', `${headerHeight}px`);
+        }
+
+        window.addEventListener('resize', syncStickyHeaderOffset);
+
         window.addEventListener('DOMContentLoaded', () => {
+            syncStickyHeaderOffset();
             populateStaffDropdowns();
             switchRole('staff');
             updateAdminDashboard();
