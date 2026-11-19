@@ -310,6 +310,23 @@
                 touch-action: manipulation;
             }
         }
+    
+        /* Lock layout editing & hide editing tools for staff users */
+        body.staff-layout-locked [data-railing-toolbar],
+        body.staff-layout-locked [data-railing-edit-trigger],
+        body.staff-layout-locked #btnRoomLayoutArrange,
+        body.staff-layout-locked #btnRoomLayoutReset,
+        body.staff-layout-locked [data-editor-tool="arrange-room"],
+        body.staff-layout-locked [data-editor-reset-rooms] {
+            display: none !important;
+        }
+        body.staff-layout-locked .railing-editor-svg,
+        body.staff-layout-locked .railing-room-arrange-active .railing-room-box,
+        body.staff-layout-locked .room-layout-arrange-mode [data-room-layout-tile] {
+            pointer-events: none !important;
+            cursor: pointer !important;
+        }
+
     </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased selection:bg-blue-500 selection:text-white">
@@ -2020,6 +2037,23 @@
             return !!state.adminAuthenticated || userRole === 'admin' || userRole === 'deputy_admin';
         }
 
+        function isStaffLayoutLocked() {
+            return !canEditRailingLayout();
+        }
+
+        function syncStaffLayoutLockState() {
+            const locked = isStaffLayoutLocked();
+            document.body.classList.toggle('staff-layout-locked', locked);
+            if (locked) {
+                state.roomLayoutArrangeMode = false;
+                document.querySelectorAll('.railing-editor-active').forEach(el => el.classList.remove('railing-editor-active'));
+                document.querySelectorAll('.railing-room-arrange-active').forEach(el => el.classList.remove('railing-room-arrange-active'));
+                document.querySelectorAll('[data-railing-toolbar]').forEach(el => el.classList.add('hidden'));
+                document.querySelectorAll('[data-railing-edit-trigger], #btnRoomLayoutArrange, #btnRoomLayoutReset').forEach(el => el.classList.add('hidden'));
+            }
+        }
+
+
         function getRailingLayoutStorageKey(projectId, wing, floor) {
             return `roomops_railing_layout_${projectId}_${wing.replace(/\s+/g, '_')}_T${floor}`;
         }
@@ -3140,6 +3174,11 @@
         }
 
         function toggleRailingLayoutEditor(projectId, wing, floor) {
+            if (isStaffLayoutLocked()) {
+                syncStaffLayoutLockState();
+                showToast('Chức năng chỉnh sửa layout đã bị khóa với tài khoản nhân viên.', 'error');
+                return;
+            }
             if (isMobileViewport()) {
                 showToast('Tính năng chỉnh sửa layout đã được tắt trên phiên bản điện thoại.');
                 return;
@@ -3882,6 +3921,11 @@
         }
 
         function toggleRailingRoomSwapMode(projectId, wing, floor) {
+            if (isStaffLayoutLocked()) {
+                syncStaffLayoutLockState();
+                showToast('Chức năng kéo-thả phòng đã bị khóa với tài khoản nhân viên.', 'error');
+                return;
+            }
             if (isMobileViewport()) {
                 showToast('Tính năng chỉnh sửa layout đã được tắt trên phiên bản điện thoại.');
                 return;
@@ -4254,6 +4298,11 @@
         }
 
         function toggleRoomLayoutArrangeMode() {
+            if (isStaffLayoutLocked()) {
+                syncStaffLayoutLockState();
+                showToast('Chức năng sắp xếp phòng đã bị khóa với tài khoản nhân viên.', 'error');
+                return;
+            }
             if (isMobileViewport()) {
                 showToast('Tính năng chỉnh sửa layout đã được tắt trên phiên bản điện thoại.');
                 return;
@@ -4290,6 +4339,7 @@
         }
 
         function renderStaffView() {
+            syncStaffLayoutLockState();
             populateStaffDropdowns();
             const proj = getProjectById(state.staffSelectedProjectId);
             const container = document.getElementById('roomMatrixContainer');
