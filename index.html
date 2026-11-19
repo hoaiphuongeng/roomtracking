@@ -59,7 +59,7 @@
             background-color: #F2F2F7;
             color: #1C1C1E;
             -webkit-tap-highlight-color: transparent;
-            overflow-x: hidden;
+            overflow-x: clip;
         }
         .room-layout-arrange-mode [data-room-layout-tile] { cursor: grab; touch-action: none; user-select: none; }
         .room-layout-arrange-mode [data-room-layout-tile]:active { cursor: grabbing; }
@@ -106,17 +106,51 @@
             transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.15s ease;
         }
         .room-tile:active, .railing-seg-btn:active {
-            transform: scale(0.93);
+            transform: scale(0.95);
         }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        /* Railing drawings stay readable on narrow screens without being clipped by a two-column grid. */
-        .railing-layout-shell { width: 100%; min-width: 0; overflow-x: auto; }
-        .railing-layout-canvas { width: 100%; min-width: 680px; position: relative; }
-        .railing-editor-svg { display: none; position: absolute; inset: 0; width: 100%; height: 100%; z-index: 30; pointer-events: none; touch-action: none; }
-        .railing-layout-has-edits .railing-editor-svg { display: block; pointer-events: auto; cursor: default; }
-        .railing-editor-active .railing-editor-svg { display: block; pointer-events: auto; cursor: crosshair; }
-        .railing-layout-has-edits [data-railing-id] { pointer-events: none !important; }
+
+        /* Railing drawings stay readable and scrollable on mobile without freezing touch gestures. */
+        .railing-layout-shell {
+            width: 100%;
+            min-width: 0;
+            overflow-x: auto;
+            overflow-y: visible;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-x: contain;
+            touch-action: pan-x pan-y;
+        }
+        .railing-layout-canvas {
+            width: 100%;
+            min-width: 680px;
+            position: relative;
+            touch-action: pan-x pan-y;
+        }
+        .railing-editor-svg {
+            display: none;
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 30;
+            pointer-events: none;
+            touch-action: pan-x pan-y;
+        }
+        .railing-layout-has-edits .railing-editor-svg {
+            display: block;
+            pointer-events: none;
+            touch-action: pan-x pan-y;
+            cursor: default;
+        }
+        .railing-editor-active .railing-editor-svg {
+            display: block;
+            pointer-events: auto;
+            touch-action: none;
+            cursor: crosshair;
+        }
+        .railing-layout-has-edits [data-railing-id] { pointer-events: auto; touch-action: manipulation; }
+        .railing-editor-active [data-railing-id] { pointer-events: none !important; }
         .railing-layout-has-edits .railing-sketch-segment::before,
         .railing-layout-has-edits .railing-sketch-segment::after,
         .railing-layout-has-edits .railing-balcony-line::before,
@@ -140,7 +174,7 @@
             position: sticky;
             top: calc(var(--app-header-height, 64px) + 8px);
             z-index: 35;
-            background: rgba(245, 243, 255, 0.94);
+            background: rgba(245, 243, 255, 0.96);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
             box-shadow: 0 10px 25px -5px rgba(124, 58, 237, 0.18), 0 4px 10px -2px rgba(0, 0, 0, 0.06);
@@ -151,7 +185,7 @@
             top: calc(var(--app-header-height, 64px) + 6px);
             z-index: 34;
         }
-        .railing-room-arrange-active .railing-editor-svg { pointer-events: none !important; }
+        .railing-room-arrange-active .railing-editor-svg { pointer-events: none !important; touch-action: pan-x pan-y !important; }
         .railing-room-arrange-active [data-railing-id] { pointer-events: none !important; }
         .railing-room-arrange-active .railing-room-box {
             cursor: grab !important;
@@ -172,6 +206,7 @@
             box-shadow: 0 10px 25px rgba(217, 119, 6, 0.32);
             z-index: 32;
         }
+
         /* Sketch-style railing: narrow highlighted segments with a dashed center line. */
         .railing-layout-compact .railing-sketch-segment,
         .railing-layout-compact .railing-balcony-line {
@@ -236,8 +271,44 @@
             transform: translateX(-50%);
             background: repeating-linear-gradient(180deg, #263238 0 4px, transparent 4px 11px);
         }
+
         @media (max-width: 720px) {
-            .railing-layout-canvas { transform-origin: top left; }
+            .railing-layout-canvas {
+                min-width: 560px;
+                transform: none !important;
+            }
+            .railing-editor-toolbar {
+                max-height: 150px;
+                overflow-y: auto;
+                padding: 10px;
+            }
+        }
+
+        /* Disable layout editing tools completely on mobile screens */
+        @media (max-width: 767px) {
+            [data-railing-toolbar],
+            [data-railing-edit-trigger],
+            #btnRoomLayoutArrange,
+            #btnRoomLayoutReset,
+            [data-editor-tool="arrange-room"],
+            [data-editor-reset-rooms] {
+                display: none !important;
+            }
+            .railing-layout-canvas {
+                min-width: 560px;
+                transform: none !important;
+                touch-action: pan-x pan-y !important;
+            }
+            .railing-editor-svg,
+            .railing-room-arrange-active .railing-room-box,
+            .room-layout-arrange-mode [data-room-layout-tile] {
+                pointer-events: none !important;
+                touch-action: pan-x pan-y !important;
+            }
+            .railing-layout-has-edits [data-railing-id] {
+                pointer-events: auto;
+                touch-action: manipulation;
+            }
         }
     </style>
 </head>
@@ -575,6 +646,9 @@
                         </button>
                         <button onclick="setRoomLayoutMode('GRID')" id="btnLayoutGrid" class="px-2.5 py-1 rounded-lg text-xs font-medium text-gray-600">
                             Dạng lưới gọn
+                        </button>
+                        <button type="button" id="btnReloadAllRooms" onclick="syncAllWingsRoomLayout(true)" title="Nạp lại danh sách số phòng chuẩn cho cả Ocean Wing và Garden Wing" class="ml-1 inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-100">
+                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Nạp lại cả 2 khu
                         </button>
                         <button type="button" id="btnRoomLayoutArrange" onclick="toggleRoomLayoutArrangeMode()" class="ml-1 inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-blue-700 shadow-xs" aria-pressed="false">
                             <i data-lucide="move" class="w-3.5 h-3.5"></i> Sắp xếp phòng
@@ -2803,7 +2877,12 @@
                 } else {
                     editor.selectedId = null;
                 }
-                try { svg.setPointerCapture(event.pointerId); } catch (_) {}
+                const shouldCapturePointer =
+                    ['draw', 'shape-u', 'shape-l', 'shape-i', 'delete', 'break', 'join'].includes(editor.tool) ||
+                    !!role;
+                if (shouldCapturePointer) {
+                    try { svg.setPointerCapture(event.pointerId); } catch (_) {}
+                }
                 renderRailingEditorSvg(editor);
             });
             svg.addEventListener('pointermove', event => {
@@ -3061,6 +3140,10 @@
         }
 
         function toggleRailingLayoutEditor(projectId, wing, floor) {
+            if (isMobileViewport()) {
+                showToast('Tính năng chỉnh sửa layout đã được tắt trên phiên bản điện thoại.');
+                return;
+            }
             if (!canEditRailingLayout()) {
                 showToast('Vui lòng đăng nhập tài khoản Admin hoặc Phó admin để chỉnh sửa sơ đồ.', 'error');
                 openStaffLoginModal();
@@ -3475,13 +3558,131 @@
             return `${String(wing).replace(/\s+/g, '_')}_T${floor}_${mode}_${group}`;
         }
 
+
+        function isMobileViewport() {
+            return typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
+        }
+
+        function getStandardWingRooms(wing, floor, mode, group, filteredRoomIds) {
+            const baseFloorRooms = REAL_HOTEL_DATA[wing]?.[floor] || [];
+            const allowedSet = new Set(filteredRoomIds);
+            const orderedBase = baseFloorRooms.filter(rId => allowedSet.has(rId));
+
+            if (mode === 'CORRIDOR') {
+                if (group === 'left') {
+                    return orderedBase.filter(r => parseInt(r, 10) % 2 === 1);
+                }
+                if (group === 'right') {
+                    return orderedBase.filter(r => parseInt(r, 10) % 2 === 0);
+                }
+            }
+
+            return orderedBase;
+        }
+
+        async function syncGardenWingMirroredRoomLayout(showNotify = true) {
+            const proj = getProjectById(state.staffSelectedProjectId) || state.projects.find(p => p.targetType !== 'RAILING');
+            if (!proj) {
+                if (showNotify) showToast('Không tìm thấy dự án phòng để nạp lại.', 'error');
+                return;
+            }
+
+            const targetSet = new Set(proj.targetRooms || []);
+            const currentLayouts = { ...getProjectRoomLayouts(proj) };
+            const cleanedLayouts = {};
+            Object.entries(currentLayouts).forEach(([key, val]) => {
+                if (!key.startsWith('Garden_Wing_T') && key !== '_gardenMirrored') {
+                    cleanedLayouts[key] = val;
+                }
+            });
+
+            [1, 2, 3, 4].forEach(floor => {
+                const floorRooms = (REAL_HOTEL_DATA['Garden Wing']?.[floor] || []).filter(r => targetSet.has(r));
+                cleanedLayouts[`Garden_Wing_T${floor}_CORRIDOR_left`] = floorRooms.filter(r => parseInt(r, 10) % 2 === 1);
+                cleanedLayouts[`Garden_Wing_T${floor}_CORRIDOR_right`] = floorRooms.filter(r => parseInt(r, 10) % 2 === 0);
+                cleanedLayouts[`Garden_Wing_T${floor}_GRID_grid`] = [...floorRooms];
+            });
+
+            proj.roomLayouts = cleanedLayouts;
+
+            try {
+                localStorage.setItem(`roomops_room_layout_${proj.id}`, JSON.stringify(cleanedLayouts));
+            } catch (err) {
+                console.warn('Không lưu được layout Garden Wing cục bộ:', err);
+            }
+
+            if (db) {
+                try {
+                    await setDoc(doc(db, 'projects', proj.id), { roomLayouts: cleanedLayouts }, { merge: true });
+                } catch (err) {
+                    console.warn('Không đồng bộ được layout Garden Wing lên Firestore:', err);
+                }
+            }
+
+            renderStaffView();
+            if (showNotify) {
+                showToast('Đã bỏ soi gương và nạp lại danh sách số phòng chuẩn cho khu Garden Wing.');
+            }
+        }
+
         function applyRoomLayoutOrder(project, wing, floor, mode, group, roomIds) {
+            const baseFloorRooms = REAL_HOTEL_DATA[wing]?.[floor] || [];
+            const baseSet = new Set(baseFloorRooms);
+            const filteredRoomIds = roomIds.filter(id => baseSet.has(id));
+
             const layouts = getProjectRoomLayouts(project);
-            const saved = layouts[getRoomLayoutOrderKey(wing, floor, mode, group)];
-            if (!Array.isArray(saved) || !saved.length) return roomIds;
-            const rank = new Map(saved.map((id, index) => [String(id), index]));
-            return roomIds.map((id, index) => ({ id, index, rank: rank.has(String(id)) ? rank.get(String(id)) : Number.MAX_SAFE_INTEGER }))
-                .sort((a, b) => a.rank - b.rank || a.index - b.index).map(item => item.id);
+            const key = getRoomLayoutOrderKey(wing, floor, mode, group);
+            const saved = layouts[key];
+            if (Array.isArray(saved) && saved.length) {
+                const allowed = new Set(filteredRoomIds);
+                const savedOrdered = saved.filter(id => allowed.has(id));
+                const missing = getStandardWingRooms(wing, floor, mode, group, filteredRoomIds).filter(id => !savedOrdered.includes(id));
+                return [...savedOrdered, ...missing];
+            }
+            return getStandardWingRooms(wing, floor, mode, group, filteredRoomIds);
+        }
+
+        async function syncAllWingsRoomLayout(showNotify = true) {
+            const proj = getProjectById(state.staffSelectedProjectId) || state.projects.find(p => p.targetType !== 'RAILING');
+            if (!proj) {
+                if (showNotify) showToast('Không tìm thấy dự án phòng để nạp lại.', 'error');
+                return;
+            }
+
+            const targetSet = new Set(proj.targetRooms || []);
+            const rebuiltLayouts = {};
+
+            ['Ocean Wing', 'Garden Wing'].forEach(wing => {
+                const wingPrefix = wing.replace(/\s+/g, '_');
+                [1, 2, 3, 4].forEach(floor => {
+                    const floorRooms = (REAL_HOTEL_DATA[wing]?.[floor] || []).filter(r => targetSet.has(r));
+                    rebuiltLayouts[`${wingPrefix}_T${floor}_CORRIDOR_left`] = floorRooms.filter(r => parseInt(r, 10) % 2 === 1);
+                    rebuiltLayouts[`${wingPrefix}_T${floor}_CORRIDOR_right`] = floorRooms.filter(r => parseInt(r, 10) % 2 === 0);
+                    rebuiltLayouts[`${wingPrefix}_T${floor}_GRID_grid`] = [...floorRooms];
+                });
+            });
+
+            proj.roomLayouts = rebuiltLayouts;
+            state.roomLayoutArrangeMode = false;
+
+            try {
+                localStorage.setItem(`roomops_room_layout_${proj.id}`, JSON.stringify(rebuiltLayouts));
+            } catch (err) {
+                console.warn('Không lưu được layout cả 2 khu cục bộ:', err);
+            }
+
+            if (db) {
+                try {
+                    await setDoc(doc(db, 'projects', proj.id), { roomLayouts: rebuiltLayouts }, { merge: true });
+                } catch (err) {
+                    console.warn('Không đồng bộ được layout cả 2 khu lên Firestore:', err);
+                }
+            }
+
+            renderStaffView();
+            if (showNotify) {
+                showToast('Đã nạp lại danh sách số phòng chuẩn cho cả Ocean Wing và Garden Wing!');
+            }
         }
 
         function saveRoomLayoutOrder(groupElement) {
@@ -3681,6 +3882,10 @@
         }
 
         function toggleRailingRoomSwapMode(projectId, wing, floor) {
+            if (isMobileViewport()) {
+                showToast('Tính năng chỉnh sửa layout đã được tắt trên phiên bản điện thoại.');
+                return;
+            }
             if (!canEditRailingLayout()) {
                 showToast('Vui lòng đăng nhập tài khoản Admin hoặc Phó admin để sắp xếp phòng.', 'error');
                 openStaffLoginModal();
@@ -4049,6 +4254,10 @@
         }
 
         function toggleRoomLayoutArrangeMode() {
+            if (isMobileViewport()) {
+                showToast('Tính năng chỉnh sửa layout đã được tắt trên phiên bản điện thoại.');
+                return;
+            }
             if (!canEditRailingLayout()) {
                 showToast('Vui lòng đăng nhập tài khoản Admin hoặc Phó admin để sắp xếp layout phòng.', 'error');
                 openStaffLoginModal();
@@ -4094,7 +4303,13 @@
 
             const isRailingProject = proj.targetType === 'RAILING';
             document.getElementById('roomLayoutModeToggle').classList.toggle('hidden', isRailingProject || state.projectViewMode === 'LIST');
-            const canArrangeRooms = !isRailingProject && state.projectViewMode !== 'LIST' && canEditRailingLayout();
+            const isMobile = isMobileViewport();
+            if (isMobile) {
+                state.roomLayoutArrangeMode = false;
+                document.querySelectorAll('.railing-editor-active').forEach(el => el.classList.remove('railing-editor-active'));
+                document.querySelectorAll('[data-railing-toolbar]').forEach(el => el.classList.add('hidden'));
+            }
+            const canArrangeRooms = !isMobile && !isRailingProject && state.projectViewMode !== 'LIST' && canEditRailingLayout();
             if (!canArrangeRooms) state.roomLayoutArrangeMode = false;
             const arrangeButton = document.getElementById('btnRoomLayoutArrange');
             arrangeButton?.classList.toggle('hidden', isRailingProject || state.projectViewMode === 'LIST');
@@ -4168,7 +4383,7 @@
                                     <div class="flex items-center gap-2 flex-wrap justify-end shrink-0">
                                         <span class="px-2.5 py-1 rounded-xl text-xs font-bold ${badgeCls}">${wing}</span>
                                         <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg">${doneCount}/${floorRailings.length} đoạn</span>
-                                        <button type="button" onclick="toggleRailingLayoutEditor('${proj.id}','${wing}',${floor})" class="inline-flex items-center gap-1 rounded-lg bg-violet-600 hover:bg-violet-700 px-2.5 py-1.5 text-[11px] font-bold text-white shadow-xs"><i data-lucide="pencil-ruler" class="w-3.5 h-3.5"></i> Chỉnh sơ đồ</button>
+                                        <button type="button" data-railing-edit-trigger onclick="toggleRailingLayoutEditor('${proj.id}','${wing}',${floor})" class="inline-flex items-center gap-1 rounded-lg bg-violet-600 hover:bg-violet-700 px-2.5 py-1.5 text-[11px] font-bold text-white shadow-xs"><i data-lucide="pencil-ruler" class="w-3.5 h-3.5"></i> Chỉnh sơ đồ</button>
                                     </div>
                                 </div>
                                     <div class="railing-editor-toolbar hidden mb-3 rounded-2xl border border-violet-200 bg-violet-50 p-3" data-railing-toolbar data-project-id="${proj.id}" data-wing="${wing}" data-floor="${floor}">
@@ -4232,14 +4447,14 @@
                                     </div>
                                     <div class="grid grid-cols-11 gap-2 items-start">
                                         <div class="col-span-5 space-y-1.5">
-                                            <div class="text-[10px] font-bold text-gray-400 uppercase text-center">Dãy Trái (Lẻ)</div>
+                                            <div class="text-[10px] font-bold text-gray-400 uppercase text-center">'Dãy Trái (Lẻ)'</div>
                                             <div class="room-layout-sort-group grid grid-cols-2 gap-1.5" data-room-sort-group="left" data-room-wing="${wing}" data-room-floor="${floor}" data-room-mode="CORRIDOR">${oddLeft.map(renderRoomTile).join('')}</div>
                                         </div>
                                         <div class="col-span-1 self-stretch bg-gray-200/70 rounded-xl flex items-center justify-center py-4">
                                             <span class="text-[9px] font-bold text-gray-500 [writing-mode:vertical-rl] rotate-180 tracking-widest uppercase">Hành Lang</span>
                                         </div>
                                         <div class="col-span-5 space-y-1.5">
-                                            <div class="text-[10px] font-bold text-gray-400 uppercase text-center">Dãy Phải (Chẵn)</div>
+                                            <div class="text-[10px] font-bold text-gray-400 uppercase text-center">'Dãy Phải (Chẵn)'</div>
                                             <div class="room-layout-sort-group grid grid-cols-2 gap-1.5" data-room-sort-group="right" data-room-wing="${wing}" data-room-floor="${floor}" data-room-mode="CORRIDOR">${evenRight.map(renderRoomTile).join('')}</div>
                                         </div>
                                     </div>
@@ -6093,6 +6308,8 @@ body { font-family: Inter, Arial, sans-serif; color: #1C1C1E; }
             applyOceanT2StandardToAllAreas,
             mirrorGardenWingAreaLayout,
             resetRailingRoomPositions,
+            syncGardenWingMirroredRoomLayout,
+            syncAllWingsRoomLayout,
             resetRoomLayoutOrder,
             setProjectViewMode,
             toggleRailingLayoutEditor,
@@ -6147,6 +6364,9 @@ body { font-family: Inter, Arial, sans-serif; color: #1C1C1E; }
             syncStickyHeaderOffset();
             populateStaffDropdowns();
             switchRole('staff');
+            if (state.projects.some(p => p.targetType !== 'RAILING')) {
+                syncAllWingsRoomLayout(false);
+            }
             updateAdminDashboard();
             loadAdminCredentials();
             initFirestoreRealtimeSync();
